@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Looking4Stars</title>
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud" class="hud">
+      <span id="hud-level"></span>
+      <span id="hud-score"></span>
+      <span id="hud-balls"></span>
+      <span id="hud-aliens"></span>
+    </div>
+
+    <div id="overlay" class="overlay hidden">
+      <h1 id="ov-title"></h1>
+      <p id="ov-text"></p>
+      <div id="ov-legend" class="legend"></div>
+      <button id="ov-btn" class="btn" type="button"></button>
+    </div>
+
+    <script src="./i18n.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>

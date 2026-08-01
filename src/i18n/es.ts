@@ -1,0 +1,28 @@
+export const es = {
+  ui: {
+    siteTitle: 'doradofundev',
+    tagline: 'Videojuegos hechos por mí, para jugar en el navegador.',
+    catalogTitle: 'Catálogo de juegos',
+    catalogEmpty: 'Todavía no hay juegos. Vuelve pronto.',
+    play: 'Jugar',
+    back: 'Volver al catálogo',
+    fullscreen: 'Pantalla completa',
+    exitFullscreen: 'Salir de pantalla completa',
+    language: 'Idioma',
+    gameNotFound: 'No se encontró ese juego.',
+  },
+  games: {
+    looking4stars: {
+      title: 'Looking4Stars',
+      desc: 'Lanza las bolas, destruye los asteroides y rescata a todos los aliens antes de quedarte sin bolas.',
+    },
+    ejemploCuadritos: {
+      title: 'Cuadritos',
+      desc: 'Muévete con las flechas del teclado y recoge los puntos dorados antes de que se acabe el tiempo.',
+    },
+  },
+} as const;
+
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+
+export type Messages = Widen<typeof es>;
