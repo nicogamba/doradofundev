@@ -11,6 +11,8 @@
   var ADVERSITY_CHANCE = 0.3;
   var thisSpeed = 1;
   var SPEED_BASE = 1.35;
+  var LEAGUE_SIZE = 8;
+  var SEASON_MATCHES = (LEAGUE_SIZE - 1) * 2;
 
   var STATS = ['S', 'A', 'R', 'B', 'D'];
   var STAT_LABEL = { S: 'saque', A: 'ataque', R: 'recepcion', B: 'bloqueo', D: 'defensa' };
@@ -465,6 +467,7 @@
     match = {
       rival: rival,
       scores: [0, 0],
+      totalPoints: [0, 0],
       setsWon: [0, 0],
       setIndex: 0,
       server: Math.random() < 0.5 ? 0 : 1,
@@ -474,9 +477,101 @@
     return match;
   }
 
-  function rivalStats(round) {
-    var b = 3 + round;
-    return { S: b, A: b + 1, R: b, B: b, D: b };
+  // ---------- League ----------
+
+  function leagueClubs() {
+    return window.VAV.clubs.slice(0, LEAGUE_SIZE);
+  }
+
+  function clubStats(power) {
+    return { S: power, A: power + 1, R: power, B: power, D: power };
+  }
+
+  function powerWinP(a, b) {
+    return Math.max(0.12, Math.min(0.88, 0.5 + (a - b) * 0.09));
+  }
+
+  function simulateMatchScore(powerA, powerB) {
+    var setsA = 0;
+    var setsB = 0;
+    while (setsA < 2 && setsB < 2) {
+      if (Math.random() < powerWinP(powerA, powerB)) setsA++;
+      else setsB++;
+    }
+    return { setsA: setsA, setsB: setsB, win: setsA > setsB };
+  }
+
+  function teamPower(team) {
+    if (team === 0) {
+      var sum = 0;
+      for (var i = 0; i < STATS.length; i++) sum += teamPhaseStat(0, STATS[i]);
+      return sum / STATS.length;
+    }
+    return 5;
+  }
+
+  function buildSchedule() {
+    var n = LEAGUE_SIZE;
+    var arr = [];
+    for (var i = 0; i < n - 1; i++) arr.push(i);
+    var fixed = n - 1;
+    var rounds = [];
+    for (var r = 0; r < n - 1; r++) {
+      var pairs = [[arr[0], fixed]];
+      for (var j = 1; j < arr.length / 2; j++) {
+        pairs.push([arr[j], arr[arr.length - j]]);
+      }
+      rounds.push(pairs);
+      arr = [arr[arr.length - 1]].concat(arr.slice(0, arr.length - 1));
+    }
+    var returnLeg = rounds.map(function (rd) {
+      return rd.map(function (p) { return [p[1], p[0]]; });
+    });
+    return rounds.concat(returnLeg);
+  }
+
+  function initLeague() {
+    var names = leagueClubs();
+    career.clubs = names.map(function (name, i) {
+      return { name: name, power: 3 + Math.random() * 3 };
+    });
+    career.schedule = buildSchedule();
+    career.standings = career.clubs.map(function (c) {
+      return { name: c.name, power: c.power, played: 0, won: 0, lost: 0, sw: 0, sl: 0, pts: 0 };
+    });
+    career.week = 0;
+  }
+
+  function applyStandings(clubIdx, sw, sl) {
+    var s = career.standings[clubIdx];
+    s.played++;
+    s.sw += sw;
+    s.sl += sl;
+    var won = sw > sl;
+    if (won) s.won++;
+    else s.lost++;
+    s.pts += won ? 3 : 0;
+  }
+
+  function currentOpponent() {
+    var pairs = career.schedule[career.week];
+    for (var i = 0; i < pairs.length; i++) {
+      if (pairs[i][0] === career.clubIdx) return career.clubs[pairs[i][1]];
+      if (pairs[i][1] === career.clubIdx) return career.clubs[pairs[i][0]];
+    }
+    return career.clubs[(career.clubIdx + 1) % LEAGUE_SIZE];
+  }
+
+  function resolveOtherMatches() {
+    var pairs = career.schedule[career.week];
+    for (var i = 0; i < pairs.length; i++) {
+      var a = pairs[i][0];
+      var b = pairs[i][1];
+      if (a === career.clubIdx || b === career.clubIdx) continue;
+      var r = simulateMatchScore(career.clubs[a].power, career.clubs[b].power);
+      applyStandings(a, r.setsA, r.setsB);
+      applyStandings(b, r.setsB, r.setsA);
+    }
   }
 
   // ---------- Phase resolution ----------
@@ -750,6 +845,7 @@
       rotateTeam(team);
     }
     match.scores[team]++;
+    match.totalPoints[team]++;
     match.server = team;
     var who = team === 0 ? t('yourTeam') : match.rival.club;
     comment(t('cPoint').replace('{team}', who).replace('{score}', match.scores[0] + ' - ' + match.scores[1]));
@@ -807,7 +903,7 @@
       await showLabel(t('youLostMatch'), '#e0503f', 1.4);
     }
     hud.classList.add('hidden');
-    await afterMatch();
+    await postMatch(match.winner === 0, match.setsWon[0], match.setsWon[1], match.totalPoints[0]);
   }
 
   // ---------- Modals ----------
@@ -951,7 +1047,7 @@
 
   var career = null;
   var currentScreen = 'setup';
-  var setupData = { name: '', sex: 'F', number: 7, clubIdx: -1, position: null };
+  var setupData = { name: '', sex: 'F', number: 7, age: 20, clubIdx: -1, position: null };
 
   function defaultStats(position) {
     return Object.assign({}, POSITIONS[position]);
@@ -983,38 +1079,8 @@
     }
   }
 
-  function roundName(round) {
-    return t('round' + Math.max(0, Math.min(3, round)));
-  }
-
-  function buildOpponents(playerIdx) {
-    var clubs = window.VAV.clubs;
-    var ids = [];
-    for (var i = 0; i < 16; i++) ids.push(i);
-    var round = ids.map(function (id) {
-      return { id: id, stat: 3 + Math.random() * 2, isPlayer: id === playerIdx };
-    });
-    var opponents = [];
-    for (var r = 0; r < 4; r++) {
-      var winners = [];
-      for (var j = 0; j < round.length; j += 2) {
-        var a = round[j];
-        var b = round[j + 1];
-        if (a.isPlayer) {
-          opponents.push(b);
-          winners.push(a);
-        } else if (b.isPlayer) {
-          opponents.push(a);
-          winners.push(b);
-        } else {
-          winners.push(a.stat + Math.random() * 1.5 > b.stat + Math.random() * 1.5 ? a : b);
-        }
-      }
-      round = winners;
-    }
-    return opponents.map(function (o) {
-      return window.VAV.clubs[o.id];
-    });
+  function weekName(week) {
+    return t('week') + ' ' + (week + 1) + '/' + SEASON_MATCHES;
   }
 
   // ---------- Screens ----------
@@ -1024,8 +1090,11 @@
     var playBtn = byId('btn-play');
     if (playBtn) playBtn.onclick = null;
     currentScreen = 'setup';
-    var clubsOpts = window.VAV.clubs.map(function (c, i) {
+    var clubsOpts = leagueClubs().map(function (c, i) {
       return '<option value="' + i + '"' + (i === setupData.clubIdx ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+    var ageOpts = [18, 19, 20, 21, 22, 23].map(function (a) {
+      return '<option value="' + a + '"' + (a === setupData.age ? ' selected' : '') + '>' + a + '</option>';
     }).join('');
 
     screen.innerHTML =
@@ -1039,6 +1108,7 @@
       '<button id="sex-m" class="btn ' + (setupData.sex === 'M' ? 'active' : 'ghost') + '" type="button">' + t('male') + '</button>' +
       '</div></div>' +
       '<div class="field"><label>' + t('numberLabel') + '</label><input type="number" id="in-number" value="' + setupData.number + '" min="1" max="99"/></div>' +
+      '<div class="field"><label>' + t('ageLabel') + '</label><select id="sel-age">' + ageOpts + '</select></div>' +
       '<div class="field"><label>' + t('clubLabel') + '</label><select id="sel-club">' + clubsOpts + '</select>' +
       '<button id="btn-random-club" class="btn ghost" type="button">' + t('clubRandom') + '</button></div>' +
       '</div>' +
@@ -1060,7 +1130,7 @@
       byId('sex-f').className = 'btn ghost';
     };
     byId('btn-random-club').onclick = function () {
-      var idx = Math.floor(Math.random() * 16);
+      var idx = Math.floor(Math.random() * LEAGUE_SIZE);
       byId('sel-club').value = String(idx);
       setupData.clubIdx = idx;
     };
@@ -1083,9 +1153,10 @@
       if (num > 99) num = 99;
       setupData.number = num;
       setupData.clubIdx = parseInt(byId('sel-club').value, 10);
-      if (isNaN(setupData.clubIdx)) setupData.clubIdx = Math.floor(Math.random() * 16);
+      if (isNaN(setupData.clubIdx)) setupData.clubIdx = Math.floor(Math.random() * LEAGUE_SIZE);
+      setupData.age = parseInt(byId('sel-age').value, 10) || 20;
       var name = setupData.name || t('namePlaceholder');
-      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx);
+      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age);
     };
 
     function checkStart() {
@@ -1094,19 +1165,23 @@
     if (!setupData.position) checkStart();
   }
 
-  function startCareer(position, name, sex, number, clubIdx) {
+  function startCareer(position, name, sex, number, clubIdx, age) {
     career = {
       name: name,
       sex: sex,
       number: number,
-      club: window.VAV.clubs[clubIdx],
       clubIdx: clubIdx,
+      club: leagueClubs()[clubIdx],
       position: position,
       stats: defaultStats(position),
-      round: 0,
+      age: age || 20,
+      salary: 1000,
       suspended: false,
-      opponents: buildOpponents(clubIdx),
+      careerStats: { matches: 0, setsWon: 0, points: 0, titles: 0 },
+      palmares: [],
+      seasonPos: 0,
     };
+    initLeague();
     saveCareer();
     showBetween();
   }
@@ -1117,31 +1192,87 @@
     }).join('');
   }
 
+  function standingsHtml() {
+    var rows = career.standings.slice().sort(function (a, b) {
+      return b.pts - a.pts || (b.sw - b.sl) - (a.sw - a.sl);
+    });
+    return rows.map(function (s) {
+      var isMe = s.name === career.club;
+      return '<div class="stat-row' + (isMe ? ' is-me' : '') + '"><span>' + s.name + '</span><b>' + s.played + ' · ' + s.won + '-' + s.lost + ' · ' + s.pts + 'p</b></div>';
+    }).join('');
+  }
+
   function showBetween() {
     hud.classList.add('hidden');
     currentScreen = 'between';
-    var rival = career.opponents[career.round];
+    var opp = currentOpponent();
     var content =
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('title') + '</h1>' +
-      '<p class="subtitle">' + t('season') + '</p>' +
-      '<div class="card opponent-card"><p class="subtitle">' + roundName(career.round) + '</p>' +
-      '<p class="club-name">' + t('vs') + ' ' + rival + '</p>' +
+      '<p class="subtitle">' + t('season') + ' · ' + weekName(career.week) + '</p>' +
+      '<div class="card opponent-card"><p class="subtitle">' + t('nextMatch') + '</p>' +
+      '<p class="club-name">' + t('vs') + ' ' + opp.name + '</p>' +
       '</div>' +
+      '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
-      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + '</p></div>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
       '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>' +
+      '<button id="btn-sim" class="btn ghost" type="button">' + t('simulate') + '</button>' +
+      '<button id="btn-career" class="btn ghost" type="button">' + t('career') + '</button>' +
       '</div></div>';
     screen.innerHTML = content;
     byId('btn-play').onclick = function () {
       if (!career) return;
       currentScreen = 'match';
       screen.innerHTML = '';
-      var round = career.round;
-      match = newMatch({ club: career.opponents[round], stats: rivalStats(round) });
+      var opp2 = currentOpponent();
+      match = newMatch({ club: opp2.name, stats: clubStats(opp2.power) });
       playMatch().catch(function (e) {
         console.error('VoleyAsLife:', e);
       });
+    };
+    byId('btn-sim').onclick = function () {
+      if (!career) return;
+      simulateLeagueMatch();
+    };
+    byId('btn-career').onclick = function () {
+      showCareer();
+    };
+  }
+
+  function computeSalary() {
+    var sum = 0;
+    for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
+    var clubPower = career.clubs[career.clubIdx].power;
+    return Math.round((1000 + sum * 200) * (clubPower / 4));
+  }
+
+  function showCareer() {
+    hud.classList.add('hidden');
+    currentScreen = 'career';
+    var palmares = career.palmares.map(function (p) {
+      var label = p.title === 'champion' ? t('champion') : p.title === 'subchampion' ? t('subchampion') : t('position') + ' ' + p.pos;
+      return '<div class="stat-row"><span>' + t('season') + ' ' + p.season + '</span><b>' + label + '</b></div>';
+    }).join('') || '<p class="subtitle">' + t('noPalmares') + '</p>';
+    screen.innerHTML =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('career') + '</h1>' +
+      '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + '</p>' +
+      '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + '</p>' +
+      '<p class="subtitle">' + career.club + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
+      '</div>' +
+      '<div class="card"><h2>' + t('careerStats') + '</h2>' +
+      '<div class="stat-row"><span>' + t('matchesPlayed') + '</span><b>' + career.careerStats.matches + '</b></div>' +
+      '<div class="stat-row"><span>' + t('setsWon') + '</span><b>' + career.careerStats.setsWon + '</b></div>' +
+      '<div class="stat-row"><span>' + t('points') + '</span><b>' + career.careerStats.points + '</b></div>' +
+      '<div class="stat-row"><span>' + t('titles') + '</span><b>' + career.careerStats.titles + '</b></div>' +
+      '</div>' +
+      '<div class="card"><h2>' + t('palmares') + '</h2>' + palmares + '</div>' +
+      '<button id="btn-back" class="btn" type="button">' + t('back') + '</button>' +
+      '</div></div>';
+    byId('btn-back').onclick = function () {
+      showBetween();
     };
   }
 
@@ -1149,13 +1280,14 @@
 
   async function showUpgrades() {
     var options = pickRandomStats(3);
+    var value = career.age <= 23 ? 2 : 1;
     return new Promise(function (resolve) {
       showModal(t('upgradeTitle'), t('upgradeText'));
       modalButtons(options.map(function (stat, i) {
         return {
-          label: t(STAT_LABEL[stat]) + ' +1',
+          label: t(STAT_LABEL[stat]) + ' +' + value,
           fn: function () {
-            career.stats[stat]++;
+            career.stats[stat] = Math.min(10, career.stats[stat] + value);
             saveCareer();
             resolve();
           },
@@ -1242,33 +1374,73 @@
 
   // ---------- After match ----------
 
-  async function afterMatch() {
-    if (match.winner === 0) {
-      if (career.round === 3) {
-        var clubName = career.club;
-        clearCareer();
-        career = null;
-        await showModalPromise(t('champion'), t('championText').replace('{club}', clubName), [t('championBtn')]);
-        showSetup();
-      } else {
-        career.round++;
-        career.suspended = false;
-        saveCareer();
-        await showModalPromise(t('winTitle'), roundName(career.round - 1) + ' ✓', [t('continueBtn')]);
-        await showUpgrades();
-        await maybeAdversity();
-        if (career.suspended) {
-          await showSuspendedNotice();
-        }
-        showBetween();
-      }
-    } else {
-      clearCareer();
-      var roundTxt = roundName(career.round);
-      career = null;
-      await showModalPromise(t('eliminated'), t('eliminatedText').replace('{round}', roundTxt), [t('newCareer')]);
-      showSetup();
+  async function simulateLeagueMatch() {
+    var opp = currentOpponent();
+    var result = simulateMatchScore(teamPower(0), opp.power);
+    var win = result.setsA > result.setsB;
+    await showModalPromise(
+      t('matchResult') + ' ' + (win ? '✓' : '✗'),
+      career.club + ' ' + result.setsA + '-' + result.setsB + ' ' + opp.name,
+      [t('continueBtn')]
+    );
+    await postMatch(win, result.setsA, result.setsB, 0);
+  }
+
+  async function postMatch(win, setsWon, setsLost, points) {
+    career.careerStats.matches++;
+    career.careerStats.setsWon += setsWon;
+    career.careerStats.points += points || 0;
+    applyStandings(career.clubIdx, setsWon, setsLost);
+    saveCareer();
+    if (win) {
+      await showUpgrades();
     }
+    await maybeAdversity();
+    if (career.suspended) {
+      await showSuspendedNotice();
+      career.suspended = false;
+    }
+    resolveOtherMatches();
+    career.week++;
+    saveCareer();
+    if (career.week >= SEASON_MATCHES) {
+      await seasonEnd();
+    } else {
+      showBetween();
+    }
+  }
+
+  async function seasonEnd() {
+    var sorted = career.standings.slice().sort(function (a, b) {
+      return b.pts - a.pts || (b.sw - b.sl) - (a.sw - a.sl);
+    });
+    var pos = 1;
+    for (var i = 0; i < sorted.length; i++) {
+      if (sorted[i].name === career.club) { pos = i + 1; break; }
+    }
+    career.seasonPos = pos;
+    var title = pos === 1 ? 'champion' : pos === 2 ? 'subchampion' : null;
+    career.palmares.push({ season: career.palmares.length + 1, pos: pos, title: title });
+    if (title === 'champion') career.careerStats.titles++;
+    career.age++;
+    if (career.age >= 30) {
+      var stat = STATS[Math.floor(Math.random() * STATS.length)];
+      career.stats[stat] = Math.max(1, career.stats[stat] - 1);
+    }
+    career.salary = computeSalary();
+    saveCareer();
+    await new Promise(function (resolve) {
+      showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos));
+      modalButtons([
+        { label: t('nextSeason'), fn: function () { initLeague(); hideModal(); resolve(); } },
+        { label: t('newCareer'), fn: function () { clearCareer(); career = null; hideModal(); resolve(); } },
+        null,
+        null,
+      ]);
+    }).then(function () {
+      if (career) showBetween();
+      else showSetup();
+    });
   }
 
   // ---------- Boot ----------
@@ -1286,6 +1458,8 @@
         showSetup();
       } else if (currentScreen === 'between') {
         showBetween();
+      } else if (currentScreen === 'career') {
+        showCareer();
       }
     }
   });
@@ -1296,8 +1470,12 @@
   draw();
 
   var loaded = loadCareer();
-  if (loaded && loaded.opponents) {
+  if (loaded && loaded.schedule) {
     career = loaded;
+    if (!career.careerStats) {
+      career.careerStats = { matches: 0, setsWon: 0, points: 0, titles: 0 };
+      career.palmares = career.palmares || [];
+    }
     showBetween();
   } else {
     showSetup();

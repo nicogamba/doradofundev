@@ -195,6 +195,11 @@ select {
   color: #ffd166;
 }
 
+.stat-row.is-me {
+  background: rgba(255, 209, 102, 0.12);
+  border-color: rgba(255, 209, 102, 0.5);
+}
+
 .card {
   background: #171b25;
   border: 1px solid #2c3240;
