@@ -24,6 +24,14 @@ aparecer adversidades que las cambian.
   balón recorre trayectorias variadas con arcos, los **jugadores se mueven
   por rol** (recepción, transición, ataque, bloqueo) y los **equipos rotan**
   al ganar el saque. Nada de movimientos solo verticales ni estáticos.
+- **Cada jugador muestra su número de camiseta** en la cancha (el jugador del
+  usuario lleva su número elegido; los demás tienen números propios).
+- **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
+  va comentando el partido ("Nico saca", "¡Ace!", "#7 arma a zona 4",
+  "¡Bloqueo!", "Punto para Tu equipo · 8-5").
+- **Feedback del punto**: cuando se anota un punto, se muestra claramente
+  quién lo ganó y el marcador antes de continuar (no solo se actualiza el
+  contador).
 - Botón de velocidad **×1/×2** durante el partido.
 - HUD: marcador (sets y puntos), rival actual, tu posición.
 
@@ -183,30 +191,27 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 ## 13. Estado actual y pendientes para build
 
-**Ya implementado (funciona):** carrera (nombre, sexo, número, club,
-posición), torneo eliminatorio, partido con fases y puntuación, decisiones y
-minijuego básicos, mejoras 1-de-3, adversidades (mamá y pulsera),
-suspensión, persistencia de carrera, i18n ES/EN en vivo, fix de arranque
-(btn-play null).
+**Ya implementado (funciona):**
 
-**Pendiente (lo que build debe implementar ahora):**
-
-1. **Simulación real (§2):** trayectorias variadas del balón (saques,
-   recepciones, armados, remates sobre la red con arcos) y **jugadores que
-   se mueven** hacia la pelota. No más movimientos solo verticales ni
-   jugadores estáticos.
-2. **Rotaciones y zonas (§5.1):** zonas 1–6, rotación horaria tras
-   side-out, ambos equipos, saque desde zona 1.
-3. **IA por roles (§5.2):** recepción, transición del armador, aproximación
-   de atacantes, bloqueo/defensa. Ambos equipos con la misma IA.
-4. **Decisiones atadas (§7):** armador arma a 2/4/6 o pasa de una; punta
-   recibe y remata a zona (esquinas 1/5, centro 6, o suelta) con dificultad
-   del minijuego según la zona; cascada armado→remate→defensa con stats.
-5. **Minijuego pulido (§6):** marcador claramente visible (ancho, puntero,
-   glow) y **feedback explícito del resultado** (Perfecto/Bien/Regular/
-   Fallaste con color) antes de continuar.
-6. **Verificación:** `node --check` en los .js, `npm run build`, chrome
-   headless (`--headless --disable-gpu --dump-dom --virtual-time-budget=5000`
-   sobre el preview) sin errores de consola, y re-ejecutar las simulaciones
-   de `/tmp/opencode/vav-sim.js` (punta) y `vav-sim-armador.js` (armador)
-   con resultado OK.
+- Carrera (nombre, sexo, número, club, posición), torneo eliminatorio,
+  partido con fases y puntuación, decisiones y minijuego, mejoras 1-de-3,
+  adversidades (mamá y pulsera), suspensión, persistencia de carrera, i18n
+  ES/EN en vivo, fix de arranque (btn-play null).
+- **Simulación real (§2):** trayectorias variadas del balón y jugadores que
+  se mueven hacia la pelota (nada de solo vertical).
+- **Rotaciones y zonas (§5.1):** zonas 1–6, rotación horaria tras side-out,
+  ambos equipos, saque desde zona 1.
+- **IA por roles (§5.2):** recepción, transición del armador, aproximación
+  de atacantes, bloqueo/defensa. Ambos equipos con la misma IA.
+- **Decisiones atadas (§7):** armador arma a 2/4/6 o pasa de una; punta
+  recibe y remata a zona (esquinas 1/5, centro 6, o suelta) con dificultad
+  del minijuego según la zona; cascada armado→remate→defensa con stats.
+- **Minijuego pulido (§6):** marcador visible (ancho, puntero, glow) y
+  feedback explícito del resultado antes de continuar.
+- **Feedback del punto, comentarios y números (§2):** label claro del punto
+  ganador + marcador; feed de comentarios (saque, ace, recepción, armado a
+  zona, remate a zona, bloqueo, defensa, punto) con nombre del jugador o
+  #número; números de camiseta de cada jugador en la cancha.
+- **Verificación:** `node --check`, `npm run build`, chrome headless sin
+  errores, y simulaciones `/tmp/opencode/vav-sim.js` (punta) y
+  `vav-sim-armador.js` (armador) con resultado OK.
