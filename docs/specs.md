@@ -31,7 +31,12 @@ elige uno y lo juega a pantalla completa.
    ajustada al marco (formato horizontal sin barras de desplazamiento),
    objeto de bonificación de tiempo que aparece aleatoriamente y récord
    máximo guardado. Ver `docs/games/cuadritos.md`.
-6. *(futuro)* Power-ups, moneda de gemas, mapa de niveles, miniaturas
+6. **Juego 3 — VoleyAsLife:** gestión + simulación de vóley con carrera
+   (nombre, sexo, número, club, posición) y eliminatoria de 16 clubs.
+   El partido se simula solo desde arriba; cuando le toca a tu jugador,
+   elegís la jugada y ejecutás un minijuego de timing. Mejoras de stats
+   entre partidos y adversidades. Ver `docs/games/voleyaslife.md`.
+7. *(futuro)* Power-ups, moneda de gemas, mapa de niveles, miniaturas
    automáticas, buscador, ordenación, página "acerca de".
 
 ## 4. Decisiones técnicas y por qué
@@ -103,11 +108,27 @@ agujeros y 3 niveles con dificultad creciente.
 **Detalle completo (mecánica, balance, niveles):**
 → [docs/games/looking4stars.md](games/looking4stars.md)
 
+### 5.3 Especificación del juego — VoleyAsLife
+
+Gestión + simulación de vóley, vertical y mobile-first. Carrera con
+identidad (nombre, sexo, número, club, posición fija), eliminatoria de 16
+clubs, partidos auto-simulados desde arriba con **IA por roles y
+rotaciones** (estilo Football Manager 2D: jugadores que se mueven según la
+jugada y equipos que rotan al ganar el saque). Cuando le toca a tu jugador
+aparece una **decisión atada a la jugada de vóley** (armador: armar a 2/4/6
+o pasarla de una; punta: recepción y remate a zona con dificultad según la
+zona) y un **minijuego de timing** que resuelve la jugada con cascada de
+stats. Mejoras de stats entre partidos y adversidades.
+
+**Detalle completo (mecánica, zonas, rotaciones, IA, stats, balance):**
+→ [docs/games/voleyaslife.md](games/voleyaslife.md)
+
 ## 6. Alcance actual vs. futuro
 
 **Actual:** catálogo, página de juego, i18n ES/EN (EN incompleto),
 Looking4Stars v1 (vertical, física, 5 agujeros, cúpulas, aliens, 3 niveles,
-móvil), Cuadritos (recolección con récord y bonos de tiempo), tema oscuro
+móvil), Cuadritos (recolección con récord y bonos de tiempo), VoleyAsLife v1
+(simulación de vóley, eliminatoria, stats, minijuego timing), tema oscuro
 responsive.
 
 **Futuro (non-goals por ahora):** inglés completo, power-ups, moneda de gemas

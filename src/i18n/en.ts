@@ -18,6 +18,10 @@ export const en: DeepPartial<Messages> = {
     gameNotFound: 'That game was not found.',
   },
   games: {
+    voleyaslife: {
+      title: 'VoleyAsLife',
+      desc: 'Your volleyball career: pick your position, play the national knockout and make decisions at the key moments.',
+    },
     looking4stars: {
       title: 'Looking4Stars',
       desc: 'Shoot the balls, destroy the asteroids and rescue all the aliens before you run out of balls.',

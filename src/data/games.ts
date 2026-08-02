@@ -8,6 +8,13 @@ export interface Game {
 
 export const games: Game[] = [
   {
+    id: 'voleyaslife',
+    titleKey: 'games.voleyaslife.title',
+    descKey: 'games.voleyaslife.desc',
+    thumb: '/games/voleyaslife/thumb.svg',
+    orientation: 'portrait',
+  },
+  {
     id: 'looking4stars',
     titleKey: 'games.looking4stars.title',
     descKey: 'games.looking4stars.desc',

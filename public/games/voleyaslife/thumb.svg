@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="800" viewBox="0 0 480 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f1218"/>
+      <stop offset="1" stop-color="#0a0c11"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="800" fill="url(#bg)"/>
+  <rect x="110" y="160" width="260" height="560" fill="#17202e" stroke="#3d4657" stroke-width="2"/>
+  <line x1="110" y1="440" x2="370" y2="440" stroke="#3d4657" stroke-width="2"/>
+  <line x1="240" y1="160" x2="240" y2="440" stroke="#3d4657" stroke-width="1.5"/>
+  <line x1="240" y1="440" x2="240" y2="720" stroke="#3d4657" stroke-width="1.5"/>
+  <g fill="#4a8fe0">
+    <circle cx="160" cy="220" r="13"/><circle cx="240" cy="220" r="13"/><circle cx="320" cy="220" r="13"/>
+    <circle cx="160" cy="310" r="13"/><circle cx="240" cy="310" r="13"/><circle cx="320" cy="310" r="13"/>
+  </g>
+  <g fill="#e0c34a">
+    <circle cx="160" cy="650" r="13"/><circle cx="240" cy="650" r="13"/><circle cx="320" cy="650" r="13"/>
+    <circle cx="160" cy="560" r="13"/><circle cx="240" cy="560" r="13"/><circle cx="320" cy="560" r="13"/>
+  </g>
+  <circle cx="240" cy="560" r="17" fill="none" stroke="#ffd166" stroke-width="3"/>
+  <circle cx="240" cy="300" r="10" fill="#f2f4f8"/>
+  <g stroke="#ffd166" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M140 470 L200 410 L260 450 L330 380"/>
+  </g>
+  <text x="240" y="100" text-anchor="middle" fill="#ffd166" font-family="system-ui,sans-serif" font-size="34" font-weight="800">VoleyAsLife</text>
+</svg>

@@ -12,6 +12,10 @@ export const es = {
     gameNotFound: 'No se encontró ese juego.',
   },
   games: {
+    voleyaslife: {
+      title: 'VoleyAsLife',
+      desc: 'Tu carrera en el vóley: elegí tu posición, jugá la eliminatoria nacional y tomá decisiones en los momentos clave.',
+    },
     looking4stars: {
       title: 'Looking4Stars',
       desc: 'Lanza las bolas, destruye los asteroides y rescata a todos los aliens antes de quedarte sin bolas.',
