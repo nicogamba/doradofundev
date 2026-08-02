@@ -1236,6 +1236,7 @@
       stats: defaultStats(position),
       age: age || 20,
       salary: 1000,
+      money: 1000,
       form: 5,
       suspended: false,
       benched: false,
@@ -1288,8 +1289,9 @@
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
       benchNote + injNote +
-      (career.benched ? '' : '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
+      (career.benched ? '' :       '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
       '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
+      '<button id="btn-train" class="btn ghost" type="button">' + t('train') + ' · ' + t('money') + ' ' + career.money + '</button>' +
       '<button id="btn-career" class="btn ghost" type="button">' + t('career') + '</button>' +
       '</div></div>';
     screen.innerHTML = content;
@@ -1307,6 +1309,9 @@
       if (!career) return;
       simulateLeagueMatch();
     };
+    byId('btn-train').onclick = function () {
+      showTraining();
+    };
     byId('btn-career').onclick = function () {
       showCareer();
     };
@@ -1317,6 +1322,41 @@
     for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
     var clubPower = career.clubs[career.clubIdx].power;
     return Math.round((1000 + sum * 200) * (clubPower / 4));
+  }
+
+  function trainCost(stat) {
+    return 150 * (career.stats[stat] + 1);
+  }
+
+  function showTraining() {
+    hud.classList.add('hidden');
+    currentScreen = 'training';
+    var rows = STATS.map(function (stat) {
+      return '<div class="stat-row"><span>' + t(STAT_LABEL[stat]) + ' (' + career.stats[stat] + ')</span>' +
+        '<button id="train-' + stat + '" class="btn ghost train-btn" type="button">' + t('trainCost') + ' ' + trainCost(stat) + '</button></div>';
+    }).join('');
+    screen.innerHTML =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('train') + '</h1>' +
+      '<p class="subtitle">' + t('trainText') + '</p>' +
+      '<p class="subtitle">' + t('money') + ': ' + career.money + '</p>' +
+      '<div class="card">' + rows + '</div>' +
+      '<button id="btn-train-back" class="btn" type="button">' + t('back') + '</button>' +
+      '</div></div>';
+    STATS.forEach(function (stat) {
+      byId('train-' + stat).onclick = function () {
+        var cost = trainCost(stat);
+        if (career.money >= cost) {
+          career.money -= cost;
+          career.stats[stat] = Math.min(10, career.stats[stat] + 1);
+          saveCareer();
+          showTraining();
+        }
+      };
+    });
+    byId('btn-train-back').onclick = function () {
+      showBetween();
+    };
   }
 
   function showCareer() {
@@ -1333,7 +1373,7 @@
       '<h1>' + t('career') + '</h1>' +
       '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + '</p>' +
-      '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + '</p>' +
+      '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + ' · ' + t('money') + ' ' + career.money + '</p>' +
       '<p class="subtitle">' + career.club + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
       '</div>' +
       '<div class="card"><h2>' + t('careerStats') + '</h2>' +
@@ -1611,6 +1651,7 @@
       career.stats[stat] = Math.max(1, career.stats[stat] - 1);
     }
     career.salary = computeSalary();
+    career.money = (career.money || 0) + career.salary;
     saveCareer();
     await showTransfers(marketValue());
     saveCareer();
@@ -1645,6 +1686,8 @@
         showBetween();
       } else if (currentScreen === 'career') {
         showCareer();
+      } else if (currentScreen === 'training') {
+        showTraining();
       }
     }
   });
@@ -1661,6 +1704,7 @@
     career.palmares = career.palmares || [];
     if (typeof career.form !== 'number') career.form = 5;
     if (typeof career.salary !== 'number') career.salary = 1000;
+    if (typeof career.money !== 'number') career.money = 1000;
     if (typeof career.seasonPos !== 'number') career.seasonPos = 0;
     if (!career.seasonStats) career.seasonStats = { points: 0 };
     if (!career.benched) career.benched = false;
