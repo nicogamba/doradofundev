@@ -79,11 +79,13 @@
   var offsetX = 0;
   var offsetY = 0;
 
-  var ball = { x: W / 2, y: H / 2 };
+  var ball = { x: W / 2, y: H / 2, h: 0, maxH: 1 };
   var label = null;
   var mg = null;
+  var impacts = [];
   var teams = { 0: null, 1: null };
   var playerPos = { 0: [], 1: [] };
+  var playerTarget = { 0: [], 1: [] };
   var ballNow = { x: W / 2, y: H / 2 };
 
   function t(key) {
@@ -166,6 +168,9 @@
       playerPos[key] = teams[key].map(function (p) {
         return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
       });
+      playerTarget[key] = playerPos[key].map(function (p) {
+        return { x: p.x, y: p.y };
+      });
     }
     ballNow = { x: W / 2, y: COURT.netY };
   }
@@ -174,9 +179,42 @@
     teams[team].forEach(function (p) {
       p.zoneIndex = (p.zoneIndex + 1) % 6;
     });
-    playerPos[team] = teams[team].map(function (p) {
+    playerTarget[team] = teams[team].map(function (p) {
       return zoneBasePos(team, ROTATION_ORDER[p.zoneIndex]);
     });
+  }
+
+  function setFormationTargets() {
+    for (var key = 0; key < 2; key++) {
+      playerTarget[key] = teams[key].map(function (p) {
+        return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
+      });
+    }
+  }
+
+  function moveTo(team, index, pos) {
+    playerTarget[team][index] = { x: pos.x, y: pos.y };
+  }
+
+  function setReceiveFormation(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      var zone = ROTATION_ORDER[p.zoneIndex];
+      var base = zoneBasePos(team, zone);
+      var t = { x: base.x, y: base.y };
+      if (p.role === 'setter') {
+        t.y = base.y + (team === 0 ? -42 : 42);
+      } else if (zone === 5) {
+        t.x = base.x - 20;
+        t.y = base.y + (team === 0 ? 14 : -14);
+      } else if (zone === 1) {
+        t.x = base.x + 20;
+        t.y = base.y + (team === 0 ? 14 : -14);
+      } else if (zone === 6) {
+        t.y = base.y + (team === 0 ? 20 : -20);
+      }
+      playerTarget[team][i] = t;
+    }
   }
 
   function playerInZone(team, zone) {
@@ -213,6 +251,8 @@
   }
 
   function draw() {
+    stepPlayerMovement();
+    stepImpacts();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0f1218';
     ctx.fillRect(0, 0, court.clientWidth, court.clientHeight);
@@ -237,13 +277,16 @@
     drawTeam(1, '#4a8fe0', false);
     drawTeam(0, '#e0c34a', true);
 
+    var ballScale = 1 - 0.4 * ((ball.h || 0) / (ball.maxH || 1));
     ctx.fillStyle = '#f2f4f8';
     ctx.shadowColor = '#f2f4f8';
     ctx.shadowBlur = 12;
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, 9, 0, Math.PI * 2);
+    ctx.arc(ball.x, ball.y, Math.max(5, 9 * ballScale), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+
+    drawImpacts();
 
     if (label) {
       ctx.globalAlpha = Math.min(1, label.life * 2);
@@ -251,6 +294,48 @@
       ctx.textAlign = 'center';
       ctx.fillStyle = label.color;
       ctx.fillText(label.text, W / 2, COURT.y - 40);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function stepPlayerMovement() {
+    for (var key = 0; key < 2; key++) {
+      for (var i = 0; i < playerPos[key].length; i++) {
+        var cur = playerPos[key][i];
+        var tgt = playerTarget[key][i];
+        cur.x += (tgt.x - cur.x) * 0.09;
+        cur.y += (tgt.y - cur.y) * 0.09;
+      }
+    }
+  }
+
+  function addImpact(x, y) {
+    impacts.push({ x: x, y: y, life: 1 });
+  }
+
+  function stepImpacts() {
+    for (var i = impacts.length - 1; i >= 0; i--) {
+      impacts[i].life -= 0.025;
+      if (impacts[i].life <= 0) impacts.splice(i, 1);
+    }
+  }
+
+  function drawImpacts() {
+    for (var i = 0; i < impacts.length; i++) {
+      var imp = impacts[i];
+      ctx.globalAlpha = imp.life;
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 3;
+      var s = 16;
+      ctx.beginPath();
+      ctx.moveTo(imp.x - s, imp.y - s);
+      ctx.lineTo(imp.x + s, imp.y + s);
+      ctx.moveTo(imp.x + s, imp.y - s);
+      ctx.lineTo(imp.x - s, imp.y + s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 40, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.globalAlpha = 1;
     }
   }
@@ -295,6 +380,7 @@
     var dur = seconds * 1000;
     while (true) {
       var t = await raf();
+      draw();
       if (t - t0 >= dur) break;
     }
   }
@@ -303,7 +389,6 @@
     var from = script.from;
     var to = script.to;
     var seconds = script.seconds || 0.5;
-    var movers = script.movers || [];
     var overNet = script.overNet;
     var arc = overNet ? 130 : Math.abs(to.y - from.y) > 120 ? 90 : 30;
     var t0 = await raf();
@@ -311,31 +396,20 @@
     while (true) {
       var t = await raf();
       var p = Math.min(1, (t - t0) / dur);
+      var arcOffset = Math.sin(Math.PI * p) * arc;
       ball.x = from.x + (to.x - from.x) * p;
-      ball.y = from.y + (to.y - from.y) * p - Math.sin(Math.PI * p) * arc;
-      for (var m = 0; m < movers.length; m++) {
-        var mv = movers[m];
-        var pos = playerPos[mv.team][mv.index];
-        pos.x += (mv.to.x - pos.x) * 0.14;
-        pos.y += (mv.to.y - pos.y) * 0.14;
-      }
+      ball.y = from.y + (to.y - from.y) * p - arcOffset;
+      ball.h = arcOffset;
+      ball.maxH = arc;
       draw();
       if (p >= 1) break;
     }
-    for (var j = 0; j < movers.length; j++) {
-      var mv2 = movers[j];
-      playerPos[mv2.team][mv2.index].x = mv2.to.x;
-      playerPos[mv2.team][mv2.index].y = mv2.to.y;
-    }
+    ball.h = 0;
     ballNow = { x: to.x, y: to.y };
   }
 
   function resetPlayerPositions() {
-    for (var key = 0; key < 2; key++) {
-      playerPos[key] = teams[key].map(function (p) {
-        return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
-      });
-    }
+    setFormationTargets();
   }
 
   function zoneSpot(team) {
@@ -429,12 +503,13 @@
   async function doServe(attacking, defender) {
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
-    var from = playerPos[attacking][sidx];
+    var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
+    var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 26 : COURT.y - 26 };
     var to = zoneSpot(defender);
+    moveTo(attacking, sidx, base);
     await playSegment({
       from: from,
       to: to,
-      movers: [{ team: attacking, index: sidx, to: { x: from.x, y: from.y + (attacking === 0 ? 26 : -26) } }],
       seconds: 0.7,
       overNet: true,
     });
@@ -456,6 +531,9 @@
     var sidx = playerIndex(attacking, setter);
     var from = ballNow;
     var to = playerPos[attacking][sidx];
+    setFormationTargets();
+    setReceiveFormation(attacking);
+    moveTo(attacking, isMy ? 0 : ridx, { x: from.x, y: from.y });
     var decision = null;
     var quality = 0;
     if (isMy) {
@@ -467,7 +545,6 @@
     await playSegment({
       from: from,
       to: to,
-      movers: [{ team: isMy ? 0 : attacking, index: isMy ? 0 : ridx, to: { x: from.x, y: from.y } }],
       seconds: 0.5,
     });
     var ok;
@@ -508,13 +585,12 @@
     var attacker = playerInZone(attacking, setZone);
     var aidx = playerIndex(attacking, attacker);
     var target = { x: playerPos[attacking][aidx].x, y: playerPos[attacking][aidx].y + (attacking === 0 ? -32 : 32) };
+    setFormationTargets();
+    moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
+    moveTo(attacking, aidx, target);
     await playSegment({
       from: ballNow,
       to: target,
-      movers: [
-        { team: attacking, index: isMy ? 0 : sidx, to: { x: ballNow.x, y: ballNow.y } },
-        { team: attacking, index: aidx, to: target },
-      ],
       seconds: 0.45,
     });
     var ok = isMy ? quality >= decision.threshold : true;
@@ -547,10 +623,11 @@
       quality = autoPhase(playerStat(attacking, attacker, 'A') + setQuality, teamPhaseStat(defender, 'B')) ? 2 : 0;
     }
     var target = zoneBasePos(defender, hitZone);
+    setFormationTargets();
+    moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     await playSegment({
       from: ballNow,
       to: target,
-      movers: [{ team: isMy ? 0 : attacking, index: isMy ? 0 : aidx, to: { x: ballNow.x, y: ballNow.y } }],
       seconds: 0.5,
       overNet: true,
     });
@@ -578,18 +655,20 @@
     var ok = autoPhase(defStat, atkStat);
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
+      setFormationTargets();
+      moveTo(defending, didx, { x: from.x, y: from.y });
       await playSegment({
         from: from,
         to: playerPos[defending][sidx],
-        movers: [{ team: defending, index: didx, to: { x: from.x, y: from.y } }],
         seconds: 0.5,
       });
     } else {
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{team}', teamName(attacking)));
+      setFormationTargets();
+      moveTo(defending, didx, { x: from.x, y: from.y });
       await playSegment({
         from: from,
         to: { x: from.x, y: from.y + 40 },
-        movers: [{ team: defending, index: didx, to: { x: from.x, y: from.y } }],
         seconds: 0.35,
       });
     }
@@ -664,6 +743,7 @@
     match.server = team;
     var who = team === 0 ? t('yourTeam') : match.rival.club;
     comment(t('cPoint').replace('{team}', who).replace('{score}', match.scores[0] + ' - ' + match.scores[1]));
+    addImpact(ballNow.x, ballNow.y);
     setLabel(t('pointFor') + ' ' + who, team === 0 ? '#7ee787' : '#e0c34a');
     await sleep(1.1);
     label = null;
