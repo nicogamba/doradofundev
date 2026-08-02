@@ -10,6 +10,7 @@
   var STORAGE_KEY = 'doradofundev.voleyaslife.career';
   var ADVERSITY_CHANCE = 0.3;
   var thisSpeed = 1;
+  var SPEED_BASE = 1.35;
 
   var STATS = ['S', 'A', 'R', 'B', 'D'];
   var STAT_LABEL = { S: 'saque', A: 'ataque', R: 'recepcion', B: 'bloqueo', D: 'defensa' };
@@ -83,9 +84,11 @@
   var label = null;
   var mg = null;
   var impacts = [];
+  var simTime = 0;
   var teams = { 0: null, 1: null };
   var playerPos = { 0: [], 1: [] };
   var playerTarget = { 0: [], 1: [] };
+  var playerPhase = { 0: [], 1: [] };
   var ballNow = { x: W / 2, y: H / 2 };
 
   function t(key) {
@@ -170,6 +173,9 @@
       });
       playerTarget[key] = playerPos[key].map(function (p) {
         return { x: p.x, y: p.y };
+      });
+      playerPhase[key] = playerPos[key].map(function () {
+        return Math.random() * Math.PI * 2;
       });
     }
     ballNow = { x: W / 2, y: COURT.netY };
@@ -277,7 +283,7 @@
     drawTeam(1, '#4a8fe0', false);
     drawTeam(0, '#e0c34a', true);
 
-    var ballScale = 1 - 0.4 * ((ball.h || 0) / (ball.maxH || 1));
+    var ballScale = 1 + 0.4 * ((ball.h || 0) / (ball.maxH || 1));
     ctx.fillStyle = '#f2f4f8';
     ctx.shadowColor = '#f2f4f8';
     ctx.shadowBlur = 12;
@@ -299,12 +305,16 @@
   }
 
   function stepPlayerMovement() {
+    simTime++;
     for (var key = 0; key < 2; key++) {
       for (var i = 0; i < playerPos[key].length; i++) {
         var cur = playerPos[key][i];
         var tgt = playerTarget[key][i];
-        cur.x += (tgt.x - cur.x) * 0.09;
-        cur.y += (tgt.y - cur.y) * 0.09;
+        cur.x += (tgt.x - cur.x) * 0.12;
+        cur.y += (tgt.y - cur.y) * 0.12;
+        var ph = playerPhase[key][i];
+        cur.x += Math.sin(simTime * 0.05 + ph) * 1.1;
+        cur.y += Math.cos(simTime * 0.04 + ph * 1.3) * 1.1;
       }
     }
   }
@@ -377,7 +387,7 @@
 
   async function sleep(seconds) {
     var t0 = await raf();
-    var dur = seconds * 1000;
+    var dur = (seconds * SPEED_BASE) * 1000;
     while (true) {
       var t = await raf();
       draw();
@@ -392,7 +402,7 @@
     var overNet = script.overNet;
     var arc = overNet ? 130 : Math.abs(to.y - from.y) > 120 ? 90 : 30;
     var t0 = await raf();
-    var dur = (seconds / thisSpeed) * 1000;
+    var dur = ((seconds * SPEED_BASE) / thisSpeed) * 1000;
     while (true) {
       var t = await raf();
       var p = Math.min(1, (t - t0) / dur);
