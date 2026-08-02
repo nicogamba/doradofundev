@@ -32,10 +32,20 @@ aparecer adversidades que las cambian.
   a zona 6", "#6 remata a zona 5", "#2 no puede recibir — punto para Tu
   equipo". Incluye los fallos con su consecuencia ("no puede recibir/armar/
   rematar/defender — punto para X") y usa el nombre del jugador del usuario
-  o el número de camiseta de los demás.
+  o el número de camiseta de los demás. **El comentario más reciente va
+  arriba** del feed.
 - **Feedback del punto**: cuando se anota un punto, se muestra claramente
   quién lo ganó y el marcador antes de continuar (no solo se actualiza el
   contador).
+- **Feedback del toque de suelo**: cuando la pelota toca el suelo (punto),
+  se marca el lugar del impacto con un efecto visible que se desvanece
+  (una "X" o un estallido/anillo en el punto de contacto) y la pelota
+  queda reposando brevemente en el suelo durante el aviso del punto antes
+  de reiniciar el siguiente saque.
+- **Redimensionado por altura**: la pelota se dibuja **más chica en el
+  punto más alto del arco** y a tamaño real cerca del suelo (perspectiva
+  simple: escala = 1 − (altura / alturaMáxima) × factor). Barato, un
+  cálculo en el dibujo.
 - Botón de velocidad **×1/×2** durante el partido.
 - HUD: marcador (sets y puntos), rival actual, tu posición.
 
@@ -70,6 +80,9 @@ aparecer adversidades que las cambian.
   (izquierda), 6 (centro), 1 (derecha, zona de saque).
 - Al **ganar el saque** (side-out), el equipo **rota en sentido horario**: cada
   jugador avanza una zona (1→6→5→4→3→2→1). Saca el jugador en zona 1.
+- **El sacador se ubica FUERA de la cancha** (detrás de la línea de fondo,
+  como en el vóley real) y tras el saque se reposiciona a su zona, como
+  todos los jugadores tras cada jugada.
 - **Ambos equipos rotan** y usan la misma IA. El rival se comporta igual que
   el equipo del jugador.
 
@@ -78,13 +91,20 @@ aparecer adversidades que las cambian.
 Cada jugador tiene un comportamiento simple según la situación (IA
 guionada por rol, no física):
 
-- **Recepción:** el equipo se acomoda en formación de recepción; los que no
-  reciben se apartan hacia sus zonas.
+- **Recepción:** el equipo se acomoda en **formación de recepción
+  realista**: el armador se retira de la zona de recepción y los receptores
+  se distribuyen en la zona trasera (disposición tipo "W"); los que no
+  reciben protegen sus zonas.
 - **Transición:** el armador corre hacia la pelota (segunda pelota) y los
   atacantes hacen su aproximación a las zonas 2/4/6 según el armado.
 - **Ataque:** el atacante salta/remata hacia la zona elegida.
 - **Bloqueo/defensa:** los bloqueadores se alinean en la red hacia la zona
   probable del remate; los de atrás se mueven hacia esa zona.
+- **Movimiento continuo:** los jugadores se desplazan suavemente hacia su
+  posición de rol en cada frame, incluso entre toques (el campo se ve vivo;
+  no se quedan estáticos esperando). Implementación barata: cada jugador
+  deriva (lerp lento) hacia su posición objetivo actual dentro del bucle de
+  dibujo.
 
 ### 5.3 Resolución del rally
 
@@ -195,6 +215,9 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 - Temporada completa con ascenso/descenso.
 - Más posiciones (líbero, opuesto, central).
+- **Sistemas tácticos (5-1 / 6-2) y elección de formación**: capa táctica
+  que define quién arma según la rotación. No por ahora; el armador ya
+  decide a qué zona pasa.
 - Más minijuegos y adversidades.
 - Saque como decisión.
 - Multijugador u online.
@@ -225,6 +248,16 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   ganador + marcador; feed de comentarios (saque, ace, recepción, armado a
   zona, remate a zona, bloqueo, defensa, punto) con nombre del jugador o
   #número; números de camiseta de cada jugador en la cancha.
+- **Comentarios precisos (§2):** jugada por jugada con desenlaces ("no puede
+  recibir — punto para X"), el más reciente arriba.
+- **Movimiento y posicionamiento (§5.1/§5.2):** formación de recepción
+  realista (armador se retira, receptores en la trasera), movimiento
+  continuo (jugadores derivan hacia su rol en cada frame) y sacador que se
+  ubica fuera de la cancha y se reposiciona.
+- **Feedback del toque de suelo (§2):** X + anillo que se desvanece en el
+  impacto y la pelota reposa durante el aviso del punto.
+- **Redimensionado por altura (§2):** la pelota se ve más chica en el punto
+  más alto del arco.
 - **Verificación:** `node --check`, `npm run build`, chrome headless sin
   errores, y simulaciones `/tmp/opencode/vav-sim.js` (punta) y
   `vav-sim-armador.js` (armador) con resultado OK.
