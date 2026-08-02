@@ -1410,6 +1410,60 @@
     }
   }
 
+  function marketValue() {
+    var sum = 0;
+    for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
+    var avg = sum / STATS.length;
+    var ageFactor = career.age <= 25 ? 1.3 : career.age <= 29 ? 1 : 0.7;
+    var perfFactor = 1 + Math.max(0, 3 - career.seasonPos) * 0.15;
+    return avg * ageFactor * perfFactor;
+  }
+
+  function buildOffers(value) {
+    var others = [];
+    for (var i = 0; i < LEAGUE_SIZE; i++) {
+      if (i === career.clubIdx) continue;
+      others.push(i);
+    }
+    for (var j = others.length - 1; j > 0; j--) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = others[j];
+      others[j] = others[k];
+      others[k] = tmp;
+    }
+    var count = 2 + (Math.random() < 0.5 ? 1 : 0);
+    var offers = [];
+    for (var m = 0; m < count && m < others.length; m++) {
+      var idx = others[m];
+      var club = career.clubs[idx];
+      var salary = Math.round(value * 600 * (club.power / 4) * (0.9 + Math.random() * 0.3));
+      offers.push({ clubIdx: idx, name: club.name, power: club.power, salary: salary });
+    }
+    offers.sort(function (a, b) { return b.salary - a.salary; });
+    return offers;
+  }
+
+  async function showTransfers(value) {
+    var offers = buildOffers(value);
+    return new Promise(function (resolve) {
+      showModal(t('transfersTitle'), t('transfersText'));
+      var config = offers.map(function (o) {
+        return { label: o.name + ' — ' + t('salary') + ' ' + o.salary, fn: function () { resolve(o); } };
+      });
+      config.push({ label: t('stayAt').replace('{club}', career.club), fn: function () { resolve(null); } });
+      modalButtons(config);
+    }).then(function (choice) {
+      hideModal();
+      if (choice) {
+        career.clubIdx = choice.clubIdx;
+        career.club = choice.name;
+        career.salary = choice.salary;
+      } else {
+        career.salary = computeSalary();
+      }
+    });
+  }
+
   async function seasonEnd() {
     var sorted = career.standings.slice().sort(function (a, b) {
       return b.pts - a.pts || (b.sw - b.sl) - (a.sw - a.sl);
@@ -1428,6 +1482,8 @@
       career.stats[stat] = Math.max(1, career.stats[stat] - 1);
     }
     career.salary = computeSalary();
+    saveCareer();
+    await showTransfers(marketValue());
     saveCareer();
     await new Promise(function (resolve) {
       showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos));
