@@ -504,10 +504,20 @@
   function teamPower(team) {
     if (team === 0) {
       var sum = 0;
-      for (var i = 0; i < STATS.length; i++) sum += teamPhaseStat(0, STATS[i]);
+      for (var i = 0; i < STATS.length; i++) {
+        var v = career.benched ? TEAM_BASE[STATS[i]] : teamPhaseStat(0, STATS[i]);
+        sum += v;
+      }
       return sum / STATS.length;
     }
     return 5;
+  }
+
+  function dtBenched() {
+    var chance = 0.4 - career.form * 0.04;
+    if (career.age >= 30) chance += 0.12;
+    if (career.age <= 23) chance -= 0.05;
+    return Math.random() < Math.max(0.05, Math.min(0.6, chance));
   }
 
   function buildSchedule() {
@@ -592,7 +602,7 @@
   }
 
   function isPlayerTurn(phase) {
-    if (career.suspended) return false;
+    if (career.suspended || career.benched) return false;
     if (career.position === 'punta') return phase === 'receive' || phase === 'attack';
     return phase === 'set';
   }
@@ -1176,7 +1186,10 @@
       stats: defaultStats(position),
       age: age || 20,
       salary: 1000,
+      form: 5,
       suspended: false,
+      benched: false,
+      benchedWeek: -1,
       careerStats: { matches: 0, setsWon: 0, points: 0, titles: 0 },
       palmares: [],
       seasonPos: 0,
@@ -1206,6 +1219,11 @@
     hud.classList.add('hidden');
     currentScreen = 'between';
     var opp = currentOpponent();
+    if (career.benchedWeek !== career.week) {
+      career.benched = career.suspended ? false : dtBenched();
+      career.benchedWeek = career.week;
+    }
+    var benchNote = career.benched ? '<p class="subtitle bench-note">' + t('benched') + '</p>' : '';
     var content =
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('title') + '</h1>' +
@@ -1216,8 +1234,9 @@
       '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
-      '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>' +
-      '<button id="btn-sim" class="btn ghost" type="button">' + t('simulate') + '</button>' +
+      benchNote +
+      (career.benched ? '' : '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
+      '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
       '<button id="btn-career" class="btn ghost" type="button">' + t('career') + '</button>' +
       '</div></div>';
     screen.innerHTML = content;
@@ -1390,6 +1409,8 @@
     career.careerStats.matches++;
     career.careerStats.setsWon += setsWon;
     career.careerStats.points += points || 0;
+    career.form = win ? Math.min(10, career.form + 1) : Math.max(0, career.form - 1);
+    career.benched = false;
     applyStandings(career.clubIdx, setsWon, setsLost);
     saveCareer();
     if (win) {
