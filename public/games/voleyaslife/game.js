@@ -643,7 +643,7 @@
 
   function teamPhaseStat(team, stat) {
     if (team === 0) {
-      var pStat = career.suspended ? suspendedStat(stat) : career.stats[stat];
+      var pStat = career.suspended || career.injured ? suspendedStat(stat) : career.stats[stat];
       var combined = (TEAM_BASE[stat] + pStat) / 2;
       return Math.max(1, Math.min(10, Math.round(combined)));
     }
@@ -1240,6 +1240,7 @@
       suspended: false,
       benched: false,
       benchedWeek: -1,
+      injured: false,
       careerStats: { matches: 0, setsWon: 0, points: 0, titles: 0 },
       palmares: [],
       seasonPos: 0,
@@ -1275,6 +1276,7 @@
       career.benchedWeek = career.week;
     }
     var benchNote = career.benched ? '<p class="subtitle bench-note">' + t('benched') + '</p>' : '';
+    var injNote = career.injured ? '<p class="subtitle bench-note">' + t('injuredNote') + '</p>' : '';
     var content =
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('title') + '</h1>' +
@@ -1285,7 +1287,7 @@
       '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
-      benchNote +
+      benchNote + injNote +
       (career.benched ? '' : '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
       '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
       '<button id="btn-career" class="btn ghost" type="button">' + t('career') + '</button>' +
@@ -1382,11 +1384,50 @@
 
   async function maybeAdversity() {
     if (Math.random() >= ADVERSITY_CHANCE) return;
-    if (Math.random() < 0.5) {
+    var pick = Math.floor(Math.random() * 4);
+    if (pick === 0) {
       await adversityMom();
-    } else {
+    } else if (pick === 1) {
       await adversityBracelet();
+    } else if (pick === 2) {
+      await adversityInjury();
+    } else {
+      await adversityRumor();
     }
+  }
+
+  async function adversityInjury() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('injuryTitle') + ' ' + t('injuryText'));
+      modalButtons([
+        { label: t('injuryPlay'), fn: function () { career.injured = true; saveCareer(); resolve(); } },
+        { label: t('injuryRest'), fn: function () { career.suspended = true; saveCareer(); resolve(); } },
+        null,
+        null,
+      ]);
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  async function adversityRumor() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('rumorTitle') + ' ' + t('rumorText'));
+      modalButtons([
+        { label: t('rumorDeny'), fn: function () { resolve(); } },
+        { label: t('rumorUse'), fn: function () {
+          var stat = STATS[Math.floor(Math.random() * STATS.length)];
+          career.stats[stat] = Math.min(10, career.stats[stat] + 1);
+          career.form = Math.max(0, career.form - 1);
+          saveCareer();
+          resolve();
+        } },
+        null,
+        null,
+      ]);
+    }).then(function () {
+      hideModal();
+    });
   }
 
   async function adversityMom() {
@@ -1465,6 +1506,7 @@
     career.seasonStats.points += points || 0;
     career.form = win ? Math.min(10, career.form + 1) : Math.max(0, career.form - 1);
     career.benched = false;
+    career.injured = false;
     applyStandings(career.clubIdx, setsWon, setsLost);
     saveCareer();
     if (win) {
@@ -1623,6 +1665,7 @@
     if (!career.seasonStats) career.seasonStats = { points: 0 };
     if (!career.benched) career.benched = false;
     if (typeof career.benchedWeek !== 'number') career.benchedWeek = -1;
+    if (!career.injured) career.injured = false;
     showBetween();
   } else {
     showSetup();
