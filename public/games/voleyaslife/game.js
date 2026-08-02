@@ -63,6 +63,10 @@
   var mgBar = document.getElementById('mg-bar');
   var mgZoneOk = document.getElementById('mg-zone-ok');
   var mgZoneGood = document.getElementById('mg-zone-good');
+  var mgZonePerfect = document.getElementById('mg-zone-perfect');
+  var lgPerfect = document.getElementById('lg-perfect');
+  var lgGood = document.getElementById('lg-good');
+  var lgOk = document.getElementById('lg-ok');
   var mgMarker = document.getElementById('mg-marker');
   var mgTap = document.getElementById('mg-tap');
   var commentLines = [0, 1, 2, 3].map(function (i) {
@@ -802,10 +806,17 @@
       };
       mgTitle.textContent = t('minigamePhase');
       mgTap.textContent = t('tapNow');
+      var okW = zw + 0.18;
+      var perfW = zw / 3;
+      mgZoneOk.style.left = (50 - okW / 2) + '%';
+      mgZoneOk.style.width = okW + '%';
       mgZoneGood.style.left = (50 - zw / 2) + '%';
       mgZoneGood.style.width = zw + '%';
-      mgZoneOk.style.left = (50 - zw / 2 - 0.09) + '%';
-      mgZoneOk.style.width = (zw + 0.18) + '%';
+      mgZonePerfect.style.left = (50 - perfW / 2) + '%';
+      mgZonePerfect.style.width = perfW + '%';
+      lgPerfect.textContent = t('perfect');
+      lgGood.textContent = t('good');
+      lgOk.textContent = t('ok');
       mgMarker.style.left = '50%';
       minigame.classList.remove('hidden');
       mgTap.onclick = function () {

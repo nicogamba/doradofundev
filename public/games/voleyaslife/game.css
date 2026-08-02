@@ -274,11 +274,22 @@ select {
 }
 
 .zone-ok {
-  background: rgba(240, 173, 78, 0.45);
+  background: rgba(240, 173, 78, 0.4);
+  border-left: 1px solid rgba(240, 173, 78, 0.8);
+  border-right: 1px solid rgba(240, 173, 78, 0.8);
 }
 
 .zone-good {
-  background: rgba(126, 231, 135, 0.7);
+  background: rgba(126, 231, 135, 0.45);
+  border-left: 1px solid rgba(126, 231, 135, 0.9);
+  border-right: 1px solid rgba(126, 231, 135, 0.9);
+}
+
+.zone-perfect {
+  background: #7ee787;
+  box-shadow: 0 0 14px rgba(126, 231, 135, 0.9);
+  border-left: 1px solid #b7f8c1;
+  border-right: 1px solid #b7f8c1;
 }
 
 .marker {
@@ -312,6 +323,42 @@ select {
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
   border-bottom: 13px solid #fff;
+}
+
+.bar-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: #9aa2b1;
+}
+
+.bar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.dot-perfect {
+  background: #7ee787;
+  box-shadow: 0 0 6px rgba(126, 231, 135, 0.9);
+}
+
+.dot-good {
+  background: rgba(126, 231, 135, 0.5);
+}
+
+.dot-ok {
+  background: rgba(240, 173, 78, 0.6);
 }
 
 .bar::after {
