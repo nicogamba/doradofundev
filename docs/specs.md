@@ -110,17 +110,18 @@ agujeros y 3 niveles con dificultad creciente.
 
 ### 5.3 Especificación del juego — VoleyAsLife
 
-Gestión + simulación de vóley, vertical y mobile-first. Carrera con
-identidad (nombre, sexo, número, club, posición fija), eliminatoria de 16
-clubs, partidos auto-simulados desde arriba con **IA por roles y
-rotaciones** (estilo Football Manager 2D: jugadores que se mueven según la
-jugada y equipos que rotan al ganar el saque). Cuando le toca a tu jugador
-aparece una **decisión atada a la jugada de vóley** (armador: armar a 2/4/6
-o pasarla de una; punta: recepción y remate a zona con dificultad según la
-zona) y un **minijuego de timing** que resuelve la jugada con cascada de
-stats. Mejoras de stats entre partidos y adversidades.
+Gestión + simulación de vóley con **carrera de jugador**, vertical y
+mobile-first. Creas tu identidad (nombre, sexo, número, edad, club, posición
+fija) y jugás **temporadas de liga** (round-robin con tabla y campeón;
+perder no elimina) con opción de **simular o jugar** cada partido. Partidos
+auto-simulados desde arriba con **IA por roles y rotaciones** (estilo
+Football Manager 2D); en tus turnos aparece una **decisión atada a la jugada**
+(armador: armar a 2/4/6 o pasarla de una; punta: recepción y remate a zona)
+y un **minijuego de timing**. Mejoras de stats con **edad** (joven mejorás
+más, mayor declinás), **salario** y **palmarés/stats de carrera**. Fase 2:
+transferencias con dinero, forma/DT y divisiones.
 
-**Detalle completo (mecánica, zonas, rotaciones, IA, stats, balance):**
+**Detalle completo (mecánica, zonas, rotaciones, IA, liga, stats, balance):**
 → [docs/games/voleyaslife.md](games/voleyaslife.md)
 
 ## 6. Alcance actual vs. futuro
