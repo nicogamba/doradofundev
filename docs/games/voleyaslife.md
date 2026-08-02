@@ -6,14 +6,16 @@
 
 ## 1. Idea
 
-Juego de gestión + simulación de vóley. Creas tu carrera: nombre, sexo,
-número de camiseta, club y posición (punta o armador, fija). Juegas una
-eliminatoria de 16 clubs (octavos → cuartos → semifinal → final). El partido
-se ve desde arriba y se simula solo con **IA por roles y rotaciones** (vista
-tipo Football Manager 2D: los jugadores se mueven y reaccionan según la
-jugada); cuando el balón llega a tu posición, elegís la jugada y superás un
-minijuego de timing para ejecutarla. Entre partidos mejorás stats y pueden
-aparecer adversidades que las cambian.
+Juego de gestión + simulación de vóley con **carrera de jugador** (career
+mode). Creas tu carrera: nombre, sexo, número, edad, club y posición (punta
+o armador, fija). Juegas **temporadas de liga** (round-robin con tabla de
+posiciones y campeón; perder no elimina), con opción de **simular o jugar**
+cada partido. El partido se ve desde arriba y se simula solo con **IA por
+roles y rotaciones**; cuando el balón llega a tu posición, elegís la jugada y
+superás un minijuego de timing. Entre partidos mejorás stats (la **edad**
+influye: de joven mejorás más, de mayor declinás), cobrás un **salario** y
+pueden aparecer adversidades. Registrás tu **palmarés** (títulos y stats de
+carrera).
 
 ## 2. Pantalla y presentación
 
@@ -51,8 +53,9 @@ aparecer adversidades que las cambian.
 
 ## 3. Creación de carrera
 
-- **Nombre** (texto libre), **sexo** (elección), **número** (1–99).
-- **Club:** elegir entre 16 clubs ficticios o asignarlo al azar.
+- **Nombre** (texto libre), **sexo** (elección), **número** (1–99),
+  **edad inicial** (elección, ~18–23; ver §8).
+- **Club:** elegir entre los clubs de la liga o asignarlo al azar.
 - **Posición** (fija para toda la carrera):
   - **Punta:** recibe y remata. Base inicial mejor en Ataque/Recepción.
   - **Armador:** arma el balón para los atacantes. Base inicial mejor en
@@ -60,16 +63,20 @@ aparecer adversidades que las cambian.
 - **Stats iniciales** (escala 0–10): Saque, Ataque, Recepción, Bloqueo,
   Defensa.
 
-## 4. Torneo (eliminatoria)
+## 4. Liga y temporada (Fase 1)
 
-- 16 clubs ficticios: **octavos → cuartos → semifinal → final**.
-- Partido: **mejor de 3 sets**, cada **set a 15** (diferencia mínima de 2,
-  el set se extiende si hace falta).
-- **Perder un partido = eliminado** (fin de la carrera; se muestra la
-  posición final y el botón de nueva carrera).
-- Al ganar: avanzas de ronda. **Entre partidos:** mejora de stats (§8) y
-  posible adversidad (§9).
-- Los rivales de rondas avanzadas tienen stats más altos (escala por ronda).
+- **Liga round-robin**: ~8 clubs, todos contra todos a ida y vuelta
+  (**14 fechas**), con **tabla de posiciones** y campeón al final.
+- **Perder NO elimina**: la temporada sigue y terminás donde te ubiques
+  (1º campeón, 2º subcampeón, resto según tabla).
+- **Saltear o jugar**: antes de cada partido elegís
+  - **Jugar partido**: se juega con decisiones + minijuegos (simulación
+    completa).
+  - **Simular**: el partido se resuelve automáticamente por stats (sin tus
+    turnos ni minijuegos) y se muestra el resultado.
+- Al terminar la temporada: palmarés (§9), mejoras/edad (§8), salario
+  (§10) y (Fase 2) transferencias.
+- (Fase 2) Ascensos/descensos y ligas múltiples.
 
 ## 5. Simulación del partido (IA por roles y rotaciones)
 
@@ -176,15 +183,38 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   stats de los implicados (atacante de la zona, bloqueo/defensa rival) deciden
   el desenlace del rally.
 
-## 8. Stats y mejoras
+## 8. Stats, mejoras y edad
 
 - Stats: **Saque, Ataque, Recepción, Bloqueo, Defensa** (0–10).
 - **Entre partidos:** aparecen **3 opciones al azar** de mejora (+1 a una
   stat); eliges 1.
+- **Edad (Fase 1):** la edad inicial se elige al crear la carrera (~18–23).
+  Influye en las mejoras:
+  - **Joven (~18–23):** más potencial de mejora (las mejoras entre partidos
+    pueden valer más o aparecer más seguido).
+  - **De mayor (~30+):** las stats pueden **decaer** con la temporada.
+  - La curva exacta (potencial vs. declive) son constantes ajustables.
 - Las stats influyen en las fases automáticas y en la dificultad del
   minijuego.
 
-## 9. Adversidades (2 ejemplos en v1)
+## 9. Stats de carrera y palmarés
+
+- **Stats de carrera** (acumulan entre temporadas): partidos jugados, sets
+  ganados, puntos anotados por tus acciones (minijuegos), aces.
+- **Palmarés:** títulos ganados (campeonato de liga), subcampeonatos y
+  temporadas jugadas por club.
+- Se muestran en una pantalla de "carrera" accesible desde el entre-partidos.
+
+## 10. Salario
+
+- El club te ofrece un **salario** (valor que sube con tus stats, tu edad y
+  el nivel del club).
+- El dinero se **registra** como parte de tu carrera y **condiciona las
+  ofertas de transferencia** (Fase 2): clubes con más plata ofrecen más.
+- (futuro, a decidir) Uso del dinero: invertir en entrenamiento, patrocinios,
+  etc.
+
+## 11. Adversidades (2 ejemplos en v1)
 
 - Aparecen al azar entre partidos (~30% de probabilidad).
 - **Ejemplo 1 (negativa):** "Tu mamá criticó al club en redes sociales."
@@ -195,7 +225,7 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   +1 a una stat a elección.
 - (futuro) Muchas más adversidades.
 
-## 10. Persistencia e idioma (autonomía del juego)
+## 12. Persistencia e idioma (autonomía del juego)
 
 - Guarda la carrera en `localStorage` bajo `doradofundev.voleyaslife.*`:
   nombre, sexo, número, club, posición, stats y ronda actual (se puede
@@ -203,7 +233,7 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 - i18n propio (`i18n.js`, ES y EN) leyendo `doradofundev.lang` y
   reaccionando a cambios de idioma en vivo.
 
-## 11. Balance (constantes ajustables)
+## 13. Balance (constantes ajustables)
 
 - Puntos del set (15), sets (3).
 - **Ritmo del partido**: la velocidad base de las animaciones debe ser
@@ -215,9 +245,18 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   armado→remate→defensa.
 - Probabilidad de adversidad (~30%).
 
-## 12. Alcance futuro (non-goals v1)
+## 14. Alcance futuro (non-goals v1) — Fase 2 de la carrera
 
-- Temporada completa con ascenso/descenso.
+- **Transferencias con dinero (Fase 2):** al fin de temporada, ofertas de
+  otros clubes (distinto nivel y **más o menos salario**) según tu
+  rendimiento; elegís **quedarte o irte**.
+- **Forma y DT (Fase 2):** una stat de "forma" que sube/baja con tu
+  rendimiento reciente; según la forma y el director técnico, **jugás más o
+  menos partidos** (a veces te toca banco: partido simulado sin tus turnos).
+- **Divisiones y ligas múltiples:** ascenso/descenso, y ligas de distinto
+  nivel (Argentina, España, Italia…).
+- **Premios individuales:** MVP de la temporada, máximo anotador, etc.
+- **Uso del dinero** (a decidir): invertir en entrenamiento, patrocinios, etc.
 - Más posiciones (líbero, opuesto, central).
 - **Sistemas tácticos (5-1 / 6-2) y elección de formación**: capa táctica
   que define quién arma según la rotación. No por ahora; el armador ya
@@ -229,7 +268,7 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   bloqueo, estela de la pelota, más variedad de atacantes/zona, sombra de la
   pelota en el suelo. La base ya simula rotaciones, IA por roles y zonas.
 
-## 13. Estado actual y pendientes para build
+## 15. Estado actual y pendientes para build
 
 **Ya implementado (funciona):**
 
@@ -265,3 +304,14 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 - **Verificación:** `node --check`, `npm run build`, chrome headless sin
   errores, y simulaciones `/tmp/opencode/vav-sim.js` (punta) y
   `vav-sim-armador.js` (armador) con resultado OK.
+- **Carrera en liga (Fase 1, §4/§8/§9/§10):** liga round-robin de 8 clubs
+  (14 fechas) con tabla y campeón (perder no elimina), opción
+  **Jugar/Simular** por partido, edad inicial con mejora/declive, salario,
+  stats de carrera y palmarés, fin de temporada con "Siguiente temporada".
+
+**Pendiente (Fase 2 de la carrera — futuro):**
+
+- Transferencias con dinero (ofertas según rendimiento, elegir quedarte o
+  irte), forma/DT (jugar más o menos partidos según forma y técnico),
+  divisiones y ligas múltiples, premios individuales, uso del dinero,
+  más adversidades. Ver §14.
