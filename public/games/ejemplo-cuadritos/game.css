@@ -2,19 +2,17 @@ html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
   background: #12141a;
   color: #e8eaf0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-
-.wrap {
-  position: relative;
-  height: 100%;
-  display: grid;
-  place-items: center;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
@@ -22,25 +20,30 @@ canvas {
 
 .hud {
   position: absolute;
-  top: 0.8rem;
+  top: 0;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 0 1rem;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
   font-weight: 600;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   pointer-events: none;
+}
+
+.hud span:nth-child(2) {
+  color: #ffd166;
 }
 
 .hint {
   position: absolute;
-  bottom: 0.8rem;
+  bottom: 0.6rem;
   left: 0;
   right: 0;
   text-align: center;
   margin: 0;
   color: #9aa2b1;
   font-size: 0.85rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }

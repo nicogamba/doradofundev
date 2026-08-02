@@ -7,14 +7,14 @@
     <link rel="stylesheet" href="./game.css" />
   </head>
   <body>
-    <main class="wrap">
-      <canvas id="game"></canvas>
-      <div class="hud" id="hud">
-        <span id="score">Puntos: 0</span>
-        <span id="time">Tiempo: 30s</span>
-      </div>
-      <p class="hint">Mueve el cuadro con las flechas del teclado.</p>
-    </main>
+    <canvas id="game"></canvas>
+    <div class="hud">
+      <span id="score"></span>
+      <span id="record"></span>
+      <span id="time"></span>
+    </div>
+    <p class="hint" id="hint"></p>
+    <script src="./i18n.js"></script>
     <script src="./game.js"></script>
   </body>
 </html>

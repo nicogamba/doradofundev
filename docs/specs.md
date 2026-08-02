@@ -24,10 +24,13 @@ elige uno y lo juega a pantalla completa.
    completa y botón "volver al catálogo".
 3. **Selector de idioma:** ES (completo) y EN (por ahora incompleto, se
    traduce después). El idioma elegido se guarda en `localStorage`.
-4. **Juego principal — Looking4Keys:** juego de habilidad 2D, original
+4. **Juego principal — Looking4Stars:** juego de habilidad 2D, original
    (ver sección 5.2). Primera versión con 3 niveles.
-5. **Juego de ejemplo — Cuadritos:** demo técnica temporal para validar el
-   flujo. Se elimina cuando Looking4Keys sea jugable.
+5. **Juego 2 — Cuadritos:** juego de recolección simple (se mueve con
+   flechas). Se mantiene como juego propio del catálogo con: pantalla
+   ajustada al marco (formato horizontal sin barras de desplazamiento),
+   objeto de bonificación de tiempo que aparece aleatoriamente y récord
+   máximo guardado. Ver `docs/games/cuadritos.md`.
 6. *(futuro)* Power-ups, moneda de gemas, mapa de niveles, miniaturas
    automáticas, buscador, ordenación, página "acerca de".
 
@@ -102,9 +105,10 @@ agujeros y 3 niveles con dificultad creciente.
 
 ## 6. Alcance actual vs. futuro
 
-**Actual:** catálogo, página de juego, i18n ES/EN (EN incompleto), juego de
-ejemplo (temporal), Looking4Stars v1 (vertical, física, 5 agujeros, cúpulas,
-aliens, 3 niveles, móvil), tema oscuro responsive.
+**Actual:** catálogo, página de juego, i18n ES/EN (EN incompleto),
+Looking4Stars v1 (vertical, física, 5 agujeros, cúpulas, aliens, 3 niveles,
+móvil), Cuadritos (recolección con récord y bonos de tiempo), tema oscuro
+responsive.
 
 **Futuro (non-goals por ahora):** inglés completo, power-ups, moneda de gemas
 y canje por bolas/poderes, mapa de niveles, más niveles, miniatura automática,
