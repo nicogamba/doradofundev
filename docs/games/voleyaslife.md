@@ -260,14 +260,24 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 - **Divisiones A/B con ascenso y descenso:** dos divisiones sobre un pool de
   16 clubs (A más fuerte, B más débil); empezás en B; campeón de B asciende
   a A, último de A desciende a B; transferencias dentro de tu división.
+- **Ligas por país:** Argentina, España e Italia con distinto nivel (fuerza
+  de clubs y salarios); elegís el país al crear la carrera y podés moverte a
+  la liga del país siguiente al salir campeón de la División A.
+- **Uso del dinero:** entrenamiento personal (invertís dinero para +1 a una
+  stat entre partidos).
+- **Más adversidades:** lesión leve (jugar con stats reducidas o descansar)
+  y rumores de salida (negarlos o aprovechar la atención).
+- **Más posiciones:** opuesto (atacante de zona 2), central (remate y
+  bloqueo) y líbero (recepción).
 
-**Pendiente de Fase 2 (futuro):**
+**Futuro (ideas):**
 
-- **Ligas de distinto nivel (países):** Argentina, España, Italia… (elegir
-  liga o progresar entre ellas).
-- **Uso del dinero** (a decidir): invertir en entrenamiento, patrocinios, etc.
-- Más adversidades.
-- Más posiciones (líbero, opuesto, central).
+- Sistemas tácticos (5-1 / 6-2) y elección de formación.
+- Saque como decisión.
+- Más minijuegos y adversidades.
+- Retiro y carrera como DT.
+- Multijugador u online.
+- Realismo visual progresivo (salto, estela, sombra de la pelota).
 - **Sistemas tácticos (5-1 / 6-2) y elección de formación**: capa táctica
   que define quién arma según la rotación. No por ahora; el armador ya
   decide a qué zona pasa.
@@ -318,10 +328,12 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   (14 fechas) con tabla y campeón (perder no elimina), opción
   **Jugar/Simular** por partido, edad inicial con mejora/declive, salario,
   stats de carrera y palmarés, fin de temporada con "Siguiente temporada".
-- **Fase 2 de la carrera (§14):** transferencias con dinero (ofertas según
-  rendimiento, quedarte o irte), forma y DT (a veces te toca banco con
-  suplente), premios individuales (MVP y máximo anotador), divisiones A/B
-  con ascenso/descenso.
+- **Fase 2 de la carrera (§14):** transferencias con dinero, forma y DT
+  (banco con suplente), premios individuales (MVP y máximo anotador),
+  divisiones A/B con ascenso/descenso, ligas por país (Argentina/España/
+  Italia con progresión), uso del dinero (entrenamiento personal), más
+  adversidades (lesión y rumores) y más posiciones (opuesto, central,
+  líbero).
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
