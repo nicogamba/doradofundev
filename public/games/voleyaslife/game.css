@@ -258,9 +258,44 @@ select {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: 7px;
+  margin-left: -3.5px;
   background: #fff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  border-radius: 3px;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.95);
+}
+
+.marker::before {
+  content: '';
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 13px solid #fff;
+}
+
+.marker::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 13px solid #fff;
+}
+
+.bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .big-title {

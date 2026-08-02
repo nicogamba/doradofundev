@@ -751,7 +751,7 @@
     requestAnimationFrame(mgFrame);
   }
 
-  function tapMinigame() {
+  async function tapMinigame() {
     if (!mg || mg.resolved) return;
     mg.resolved = true;
     var delta = Math.abs(mg.pos - 0.5);
@@ -760,7 +760,15 @@
     else if (delta < mg.zw / 2) q = 2;
     else if (delta < mg.zw / 2 + 0.09) q = 1;
     else q = 0;
+    mgTitle.textContent = resultLabel(q);
+    mgTitle.style.color = resultColor(q);
+    mgMarker.style.background = resultColor(q);
+    mgBar.style.borderColor = resultColor(q);
+    await sleep(0.8);
     minigame.classList.add('hidden');
+    mgTitle.style.color = '';
+    mgMarker.style.background = '#fff';
+    mgBar.style.borderColor = '';
     mg.resolve(q);
     mg = null;
   }
