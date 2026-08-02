@@ -42,10 +42,10 @@ aparecer adversidades que las cambian.
   (una "X" o un estallido/anillo en el punto de contacto) y la pelota
   queda reposando brevemente en el suelo durante el aviso del punto antes
   de reiniciar el siguiente saque.
-- **Redimensionado por altura**: la pelota se dibuja **más chica en el
-  punto más alto del arco** y a tamaño real cerca del suelo (perspectiva
-  simple: escala = 1 − (altura / alturaMáxima) × factor). Barato, un
-  cálculo en el dibujo.
+- **Redimensionado por altura**: la pelota se dibuja **más GRANDE en el
+  punto más alto del arco** (sensación de proximidad al punto de vista del
+  jugador) y a tamaño real cerca del suelo. Perspectiva simple:
+  escala = 1 + (altura / alturaMáxima) × factor.
 - Botón de velocidad **×1/×2** durante el partido.
 - HUD: marcador (sets y puntos), rival actual, tu posición.
 
@@ -100,11 +100,12 @@ guionada por rol, no física):
 - **Ataque:** el atacante salta/remata hacia la zona elegida.
 - **Bloqueo/defensa:** los bloqueadores se alinean en la red hacia la zona
   probable del remate; los de atrás se mueven hacia esa zona.
-- **Movimiento continuo:** los jugadores se desplazan suavemente hacia su
-  posición de rol en cada frame, incluso entre toques (el campo se ve vivo;
-  no se quedan estáticos esperando). Implementación barata: cada jugador
-  deriva (lerp lento) hacia su posición objetivo actual dentro del bucle de
-  dibujo.
+- **Movimiento continuo:** los jugadores se desplazan de forma **visible y
+  constante** (nunca se quedan quietos): deriva (lerp) hacia su posición de
+  rol en cada frame con velocidad suficiente para notarse, más un pequeño
+  balanceo/bamboleo propio (oscilación leve por jugador) que los mantiene
+  vivos incluso cuando ya llegaron a su posición. Implementación barata en
+  el bucle de dibujo.
 
 ### 5.3 Resolución del rally
 
@@ -205,6 +206,9 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 ## 11. Balance (constantes ajustables)
 
 - Puntos del set (15), sets (3).
+- **Ritmo del partido**: la velocidad base de las animaciones debe ser
+  más lenta que la actual (factor de escala base ~1.35 sobre las
+  duraciones), con el botón ×1/×2 que siga acelerando a partir de ahí.
 - Stats iniciales por posición; escala de stats de rivales por ronda.
 - Velocidad de la barra y tamaño de zona verde según stat y zona elegida.
 - Dificultad de las zonas de remate (esquinas vs. centro) y cascada
