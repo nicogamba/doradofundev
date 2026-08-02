@@ -73,7 +73,7 @@ canvas {
   text-overflow: ellipsis;
 }
 
-.comment-line:last-child {
+.comment-line:first-child {
   color: #e8eaf0;
   font-weight: 600;
 }

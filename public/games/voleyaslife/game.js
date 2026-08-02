@@ -101,10 +101,10 @@
   }
 
   function comment(text) {
-    for (var i = 0; i < 3; i++) {
-      commentLines[i].textContent = commentLines[i + 1].textContent;
+    for (var i = 3; i > 0; i--) {
+      commentLines[i].textContent = commentLines[i - 1].textContent;
     }
-    commentLines[3].textContent = text;
+    commentLines[0].textContent = text;
   }
 
   function clearCommentary() {
