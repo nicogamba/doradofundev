@@ -247,16 +247,23 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 ## 14. Alcance futuro (non-goals v1) — Fase 2 de la carrera
 
-- **Transferencias con dinero (Fase 2):** al fin de temporada, ofertas de
-  otros clubes (distinto nivel y **más o menos salario**) según tu
-  rendimiento; elegís **quedarte o irte**.
-- **Forma y DT (Fase 2):** una stat de "forma" que sube/baja con tu
-  rendimiento reciente; según la forma y el director técnico, **jugás más o
-  menos partidos** (a veces te toca banco: partido simulado sin tus turnos).
+**Ya implementado en Fase 2:**
+
+- **Transferencias con dinero:** al fin de temporada, ofertas de otros
+  clubes (distinto nivel y más/menos salario) según tu rendimiento; elegís
+  quedarte o irte.
+- **Forma y DT:** stat de forma que sube con victorias y baja con derrotas;
+  según la forma y la edad, el DT a veces te deja en el banco (el partido se
+  simula con suplente, sin tus turnos).
+- **Premios individuales:** MVP de la temporada y máximo anotador, guardados
+  por temporada en el palmarés.
+
+**Pendiente de Fase 2 (futuro):**
+
 - **Divisiones y ligas múltiples:** ascenso/descenso, y ligas de distinto
   nivel (Argentina, España, Italia…).
-- **Premios individuales:** MVP de la temporada, máximo anotador, etc.
 - **Uso del dinero** (a decidir): invertir en entrenamiento, patrocinios, etc.
+- Más adversidades.
 - Más posiciones (líbero, opuesto, central).
 - **Sistemas tácticos (5-1 / 6-2) y elección de formación**: capa táctica
   que define quién arma según la rotación. No por ahora; el armador ya
@@ -308,6 +315,9 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   (14 fechas) con tabla y campeón (perder no elimina), opción
   **Jugar/Simular** por partido, edad inicial con mejora/declive, salario,
   stats de carrera y palmarés, fin de temporada con "Siguiente temporada".
+- **Fase 2 de la carrera (§14):** transferencias con dinero (ofertas según
+  rendimiento, quedarte o irte), forma y DT (a veces te toca banco con
+  suplente), premios individuales (MVP y máximo anotador).
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
