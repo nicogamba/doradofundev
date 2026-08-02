@@ -20,6 +20,9 @@
   var POSITIONS = {
     punta: { S: 3, A: 5, R: 5, B: 3, D: 3 },
     armador: { S: 3, A: 3, R: 5, B: 3, D: 4 },
+    opuesto: { S: 3, A: 5, R: 3, B: 4, D: 3 },
+    central: { S: 2, A: 4, R: 3, B: 5, D: 4 },
+    libero: { S: 1, A: 1, R: 6, B: 1, D: 6 },
   };
 
   var TEAM_BASE = { S: 4, A: 4, R: 4, B: 4, D: 4 };
@@ -42,6 +45,10 @@
       { key: 'armarA4', threshold: 2, directOnPerfect: false, zone: 4, diff: 0.05, setBoost: 1 },
       { key: 'armarA6', threshold: 2, directOnPerfect: false, zone: 6, diff: 0.1, setBoost: 2 },
       { key: 'pasarla', threshold: 3, directOnPerfect: true, zone: 3, diff: 0.05, setBoost: 0 },
+    ],
+    block: [
+      { key: 'bloqueoSeguro', threshold: 1, directOnPerfect: false, diff: -0.05 },
+      { key: 'bloqueoAgresivo', threshold: 2, directOnPerfect: false, diff: 0.06 },
     ],
   };
 
@@ -126,6 +133,10 @@
 
   function teamName(team) {
     return team === 0 ? t('yourTeam') : match.rival.club;
+  }
+
+  function positionNameKey() {
+    return 'position' + career.position.charAt(0).toUpperCase() + career.position.slice(1);
   }
 
   // ---------- Court ----------
@@ -653,7 +664,10 @@
   function isPlayerTurn(phase) {
     if (career.suspended || career.benched) return false;
     if (career.position === 'punta') return phase === 'receive' || phase === 'attack';
-    return phase === 'set';
+    if (career.position === 'armador') return phase === 'set';
+    if (career.position === 'opuesto') return phase === 'attack';
+    if (career.position === 'central') return phase === 'attack' || phase === 'defend';
+    return phase === 'receive';
   }
 
   function suspendedStat(stat) {
@@ -816,7 +830,16 @@
     var from = ballNow;
     var defStat = teamPhaseStat(defending, 'B') + teamPhaseStat(defending, 'D') + attackQuality + defZoneMod(hitZone);
     var atkStat = playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A');
-    var ok = autoPhase(defStat, atkStat);
+    var ok;
+    if (isMyTurn(defending, 'defend')) {
+      await showLabel(t('decisionPhase'), '#ffd166', 0.6);
+      var decision = await askDecision('block');
+      var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
+      await showLabel(resultLabel(bq), resultColor(bq), 0.8);
+      ok = bq >= decision.threshold;
+    } else {
+      ok = autoPhase(defStat, atkStat);
+    }
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
       setFormationTargets();
@@ -1175,6 +1198,9 @@
       '<div class="card"><h2>' + t('positionLabel') + '</h2><p class="subtitle">' + t('choosePosition') + '</p>' +
       '<div class="field"><button id="pos-punta" class="btn ' + (setupData.position === 'punta' ? 'active' : 'ghost') + '" type="button">' + t('positionPunta') + '</button><p class="subtitle">' + t('positionPuntaDesc') + '</p></div>' +
       '<div class="field"><button id="pos-armador" class="btn ' + (setupData.position === 'armador' ? 'active' : 'ghost') + '" type="button">' + t('positionArmador') + '</button><p class="subtitle">' + t('positionArmadorDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-opuesto" class="btn ' + (setupData.position === 'opuesto' ? 'active' : 'ghost') + '" type="button">' + t('positionOpuesto') + '</button><p class="subtitle">' + t('positionOpuestoDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-central" class="btn ' + (setupData.position === 'central' ? 'active' : 'ghost') + '" type="button">' + t('positionCentral') + '</button><p class="subtitle">' + t('positionCentralDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-libero" class="btn ' + (setupData.position === 'libero' ? 'active' : 'ghost') + '" type="button">' + t('positionLibero') + '</button><p class="subtitle">' + t('positionLiberoDesc') + '</p></div>' +
       '</div>' +
       '<button id="btn-start" class="btn" type="button" disabled>' + t('start') + '</button>' +
       '</div></div>';
@@ -1196,16 +1222,35 @@
     };
     byId('pos-punta').onclick = function () {
       setupData.position = 'punta';
-      byId('pos-punta').className = 'btn active';
-      byId('pos-armador').className = 'btn ghost';
+      setActivePos('punta');
       checkStart();
     };
     byId('pos-armador').onclick = function () {
       setupData.position = 'armador';
-      byId('pos-armador').className = 'btn active';
-      byId('pos-punta').className = 'btn ghost';
+      setActivePos('armador');
       checkStart();
     };
+    byId('pos-opuesto').onclick = function () {
+      setupData.position = 'opuesto';
+      setActivePos('opuesto');
+      checkStart();
+    };
+    byId('pos-central').onclick = function () {
+      setupData.position = 'central';
+      setActivePos('central');
+      checkStart();
+    };
+    byId('pos-libero').onclick = function () {
+      setupData.position = 'libero';
+      setActivePos('libero');
+      checkStart();
+    };
+
+    function setActivePos(pos) {
+      ['punta', 'armador', 'opuesto', 'central', 'libero'].forEach(function (p) {
+        byId('pos-' + p).className = p === pos ? 'btn active' : 'btn ghost';
+      });
+    }
     byId('btn-start').onclick = function () {
       setupData.name = (byId('in-name').value || '').trim();
       var num = parseInt(byId('in-number').value, 10);
@@ -1287,7 +1332,7 @@
       '</div>' +
       '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
-      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
       benchNote + injNote +
       (career.benched ? '' :       '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
       '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
@@ -1372,7 +1417,7 @@
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('career') + '</h1>' +
       '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
-      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + '</p>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + '</p>' +
       '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + ' · ' + t('money') + ' ' + career.money + '</p>' +
       '<p class="subtitle">' + career.club + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
       '</div>' +
