@@ -480,7 +480,26 @@
   // ---------- League ----------
 
   function leagueClubs() {
-    return window.VAV.clubs.slice(0, LEAGUE_SIZE);
+    return window.VAV.clubs.slice(LEAGUE_SIZE, LEAGUE_SIZE * 2);
+  }
+
+  function myDivision() {
+    return career.clubs[career.clubIdx].division;
+  }
+
+  function myLocalIdx() {
+    return career.divisionIndices.indexOf(career.clubIdx);
+  }
+
+  function initClubs() {
+    career.clubs = window.VAV.clubs.map(function (name, i) {
+      var a = i < LEAGUE_SIZE;
+      return {
+        name: name,
+        power: a ? 4 + Math.random() * 3 : 2.5 + Math.random() * 2.5,
+        division: a ? 'A' : 'B',
+      };
+    });
   }
 
   function clubStats(power) {
@@ -541,20 +560,25 @@
   }
 
   function initLeague() {
-    var names = leagueClubs();
-    career.clubs = names.map(function (name, i) {
-      return { name: name, power: 3 + Math.random() * 3 };
-    });
+    if (!career.clubs) initClubs();
+    var myDiv = myDivision();
+    var indices = [];
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division === myDiv) indices.push(i);
+    }
+    career.divisionIndices = indices;
     career.schedule = buildSchedule();
-    career.standings = career.clubs.map(function (c) {
-      return { name: c.name, power: c.power, played: 0, won: 0, lost: 0, sw: 0, sl: 0, pts: 0 };
+    career.standings = indices.map(function (gi) {
+      return { name: career.clubs[gi].name, power: career.clubs[gi].power, played: 0, won: 0, lost: 0, sw: 0, sl: 0, pts: 0 };
     });
     career.week = 0;
     career.seasonStats = { points: 0 };
   }
 
   function applyStandings(clubIdx, sw, sl) {
-    var s = career.standings[clubIdx];
+    var local = career.divisionIndices.indexOf(clubIdx);
+    if (local === -1) return;
+    var s = career.standings[local];
     s.played++;
     s.sw += sw;
     s.sl += sl;
@@ -565,24 +589,48 @@
   }
 
   function currentOpponent() {
+    var me = myLocalIdx();
     var pairs = career.schedule[career.week];
     for (var i = 0; i < pairs.length; i++) {
-      if (pairs[i][0] === career.clubIdx) return career.clubs[pairs[i][1]];
-      if (pairs[i][1] === career.clubIdx) return career.clubs[pairs[i][0]];
+      if (pairs[i][0] === me) return career.clubs[career.divisionIndices[pairs[i][1]]];
+      if (pairs[i][1] === me) return career.clubs[career.divisionIndices[pairs[i][0]]];
     }
-    return career.clubs[(career.clubIdx + 1) % LEAGUE_SIZE];
+    return career.clubs[career.divisionIndices[(me + 1) % LEAGUE_SIZE]];
   }
 
   function resolveOtherMatches() {
+    var me = myLocalIdx();
     var pairs = career.schedule[career.week];
     for (var i = 0; i < pairs.length; i++) {
       var a = pairs[i][0];
       var b = pairs[i][1];
-      if (a === career.clubIdx || b === career.clubIdx) continue;
-      var r = simulateMatchScore(career.clubs[a].power, career.clubs[b].power);
-      applyStandings(a, r.setsA, r.setsB);
-      applyStandings(b, r.setsB, r.setsA);
+      if (a === me || b === me) continue;
+      var ca = career.clubs[career.divisionIndices[a]];
+      var cb = career.clubs[career.divisionIndices[b]];
+      var r = simulateMatchScore(ca.power, cb.power);
+      applyStandings(career.divisionIndices[a], r.setsA, r.setsB);
+      applyStandings(career.divisionIndices[b], r.setsB, r.setsA);
     }
+  }
+
+  function promoteClub() {
+    var weakest = -1;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division !== 'A') continue;
+      if (weakest === -1 || career.clubs[i].power < career.clubs[weakest].power) weakest = i;
+    }
+    career.clubs[career.clubIdx].division = 'A';
+    career.clubs[weakest].division = 'B';
+  }
+
+  function relegateClub() {
+    var strongest = -1;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division !== 'B') continue;
+      if (strongest === -1 || career.clubs[i].power > career.clubs[strongest].power) strongest = i;
+    }
+    career.clubs[career.clubIdx].division = 'B';
+    career.clubs[strongest].division = 'A';
   }
 
   // ---------- Phase resolution ----------
@@ -1102,7 +1150,8 @@
     if (playBtn) playBtn.onclick = null;
     currentScreen = 'setup';
     var clubsOpts = leagueClubs().map(function (c, i) {
-      return '<option value="' + i + '"' + (i === setupData.clubIdx ? ' selected' : '') + '>' + c + '</option>';
+      var global = LEAGUE_SIZE + i;
+      return '<option value="' + global + '"' + (global === setupData.clubIdx ? ' selected' : '') + '>' + c + '</option>';
     }).join('');
     var ageOpts = [18, 19, 20, 21, 22, 23].map(function (a) {
       return '<option value="' + a + '"' + (a === setupData.age ? ' selected' : '') + '>' + a + '</option>';
@@ -1141,7 +1190,7 @@
       byId('sex-f').className = 'btn ghost';
     };
     byId('btn-random-club').onclick = function () {
-      var idx = Math.floor(Math.random() * LEAGUE_SIZE);
+      var idx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
       byId('sel-club').value = String(idx);
       setupData.clubIdx = idx;
     };
@@ -1164,7 +1213,7 @@
       if (num > 99) num = 99;
       setupData.number = num;
       setupData.clubIdx = parseInt(byId('sel-club').value, 10);
-      if (isNaN(setupData.clubIdx)) setupData.clubIdx = Math.floor(Math.random() * LEAGUE_SIZE);
+      if (isNaN(setupData.clubIdx)) setupData.clubIdx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
       setupData.age = parseInt(byId('sel-age').value, 10) || 20;
       var name = setupData.name || t('namePlaceholder');
       startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age);
@@ -1182,7 +1231,7 @@
       sex: sex,
       number: number,
       clubIdx: clubIdx,
-      club: leagueClubs()[clubIdx],
+      club: window.VAV.clubs[clubIdx],
       position: position,
       stats: defaultStats(position),
       age: age || 20,
@@ -1195,6 +1244,7 @@
       palmares: [],
       seasonPos: 0,
     };
+    initClubs();
     initLeague();
     saveCareer();
     showBetween();
@@ -1228,7 +1278,7 @@
     var content =
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('title') + '</h1>' +
-      '<p class="subtitle">' + t('season') + ' · ' + weekName(career.week) + '</p>' +
+      '<p class="subtitle">' + t('season') + ' · ' + t('division' + myDivision()) + ' · ' + weekName(career.week) + '</p>' +
       '<div class="card opponent-card"><p class="subtitle">' + t('nextMatch') + '</p>' +
       '<p class="club-name">' + t('vs') + ' ' + opp.name + '</p>' +
       '</div>' +
@@ -1282,7 +1332,7 @@
       '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t('position' + (career.position === 'punta' ? 'Punta' : 'Armador')) + '</p>' +
       '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + '</p>' +
-      '<p class="subtitle">' + career.club + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
+      '<p class="subtitle">' + career.club + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
       '</div>' +
       '<div class="card"><h2>' + t('careerStats') + '</h2>' +
       '<div class="stat-row"><span>' + t('matchesPlayed') + '</span><b>' + career.careerStats.matches + '</b></div>' +
@@ -1446,8 +1496,9 @@
 
   function buildOffers(value) {
     var others = [];
-    for (var i = 0; i < LEAGUE_SIZE; i++) {
-      if (i === career.clubIdx) continue;
+    var myDiv = myDivision();
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (i === career.clubIdx || career.clubs[i].division !== myDiv) continue;
       others.push(i);
     }
     for (var j = others.length - 1; j > 0; j--) {
@@ -1504,6 +1555,14 @@
     if (career.seasonStats.points >= 12) awards.push('topScorer');
     career.palmares.push({ season: career.palmares.length + 1, pos: pos, title: title, awards: awards });
     if (title === 'champion') career.careerStats.titles++;
+    var divisionMove = '';
+    if (myDivision() === 'B' && pos === 1) {
+      promoteClub();
+      divisionMove = ' · ' + t('promoted');
+    } else if (myDivision() === 'A' && pos === LEAGUE_SIZE) {
+      relegateClub();
+      divisionMove = ' · ' + t('relegated');
+    }
     career.age++;
     if (career.age >= 30) {
       var stat = STATS[Math.floor(Math.random() * STATS.length)];
@@ -1514,7 +1573,7 @@
     await showTransfers(marketValue());
     saveCareer();
     await new Promise(function (resolve) {
-      showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos));
+      showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos) + divisionMove);
       modalButtons([
         { label: t('nextSeason'), fn: function () { initLeague(); hideModal(); resolve(); } },
         { label: t('newCareer'), fn: function () { clearCareer(); career = null; hideModal(); resolve(); } },
