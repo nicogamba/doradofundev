@@ -544,7 +544,9 @@
   }
 
   function myLocalIdx() {
-    return career.divisionIndices.indexOf(career.clubIdx);
+    if (!career.divisionIndices) return 0;
+    var idx = career.divisionIndices.indexOf(career.clubIdx);
+    return idx === -1 ? 0 : idx;
   }
 
   function initClubs() {
@@ -1806,7 +1808,7 @@
   draw();
 
   var loaded = loadCareer();
-  if (loaded && loaded.schedule) {
+  if (loaded && loaded.schedule && loaded.divisionIndices && loaded.clubs && loaded.clubs.length === 16) {
     career = loaded;
     if (!career.careerStats) career.careerStats = { matches: 0, setsWon: 0, points: 0, titles: 0 };
     career.palmares = career.palmares || [];
@@ -1821,6 +1823,8 @@
     if (!career.injured) career.injured = false;
     showBetween();
   } else {
+    // carreras en formato viejo (liga única) no son compatibles: se descartan
+    clearCareer();
     showSetup();
   }
 })();
