@@ -1556,10 +1556,14 @@
   var loaded = loadCareer();
   if (loaded && loaded.schedule) {
     career = loaded;
-    if (!career.careerStats) {
-      career.careerStats = { matches: 0, setsWon: 0, points: 0, titles: 0 };
-      career.palmares = career.palmares || [];
-    }
+    if (!career.careerStats) career.careerStats = { matches: 0, setsWon: 0, points: 0, titles: 0 };
+    career.palmares = career.palmares || [];
+    if (typeof career.form !== 'number') career.form = 5;
+    if (typeof career.salary !== 'number') career.salary = 1000;
+    if (typeof career.seasonPos !== 'number') career.seasonPos = 0;
+    if (!career.seasonStats) career.seasonStats = { points: 0 };
+    if (!career.benched) career.benched = false;
+    if (typeof career.benchedWeek !== 'number') career.benchedWeek = -1;
     showBetween();
   } else {
     showSetup();
