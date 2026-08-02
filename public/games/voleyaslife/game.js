@@ -65,6 +65,9 @@
   var mgZoneGood = document.getElementById('mg-zone-good');
   var mgMarker = document.getElementById('mg-marker');
   var mgTap = document.getElementById('mg-tap');
+  var commentLines = [0, 1, 2, 3].map(function (i) {
+    return document.getElementById('c' + i);
+  });
 
   var lang = window.VAV.currentLang();
   var dpr = 1;
@@ -93,6 +96,23 @@
     return document.getElementById(id);
   }
 
+  function comment(text) {
+    for (var i = 0; i < 3; i++) {
+      commentLines[i].textContent = commentLines[i + 1].textContent;
+    }
+    commentLines[3].textContent = text;
+  }
+
+  function clearCommentary() {
+    commentLines.forEach(function (el) {
+      el.textContent = '';
+    });
+  }
+
+  function pName(team, player) {
+    return player.isPlayer ? career.name : '#' + player.number;
+  }
+
   // ---------- Court ----------
 
   var COURT = { x: 110, y: 160, w: 260, h: 560, netY: 440 };
@@ -115,8 +135,19 @@
           ? ['outside', 'setter', 'middle', 'opposite', 'middle', 'libero']
           : ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'])
       : ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'];
+    var pool = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12].filter(function (n) {
+      return !isPlayerTeam || n !== career.number;
+    });
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i];
+      pool[i] = pool[j];
+      pool[j] = tmp;
+    }
+    var numbers = pool.slice(0, 6);
+    if (isPlayerTeam) numbers[0] = career.number;
     return roles.map(function (role, i) {
-      return { role: role, zoneIndex: i, isPlayer: isPlayerTeam && i === 0 };
+      return { role: role, zoneIndex: i, isPlayer: isPlayerTeam && i === 0, number: numbers[i] };
     });
   }
 
@@ -195,8 +226,8 @@
     ctx.lineTo(COURT.x + COURT.w / 2, COURT.y + COURT.h);
     ctx.stroke();
 
-    drawTeam(playerPos[1], '#4a8fe0', false);
-    drawTeam(playerPos[0], '#e0c34a', true);
+    drawTeam(1, '#4a8fe0', false);
+    drawTeam(0, '#e0c34a', true);
 
     ctx.fillStyle = '#f2f4f8';
     ctx.shadowColor = '#f2f4f8';
@@ -216,7 +247,8 @@
     }
   }
 
-  function drawTeam(players, color, highlightPlayer) {
+  function drawTeam(team, color, highlightPlayer) {
+    var players = playerPos[team];
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
       ctx.fillStyle = color;
@@ -226,6 +258,12 @@
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.font = '700 10px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(teams[team][i].number), p.x, p.y + 1);
+      ctx.textBaseline = 'alphabetic';
       if (highlightPlayer && i === 0) {
         ctx.strokeStyle = '#ffd166';
         ctx.lineWidth = 3;
@@ -394,7 +432,11 @@
     });
     var sStat = playerStat(attacking, server, 'S');
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
-    if (!ok) await showLabel(t('ace'), '#e8eaf0', 0.8);
+    comment(t('serveBy').replace('{name}', pName(attacking, server)));
+    if (!ok) {
+      comment(t('aceBy').replace('{name}', pName(attacking, server)));
+      await showLabel(t('ace'), '#e8eaf0', 0.8);
+    }
     return { ok: ok, quality: sStat };
   }
 
@@ -425,8 +467,10 @@
     if (isMy) {
       ok = quality >= decision.threshold;
       direct = decision.directOnPerfect && quality === 3;
+      comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
     } else {
       ok = autoPhase(playerStat(attacking, receiver, 'R'), incoming);
+      if (ok) comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
     }
     return { ok: ok, direct: direct, quality: quality };
   }
@@ -463,6 +507,8 @@
     });
     var ok = isMy ? quality >= decision.threshold : true;
     var direct = isMy && decision.directOnPerfect && quality === 3;
+    var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
+    comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
 
@@ -494,6 +540,12 @@
     });
     var ok = isMy ? quality >= decision.threshold : quality > 0;
     var direct = isMy && decision.directOnPerfect && quality === 3;
+    var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
+    if (isMy && decision.key === 'suelta') {
+      comment(t('tipBy').replace('{name}', attackerName));
+    } else {
+      comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
+    }
     return { ok: ok, direct: direct, quality: quality, zone: hitZone };
   }
 
@@ -507,6 +559,7 @@
     var atkStat = playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A');
     var ok = autoPhase(defStat, atkStat);
     if (ok) {
+      comment(t('defendOk').replace('{name}', pName(defending, dig)));
       await playSegment({
         from: from,
         to: playerPos[defending][sidx],
@@ -514,6 +567,7 @@
         seconds: 0.5,
       });
     } else {
+      comment(t('blockBy').replace('{name}', pName(defending, dig)));
       await playSegment({
         from: from,
         to: { x: from.x, y: from.y + 40 },
@@ -538,7 +592,7 @@
     var receiveTeam = 1 - server;
     var serve = await doServe(server, receiveTeam);
     if (!serve.ok) {
-      scorePoint(receiveTeam);
+      await scorePoint(receiveTeam);
       return;
     }
     var attacking = receiveTeam;
@@ -547,34 +601,34 @@
     for (var guard = 0; guard < 20; guard++) {
       var receive = await doReceive(attacking, defending, incoming);
       if (!receive.ok) {
-        scorePoint(defending);
+        await scorePoint(defending);
         return;
       }
       if (receive.direct) {
-        scorePoint(attacking);
+        await scorePoint(attacking);
         return;
       }
       var set = await doSet(attacking, defending, receive.quality);
       if (!set.ok) {
-        scorePoint(defending);
+        await scorePoint(defending);
         return;
       }
       if (set.direct) {
-        scorePoint(attacking);
+        await scorePoint(attacking);
         return;
       }
       var attack = await doAttack(attacking, defending, set.quality, set.zone);
       if (!attack.ok) {
-        scorePoint(defending);
+        await scorePoint(defending);
         return;
       }
       if (attack.direct) {
-        scorePoint(attacking);
+        await scorePoint(attacking);
         return;
       }
       var def = await doDefend(defending, attacking, attack.zone, attack.quality);
       if (!def.ok) {
-        scorePoint(attacking);
+        await scorePoint(attacking);
         return;
       }
       incoming = 3;
@@ -582,15 +636,20 @@
       attacking = defending;
       defending = tmp;
     }
-    scorePoint(defending);
+    await scorePoint(defending);
   }
 
-  function scorePoint(team) {
+  async function scorePoint(team) {
     if (match.server !== team) {
       rotateTeam(team);
     }
     match.scores[team]++;
     match.server = team;
+    var who = team === 0 ? t('yourTeam') : match.rival.club;
+    comment(t('cPoint').replace('{team}', who).replace('{score}', match.scores[0] + ' - ' + match.scores[1]));
+    setLabel(t('pointFor') + ' ' + who, team === 0 ? '#7ee787' : '#e0c34a');
+    await sleep(1.1);
+    label = null;
     updateHud();
     if (match.scores[team] >= SET_TARGET && match.scores[team] - match.scores[1 - team] >= 2) {
       match.setsWon[team]++;
@@ -622,6 +681,7 @@
   }
 
   async function playMatch() {
+    clearCommentary();
     hud.classList.remove('hidden');
     updateHud();
     while (!match.over) {
