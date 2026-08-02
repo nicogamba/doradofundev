@@ -27,8 +27,12 @@ aparecer adversidades que las cambian.
 - **Cada jugador muestra su número de camiseta** en la cancha (el jugador del
   usuario lleva su número elegido; los demás tienen números propios).
 - **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
-  va comentando el partido ("Nico saca", "¡Ace!", "#7 arma a zona 4",
-  "¡Bloqueo!", "Punto para Tu equipo · 8-5").
+  va comentando el partido con **precisión de jugada por jugada**:
+  quién hace cada acción y el desenlace. Ejemplos: "#2 recibe", "#4 levanta
+  a zona 6", "#6 remata a zona 5", "#2 no puede recibir — punto para Tu
+  equipo". Incluye los fallos con su consecuencia ("no puede recibir/armar/
+  rematar/defender — punto para X") y usa el nombre del jugador del usuario
+  o el número de camiseta de los demás.
 - **Feedback del punto**: cuando se anota un punto, se muestra claramente
   quién lo ganó y el marcador antes de continuar (no solo se actualiza el
   contador).
@@ -106,12 +110,21 @@ guionada por rol, no física):
   a una esquina (zonas 1/5) da un minijuego más difícil que a la zona 6.
 - **El marcador debe ser claramente visible** (ancho, brillante, con
   puntero), no una línea fina difícil de seguir.
+- **Visualización del rango de éxito**: la barra debe mostrar claramente las
+  **tres zonas** y sus límites visibles, para que el jugador sepa dónde
+  detenerse según el resultado que busca:
+  - zona central (la más chica, color más brillante) → **Perfecto**;
+  - zona verde → **Bien**;
+  - zona ámbar (la más ancha) → **Regular**;
+  - fuera de las zonas → **Fallaste**.
+  Las zonas no deben superponerse ni quedar ambiguas: cada una con su color
+  y límite definido.
 - **Feedback explícito del resultado**: al tocar, el minijuego muestra de
   forma clara si fue éxito o fallo (texto y color: Perfecto/Bien/Regular/
   Fallaste) antes de continuar con el rally. El jugador siempre sabe si ganó
   o perdió la jugada.
-- Resultados: zona verde central → éxito pleno; zona verde → éxito; zona
-  amarilla → a medias; fuera → fallo.
+- Resultados: zona central → éxito pleno; zona verde → éxito; zona ámbar →
+  a medias; fuera → fallo.
 - (futuro) Otros tipos de minijuego.
 
 ## 7. Decisiones de jugada (atadas a la jugada de vóley)
