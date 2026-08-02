@@ -550,6 +550,7 @@
       return { name: c.name, power: c.power, played: 0, won: 0, lost: 0, sw: 0, sl: 0, pts: 0 };
     });
     career.week = 0;
+    career.seasonStats = { points: 0 };
   }
 
   function applyStandings(clubIdx, sw, sl) {
@@ -1271,6 +1272,8 @@
     currentScreen = 'career';
     var palmares = career.palmares.map(function (p) {
       var label = p.title === 'champion' ? t('champion') : p.title === 'subchampion' ? t('subchampion') : t('position') + ' ' + p.pos;
+      var extras = (p.awards || []).map(function (a) { return t(a); }).join(' · ');
+      if (extras) label += ' · ' + extras;
       return '<div class="stat-row"><span>' + t('season') + ' ' + p.season + '</span><b>' + label + '</b></div>';
     }).join('') || '<p class="subtitle">' + t('noPalmares') + '</p>';
     screen.innerHTML =
@@ -1409,6 +1412,7 @@
     career.careerStats.matches++;
     career.careerStats.setsWon += setsWon;
     career.careerStats.points += points || 0;
+    career.seasonStats.points += points || 0;
     career.form = win ? Math.min(10, career.form + 1) : Math.max(0, career.form - 1);
     career.benched = false;
     applyStandings(career.clubIdx, setsWon, setsLost);
@@ -1495,7 +1499,10 @@
     }
     career.seasonPos = pos;
     var title = pos === 1 ? 'champion' : pos === 2 ? 'subchampion' : null;
-    career.palmares.push({ season: career.palmares.length + 1, pos: pos, title: title });
+    var awards = [];
+    if (pos === 1 && Math.random() < 0.7) awards.push('mvp');
+    if (career.seasonStats.points >= 12) awards.push('topScorer');
+    career.palmares.push({ season: career.palmares.length + 1, pos: pos, title: title, awards: awards });
     if (title === 'champion') career.careerStats.titles++;
     career.age++;
     if (career.age >= 30) {
