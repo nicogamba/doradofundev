@@ -498,6 +498,51 @@
     return career.clubs[career.clubIdx].division;
   }
 
+  function countryLevel(c) {
+    return c === 'espana' ? 2 : c === 'italia' ? 3 : 1;
+  }
+
+  function nextCountry(c) {
+    return c === 'argentina' ? 'espana' : c === 'espana' ? 'italia' : null;
+  }
+
+  function initClubs() {
+    var lvl = countryLevel(career.country);
+    career.clubs = window.VAV.clubs.map(function (name, i) {
+      var a = i < LEAGUE_SIZE;
+      return {
+        name: name,
+        power: (a ? 4 + Math.random() * 3 : 2.5 + Math.random() * 2.5) + (lvl - 1) * 1.5,
+        division: a ? 'A' : 'B',
+      };
+    });
+  }
+
+  function moveToCountry(next) {
+    career.country = next;
+    initClubs();
+    career.clubs[career.clubIdx].division = 'B';
+    var aCount = 0;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division === 'A') aCount++;
+    }
+    if (aCount > LEAGUE_SIZE) {
+      var weakest = -1;
+      for (var j = 0; j < career.clubs.length; j++) {
+        if (career.clubs[j].division !== 'A') continue;
+        if (weakest === -1 || career.clubs[j].power < career.clubs[weakest].power) weakest = j;
+      }
+      career.clubs[weakest].division = 'B';
+    } else if (aCount < LEAGUE_SIZE) {
+      var strongest = -1;
+      for (var k = 0; k < career.clubs.length; k++) {
+        if (career.clubs[k].division !== 'B') continue;
+        if (strongest === -1 || career.clubs[k].power > career.clubs[strongest].power) strongest = k;
+      }
+      career.clubs[strongest].division = 'A';
+    }
+  }
+
   function myLocalIdx() {
     return career.divisionIndices.indexOf(career.clubIdx);
   }
@@ -601,7 +646,8 @@
 
   function currentOpponent() {
     var me = myLocalIdx();
-    var pairs = career.schedule[career.week];
+    var pairs = career.schedule && career.schedule[career.week];
+    if (!pairs) return career.clubs[career.divisionIndices[(me + 1) % LEAGUE_SIZE]];
     for (var i = 0; i < pairs.length; i++) {
       if (pairs[i][0] === me) return career.clubs[career.divisionIndices[pairs[i][1]]];
       if (pairs[i][1] === me) return career.clubs[career.divisionIndices[pairs[i][0]]];
@@ -1129,7 +1175,7 @@
 
   var career = null;
   var currentScreen = 'setup';
-  var setupData = { name: '', sex: 'F', number: 7, age: 20, clubIdx: -1, position: null };
+  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null };
 
   function defaultStats(position) {
     return Object.assign({}, POSITIONS[position]);
@@ -1179,6 +1225,9 @@
     var ageOpts = [18, 19, 20, 21, 22, 23].map(function (a) {
       return '<option value="' + a + '"' + (a === setupData.age ? ' selected' : '') + '>' + a + '</option>';
     }).join('');
+    var countryOpts = ['argentina', 'espana', 'italia'].map(function (c) {
+      return '<option value="' + c + '"' + (c === setupData.country ? ' selected' : '') + '>' + t(c) + '</option>';
+    }).join('');
 
     screen.innerHTML =
       '<div class="screen-scroll"><div class="screen">' +
@@ -1192,6 +1241,7 @@
       '</div></div>' +
       '<div class="field"><label>' + t('numberLabel') + '</label><input type="number" id="in-number" value="' + setupData.number + '" min="1" max="99"/></div>' +
       '<div class="field"><label>' + t('ageLabel') + '</label><select id="sel-age">' + ageOpts + '</select></div>' +
+      '<div class="field"><label>' + t('countryLabel') + '</label><select id="sel-country">' + countryOpts + '</select></div>' +
       '<div class="field"><label>' + t('clubLabel') + '</label><select id="sel-club">' + clubsOpts + '</select>' +
       '<button id="btn-random-club" class="btn ghost" type="button">' + t('clubRandom') + '</button></div>' +
       '</div>' +
@@ -1260,8 +1310,9 @@
       setupData.clubIdx = parseInt(byId('sel-club').value, 10);
       if (isNaN(setupData.clubIdx)) setupData.clubIdx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
       setupData.age = parseInt(byId('sel-age').value, 10) || 20;
+      setupData.country = byId('sel-country').value || 'argentina';
       var name = setupData.name || t('namePlaceholder');
-      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age);
+      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country);
     };
 
     function checkStart() {
@@ -1270,7 +1321,7 @@
     if (!setupData.position) checkStart();
   }
 
-  function startCareer(position, name, sex, number, clubIdx, age) {
+  function startCareer(position, name, sex, number, clubIdx, age, country) {
     career = {
       name: name,
       sex: sex,
@@ -1280,6 +1331,7 @@
       position: position,
       stats: defaultStats(position),
       age: age || 20,
+      country: country || 'argentina',
       salary: 1000,
       money: 1000,
       form: 5,
@@ -1316,6 +1368,7 @@
   function showBetween() {
     hud.classList.add('hidden');
     currentScreen = 'between';
+    if (career.week >= SEASON_MATCHES) { seasonEnd(); return; }
     var opp = currentOpponent();
     if (career.benchedWeek !== career.week) {
       career.benched = career.suspended ? false : dtBenched();
@@ -1326,7 +1379,7 @@
     var content =
       '<div class="screen-scroll"><div class="screen">' +
       '<h1>' + t('title') + '</h1>' +
-      '<p class="subtitle">' + t('season') + ' · ' + t('division' + myDivision()) + ' · ' + weekName(career.week) + '</p>' +
+      '<p class="subtitle">' + t('season') + ' · ' + t(career.country) + ' · ' + t('division' + myDivision()) + ' · ' + weekName(career.week) + '</p>' +
       '<div class="card opponent-card"><p class="subtitle">' + t('nextMatch') + '</p>' +
       '<p class="club-name">' + t('vs') + ' ' + opp.name + '</p>' +
       '</div>' +
@@ -1366,7 +1419,8 @@
     var sum = 0;
     for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
     var clubPower = career.clubs[career.clubIdx].power;
-    return Math.round((1000 + sum * 200) * (clubPower / 4));
+    var lvl = countryLevel(career.country);
+    return Math.round((1000 + sum * 200) * (clubPower / 4) * (1 + (lvl - 1) * 0.6));
   }
 
   function trainCost(stat) {
@@ -1419,7 +1473,7 @@
       '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
       '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + '</p>' +
       '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + ' · ' + t('money') + ' ' + career.money + '</p>' +
-      '<p class="subtitle">' + career.club + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
+      '<p class="subtitle">' + career.club + ' · ' + t(career.country) + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
       '</div>' +
       '<div class="card"><h2>' + t('careerStats') + '</h2>' +
       '<div class="stat-row"><span>' + t('matchesPlayed') + '</span><b>' + career.careerStats.matches + '</b></div>' +
@@ -1700,14 +1754,23 @@
     saveCareer();
     await showTransfers(marketValue());
     saveCareer();
+    var canMove = pos === 1 && countryLevel(career.country) < 3;
     await new Promise(function (resolve) {
+      var seasonConfig = [{ label: t('nextSeason'), fn: function () { initLeague(); hideModal(); resolve(); } }];
+      if (canMove) {
+        seasonConfig.push({
+          label: t('moveCountry').replace('{country}', t(nextCountry(career.country))),
+          fn: function () {
+            moveToCountry(nextCountry(career.country));
+            initLeague();
+            hideModal();
+            resolve();
+          },
+        });
+      }
+      seasonConfig.push({ label: t('newCareer'), fn: function () { clearCareer(); career = null; hideModal(); resolve(); } });
       showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos) + divisionMove);
-      modalButtons([
-        { label: t('nextSeason'), fn: function () { initLeague(); hideModal(); resolve(); } },
-        { label: t('newCareer'), fn: function () { clearCareer(); career = null; hideModal(); resolve(); } },
-        null,
-        null,
-      ]);
+      modalButtons(seasonConfig);
     }).then(function () {
       if (career) showBetween();
       else showSetup();
@@ -1750,6 +1813,7 @@
     if (typeof career.form !== 'number') career.form = 5;
     if (typeof career.salary !== 'number') career.salary = 1000;
     if (typeof career.money !== 'number') career.money = 1000;
+    if (!career.country) career.country = 'argentina';
     if (typeof career.seasonPos !== 'number') career.seasonPos = 0;
     if (!career.seasonStats) career.seasonStats = { points: 0 };
     if (!career.benched) career.benched = false;
