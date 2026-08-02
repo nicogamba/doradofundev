@@ -257,11 +257,14 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   simula con suplente, sin tus turnos).
 - **Premios individuales:** MVP de la temporada y máximo anotador, guardados
   por temporada en el palmarés.
+- **Divisiones A/B con ascenso y descenso:** dos divisiones sobre un pool de
+  16 clubs (A más fuerte, B más débil); empezás en B; campeón de B asciende
+  a A, último de A desciende a B; transferencias dentro de tu división.
 
 **Pendiente de Fase 2 (futuro):**
 
-- **Divisiones y ligas múltiples:** ascenso/descenso, y ligas de distinto
-  nivel (Argentina, España, Italia…).
+- **Ligas de distinto nivel (países):** Argentina, España, Italia… (elegir
+  liga o progresar entre ellas).
 - **Uso del dinero** (a decidir): invertir en entrenamiento, patrocinios, etc.
 - Más adversidades.
 - Más posiciones (líbero, opuesto, central).
@@ -317,7 +320,8 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   stats de carrera y palmarés, fin de temporada con "Siguiente temporada".
 - **Fase 2 de la carrera (§14):** transferencias con dinero (ofertas según
   rendimiento, quedarte o irte), forma y DT (a veces te toca banco con
-  suplente), premios individuales (MVP y máximo anotador).
+  suplente), premios individuales (MVP y máximo anotador), divisiones A/B
+  con ascenso/descenso.
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
