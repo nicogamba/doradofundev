@@ -113,6 +113,10 @@
     return player.isPlayer ? career.name : '#' + player.number;
   }
 
+  function teamName(team) {
+    return team === 0 ? t('yourTeam') : match.rival.club;
+  }
+
   // ---------- Court ----------
 
   var COURT = { x: 110, y: 160, w: 260, h: 560, netY: 440 };
@@ -434,8 +438,8 @@
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
-      comment(t('aceBy').replace('{name}', pName(attacking, server)));
-      await showLabel(t('ace'), '#e8eaf0', 0.8);
+      comment(t('serveError').replace('{name}', pName(attacking, server)));
+      await showLabel(t('serveOut'), '#e0503f', 0.8);
     }
     return { ok: ok, quality: sStat };
   }
@@ -470,7 +474,11 @@
       comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
     } else {
       ok = autoPhase(playerStat(attacking, receiver, 'R'), incoming);
-      if (ok) comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
+      if (ok) {
+        comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
+      } else {
+        comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{team}', teamName(defender)));
+      }
     }
     return { ok: ok, direct: direct, quality: quality };
   }
@@ -508,7 +516,11 @@
     var ok = isMy ? quality >= decision.threshold : true;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
-    comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
+    if (ok) {
+      comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
+    } else {
+      comment(t('setFail').replace('{name}', setterName).replace('{team}', teamName(defender)));
+    }
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
 
@@ -541,7 +553,9 @@
     var ok = isMy ? quality >= decision.threshold : quality > 0;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
-    if (isMy && decision.key === 'suelta') {
+    if (!ok) {
+      comment(t('attackFail').replace('{name}', attackerName).replace('{team}', teamName(defender)));
+    } else if (isMy && decision.key === 'suelta') {
       comment(t('tipBy').replace('{name}', attackerName));
     } else {
       comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
@@ -567,14 +581,13 @@
         seconds: 0.5,
       });
     } else {
-      comment(t('blockBy').replace('{name}', pName(defending, dig)));
+      comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{team}', teamName(attacking)));
       await playSegment({
         from: from,
         to: { x: from.x, y: from.y + 40 },
         movers: [{ team: defending, index: didx, to: { x: from.x, y: from.y } }],
         seconds: 0.35,
       });
-      await showLabel(t('blockPoint'), '#e8eaf0', 0.7);
     }
     return { ok: ok };
   }
