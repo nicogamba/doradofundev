@@ -102,8 +102,36 @@
   var playerTarget = { 0: [], 1: [] };
   var playerPhase = { 0: [], 1: [] };
   var playerJump = { 0: [], 1: [] };
+  var playerSlump = { 0: [], 1: [] };
+  var playerArms = { 0: [], 1: [] };
   var teamLibero = { 0: null, 1: null };
   var teamStash = { 0: null, 1: null };
+  var crowdPulse = 0;
+  var ballSquish = 0;
+  var cameraShake = 0;
+  var crowdDots = [];
+
+  (function () {
+    var palette = ['#4a5568', '#5a6478', '#3d4657', '#6b7688', '#2a303d', '#56617a'];
+    var spots = [
+      { x0: 0, x1: W, y0: 0, y1: 150 },
+      { x0: 0, x1: W, y0: 755, y1: H },
+      { x0: 0, x1: 102, y0: 150, y1: 755 },
+      { x0: 378, x1: W, y0: 150, y1: 755 },
+    ];
+    for (var s = 0; s < spots.length; s++) {
+      var sp = spots[s];
+      for (var i = 0; i < 120; i++) {
+        crowdDots.push({
+          x: sp.x0 + Math.random() * (sp.x1 - sp.x0),
+          y: sp.y0 + Math.random() * (sp.y1 - sp.y0),
+          r: 1.4 + Math.random() * 2,
+          c: palette[Math.floor(Math.random() * palette.length)],
+          ph: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+  })();
   var ballNow = { x: W / 2, y: H / 2 };
   var pointBanner = null;
   var screenFlash = null;
@@ -153,13 +181,17 @@
 
   var COURT = { x: 110, y: 160, w: 260, h: 560, netY: 440 };
 
+  function isBottom(team) {
+    return team === (match && match.sidesFlipped ? 1 : 0);
+  }
+
   function zoneBasePos(team, zone) {
     var front = zone === 2 || zone === 3 || zone === 4;
     var col = zone === 1 || zone === 2 ? 2 : zone === 4 || zone === 5 ? 0 : 1;
     var xs0 = [COURT.x + 45, COURT.x + COURT.w / 2, COURT.x + COURT.w - 45];
     var xs1 = [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45];
-    var x = team === 0 ? xs0[col] : xs1[col];
-    var y = team === 0
+    var x = isBottom(team) ? xs0[col] : xs1[col];
+    var y = isBottom(team)
       ? (front ? COURT.netY + 65 : COURT.netY + 150)
       : (front ? COURT.netY - 65 : COURT.netY - 150);
     return { x: x, y: y };
@@ -258,7 +290,7 @@
   }
 
   function benchPos(team) {
-    return { x: team === 0 ? COURT.x + COURT.w - 28 : COURT.x + 28, y: team === 0 ? COURT.y + COURT.h + 38 : COURT.y - 38 };
+    return { x: isBottom(team) ? COURT.x + COURT.w - 28 : COURT.x + 28, y: isBottom(team) ? COURT.y + COURT.h + 38 : COURT.y - 38 };
   }
 
   function undoLibero(team) {
@@ -287,6 +319,12 @@
         return Math.random() * Math.PI * 2;
       });
       playerJump[key] = playerPos[key].map(function () {
+        return 0;
+      });
+      playerSlump[key] = playerPos[key].map(function () {
+        return 0;
+      });
+      playerArms[key] = playerPos[key].map(function () {
         return 0;
       });
     }
@@ -320,19 +358,19 @@
   }
 
   function frontY(team) {
-    return COURT.netY + (team === 0 ? 62 : -62);
+    return COURT.netY + (isBottom(team) ? 62 : -62);
   }
 
   function backY(team) {
-    return COURT.netY + (team === 0 ? 148 : -148);
+    return COURT.netY + (isBottom(team) ? 148 : -148);
   }
 
   function threeM(team) {
-    return COURT.netY + (team === 0 ? 93 : -93);
+    return COURT.netY + (isBottom(team) ? 93 : -93);
   }
 
   function isDeep(team, y) {
-    return team === 0 ? y > threeM(team) : y < threeM(team);
+    return isBottom(team) ? y > threeM(team) : y < threeM(team);
   }
 
   function setReceiveFormation(team) {
@@ -350,13 +388,13 @@
 
   function columnX(team, zone) {
     var col = zone === 1 || zone === 2 ? 2 : zone === 4 || zone === 5 ? 0 : 1;
-    return team === 0
+    return isBottom(team)
       ? [COURT.x + 45, COURT.x + COURT.w / 2, COURT.x + COURT.w - 45][col]
       : [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45][col];
   }
 
   function setterSpot(team) {
-    return { x: team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (team === 0 ? 40 : -40) };
+    return { x: isBottom(team) ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (isBottom(team) ? 40 : -40) };
   }
 
   function setterDefenseSpot(team) {
@@ -410,7 +448,7 @@
     if (p.role === 'middle') {
       if (state === 'receive') {
         return isFrontRow(team, index)
-          ? { x: COURT.x + COURT.w / 2, y: COURT.netY + (team === 0 ? 50 : -50) }
+          ? { x: COURT.x + COURT.w / 2, y: COURT.netY + (isBottom(team) ? 50 : -50) }
           : { x: columnX(team, 5), y: backY(team) };
       }
       if (isFrontRow(team, index)) {
@@ -433,8 +471,8 @@
     if (state === 'receive') {
       if (p.role === 'outside') {
         return isFrontRow(team, index)
-          ? { x: x, y: COURT.netY + (team === 0 ? 106 : -106) }
-          : { x: x, y: COURT.netY + (team === 0 ? 134 : -134) };
+          ? { x: x, y: COURT.netY + (isBottom(team) ? 106 : -106) }
+          : { x: x, y: COURT.netY + (isBottom(team) ? 134 : -134) };
       }
       return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
     }
@@ -502,7 +540,7 @@
   }
 
   function backAttackSpot(team, zone) {
-    return { x: zoneBasePos(team, zone).x, y: threeM(team) + (team === 0 ? 14 : -14) };
+    return { x: zoneBasePos(team, zone).x, y: threeM(team) + (isBottom(team) ? 14 : -14) };
   }
 
   function playerInZone(team, zone) {
@@ -572,9 +610,9 @@
 
   function attackSpot(team, zone) {
     if (zone === 6) {
-      return { x: zoneBasePos(team, 6).x, y: team === 0 ? COURT.netY + 130 : COURT.netY - 130 };
+      return { x: zoneBasePos(team, 6).x, y: isBottom(team) ? COURT.netY + 130 : COURT.netY - 130 };
     }
-    return { x: zoneBasePos(team, zone).x, y: zoneBasePos(team, zone).y + (team === 0 ? -34 : 34) };
+    return { x: zoneBasePos(team, zone).x, y: zoneBasePos(team, zone).y + (isBottom(team) ? -34 : 34) };
   }
 
   function serverPlayer(team) {
@@ -596,13 +634,84 @@
     offsetY = (ch - H * scale) / 2;
   }
 
+  function drawArena() {
+    var pulse = crowdPulse;
+    for (var i = 0; i < crowdDots.length; i++) {
+      var d = crowdDots[i];
+      var a = Math.sin(simTime * 0.05 + d.ph) * 1.2;
+      ctx.globalAlpha = Math.min(1, 0.5 + pulse * 0.5);
+      ctx.fillStyle = d.c;
+      ctx.beginPath();
+      ctx.arc(d.x + a, d.y, d.r * (1 + pulse * 0.35), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#1d2431';
+    ctx.fillRect(COURT.x - 44, COURT.y + 26, 20, COURT.h - 52);
+    ctx.fillRect(COURT.x + COURT.w + 24, COURT.y + 26, 20, COURT.h - 52);
+    ctx.fillStyle = '#5a6478';
+    ctx.font = '700 7px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(COURT.x - 34, COURT.y + COURT.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(t('title'), 0, 0);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(COURT.x + COURT.w + 34, COURT.y + COURT.h / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(t('title'), 0, 0);
+    ctx.restore();
+    ctx.fillStyle = '#141a26';
+    ctx.fillRect(W / 2 - 96, 10, 192, 38);
+    ctx.strokeStyle = '#3d4657';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - 96, 10, 192, 38);
+    if (match) {
+      ctx.font = '700 9px system-ui, sans-serif';
+      ctx.fillStyle = '#8a93a6';
+      ctx.fillText(t('arenaBoard'), W / 2, 24);
+      ctx.font = '700 18px system-ui, sans-serif';
+      ctx.fillStyle = '#e0c34a';
+      ctx.fillText(String(match.scores[0]), W / 2 - 46, 42);
+      ctx.fillStyle = '#4a8fe0';
+      ctx.fillText(String(match.scores[1]), W / 2 + 46, 42);
+      ctx.fillStyle = pulse > 0 ? '#ffd166' : '#f2f4f8';
+      ctx.fillText(':', W / 2, 41);
+    } else {
+      ctx.font = '700 13px system-ui, sans-serif';
+      ctx.fillStyle = '#8a93a6';
+      ctx.fillText(t('title'), W / 2, 37);
+    }
+  }
+
   function draw() {
     stepPlayerMovement();
     stepImpacts();
+    crowdPulse = Math.max(0, crowdPulse - 0.03);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#0f1218';
+    var grad = null;
+    try {
+      grad = ctx.createLinearGradient ? ctx.createLinearGradient(0, 0, 0, court.clientHeight) : null;
+    } catch (e) {
+      grad = null;
+    }
+    if (grad && grad.addColorStop) {
+      grad.addColorStop(0, '#151b29');
+      grad.addColorStop(0.5, '#0d1119');
+      grad.addColorStop(1, '#080b11');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#0d1119';
+    }
     ctx.fillRect(0, 0, court.clientWidth, court.clientHeight);
+    ballSquish = Math.max(0, ballSquish - 0.15);
+    cameraShake = Math.max(0, cameraShake - 0.08);
     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, offsetX * dpr, offsetY * dpr);
+    if (cameraShake > 0) {
+      ctx.translate((Math.random() - 0.5) * cameraShake * 5, (Math.random() - 0.5) * cameraShake * 5);
+    }
+    drawArena();
 
     ctx.fillStyle = '#17202e';
     ctx.fillRect(COURT.x, COURT.y, COURT.w, COURT.h);
@@ -663,11 +772,16 @@
     ctx.globalAlpha = 1;
 
     var br = Math.max(5, 9 * ballScale);
+    var sq = ballSquish;
     ctx.fillStyle = '#f2f4f8';
     ctx.shadowColor = '#f2f4f8';
     ctx.shadowBlur = 12;
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, br, 0, Math.PI * 2);
+    if (sq > 0.05) {
+      ctx.ellipse(ball.x, ball.y, br * (1 + sq * 0.3), br * (1 - sq * 0.25), 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(ball.x, ball.y, br, 0, Math.PI * 2);
+    }
     ctx.fill();
     ctx.shadowBlur = 0;
     // giro: una marca que rota
@@ -742,6 +856,8 @@
           cur.y += (dy / dist) * Math.min(step, dist);
         }
         if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
+        if (playerSlump[key][i] > 0) playerSlump[key][i] = Math.max(0, playerSlump[key][i] - 0.04);
+        if (playerArms[key][i] > 0) playerArms[key][i] = Math.max(0, playerArms[key][i] - 0.05);
       }
     }
   }
@@ -768,6 +884,7 @@
 
   function addTouch(x, y) {
     impacts.push({ x: x, y: y, life: 0.6, kind: 'ring' });
+    ballSquish = 1;
   }
 
   function stepImpacts() {
@@ -846,22 +963,35 @@
 
   function drawTeam(team, color, highlightPlayer) {
     var players = playerPos[team];
+    var LIBERO_COLOR = '#e6762d';
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
       var jump = playerJump[team][i] || 0;
+      var slump = playerSlump[team][i] || 0;
+      var arms = playerArms[team][i] || 0;
       var ph = playerPhase[team][i];
       var swayX = Math.sin(simTime * 0.05 + ph) * 1.2;
       var swayY = Math.cos(simTime * 0.04 + ph * 1.3) * 1.2;
       var react = ballReact(team, i);
       var drawX = p.x + swayX + react.x;
-      var drawY = p.y + swayY - jump * 22 + react.y;
-      ctx.fillStyle = color;
+      var drawY = p.y + swayY - jump * 22 + slump * 8 + react.y;
+      ctx.fillStyle = p.isLibero ? LIBERO_COLOR : color;
       ctx.beginPath();
       ctx.arc(drawX, drawY, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
+      if (arms > 0.05) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(drawX - 9, drawY - 9);
+        ctx.lineTo(drawX - 9, drawY - 9 - 16 * arms);
+        ctx.moveTo(drawX + 9, drawY - 9);
+        ctx.lineTo(drawX + 9, drawY - 9 - 16 * arms);
+        ctx.stroke();
+      }
       if (jump > 0.1) {
         ctx.strokeStyle = 'rgba(255,255,255,0.25)';
         ctx.beginPath();
@@ -890,9 +1020,9 @@
     if (teamStash[team]) out = teamStash[team].player;
     else if (teamLibero[team]) out = teamLibero[team];
     if (!out) return;
-    var bx = team === 0 ? COURT.x + COURT.w - 28 : COURT.x + 28;
-    var by = team === 0 ? COURT.y + COURT.h + 38 : COURT.y - 38;
-    ctx.fillStyle = team === 0 ? '#e0c34a' : '#4a8fe0';
+    var bx = isBottom(team) ? COURT.x + COURT.w - 28 : COURT.x + 28;
+    var by = isBottom(team) ? COURT.y + COURT.h + 38 : COURT.y - 38;
+    ctx.fillStyle = out.isLibero ? '#e6762d' : (team === 0 ? '#e0c34a' : '#4a8fe0');
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
     ctx.arc(bx, by, 11, 0, Math.PI * 2);
@@ -964,7 +1094,7 @@
   function zoneSpot(team) {
     return {
       x: COURT.x + 50 + Math.random() * (COURT.w - 100),
-      y: team === 0 ? COURT.netY + 70 + Math.random() * 150 : COURT.netY - 70 - Math.random() * 150,
+      y: isBottom(team) ? COURT.netY + 70 + Math.random() * 150 : COURT.netY - 70 - Math.random() * 150,
     };
   }
 
@@ -1020,6 +1150,7 @@
       server: Math.random() < 0.5 ? 0 : 1,
       over: false,
       rallyTouches: [0, 0],
+      sidesFlipped: false,
     };
     initTeams();
     return match;
@@ -1391,7 +1522,7 @@
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
     var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
-    var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 46 : COURT.y - 46 };
+    var from = { x: base.x, y: isBottom(attacking) ? COURT.y + COURT.h + 46 : COURT.y - 46 };
     moveTo(attacking, sidx, from);
     pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
     serveRing = { team: attacking, index: sidx, life: 1 };
@@ -1408,9 +1539,9 @@
       if (reason === 'net') {
         to = { x: from.x + (Math.random() * 60 - 30), y: COURT.netY + 6 };
       } else if (reason === 'out') {
-        to = { x: COURT.x + 60 + Math.random() * (COURT.w - 120), y: attacking === 0 ? COURT.y - 30 : COURT.y + COURT.h + 30 };
+        to = { x: COURT.x + 60 + Math.random() * (COURT.w - 120), y: isBottom(attacking) ? COURT.y - 30 : COURT.y + COURT.h + 30 };
       } else {
-        to = { x: from.x, y: from.y + (attacking === 0 ? 20 : -20) };
+        to = { x: from.x, y: from.y + (isBottom(attacking) ? 20 : -20) };
       }
     }
     var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
@@ -1589,15 +1720,15 @@
     if (!ok) aReason = pickReason(['out', 'net', 'blocked', 'invade']);
     var target;
     if (!ok && aReason === 'out') {
-      target = { x: zoneBasePos(defender, hitZone).x, y: defender === 0 ? COURT.y + COURT.h + 30 : COURT.y - 30 };
+      target = { x: zoneBasePos(defender, hitZone).x, y: isBottom(defender) ? COURT.y + COURT.h + 30 : COURT.y - 30 };
     } else if (!ok && aReason === 'net') {
       target = { x: ballNow.x, y: COURT.netY + 6 };
     } else if (!ok && aReason === 'blocked') {
-      target = { x: ballNow.x, y: ballNow.y + (attacking === 0 ? 50 : -50) };
+      target = { x: ballNow.x, y: ballNow.y + (isBottom(attacking) ? 50 : -50) };
     } else {
       target = {
         x: zoneBasePos(defender, hitZone).x + (Math.random() * 46 - 23),
-        y: defender === 0 ? COURT.netY + 128 + Math.random() * 34 : COURT.netY - 128 - Math.random() * 34,
+        y: isBottom(defender) ? COURT.netY + 128 + Math.random() * 34 : COURT.netY - 128 - Math.random() * 34,
       };
     }
     setOffenseFormation(attacking, setZone);
@@ -1609,7 +1740,7 @@
       playerJump[attacking][isMy ? 0 : aidx] = 0;
     }
     var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : -1;
-    if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 16 : -16) });
+    if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (isBottom(defender) ? 16 : -16) });
     var atkStat2 = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     var spikeSpeed = ballSpeed(atkStat2 + setQuality);
     var skDist = dist2(ballNow, target);
@@ -1627,6 +1758,8 @@
     });
     label = null;
     addTouch(atkTouch.x, atkTouch.y);
+    cameraShake = Math.max(cameraShake, 1);
+    crowdPulse = Math.max(crowdPulse, 0.5);
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
@@ -1676,6 +1809,7 @@
       digQuality = qualityFromMargin(defenseMargin, playerStat(defending, dig, 'D'));
     }
     comment(t('defendOk').replace('{name}', pName(defending, dig)));
+    if (playerArms[defending]) playerArms[defending][didx] = 1;
     match.k2 = -1;
     setDefenseFormation(defending, hitZone);
     var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
@@ -1691,6 +1825,7 @@
     });
     label = null;
     addTouch(contact.x, contact.y);
+    crowdPulse = Math.max(crowdPulse, 0.4);
     return { ok: true, quality: digQuality };
   }
 
@@ -1816,10 +1951,11 @@
     addImpact(ballNow.x, ballNow.y);
     pointBanner = { text: t('pointFor') + ' ' + who, color: color, life: 1 };
     screenFlash = { color: color, life: 1 };
+    crowdPulse = 1;
     for (var i = 0; i < 6; i++) setJump(team, i);
-    hudScore.classList.remove('hud-score-pulse');
-    void hudScore.offsetWidth;
-    hudScore.classList.add('hud-score-pulse');
+    for (var j = 0; j < 6; j++) {
+      if (playerSlump[1 - team]) playerSlump[1 - team][j] = 1;
+    }
     setLabel(t('pointFor') + ' ' + who, color);
     await sleep(1.4);
     label = null;
@@ -1838,7 +1974,7 @@
 
   function updateHud() {
     hudSet.textContent = t('set') + ' ' + (match.setIndex + 1) + ' · ' + t('sets') + ' ' + match.setsWon[0] + '-' + match.setsWon[1];
-    hudScore.textContent = match.scores[0] + ' - ' + match.scores[1];
+    hudScore.textContent = '';
   }
 
   function setOver() {
@@ -1866,6 +2002,9 @@
       } else {
         await showLabel(t('youLostSet'), '#e0503f', 1);
       }
+      match.sidesFlipped = !match.sidesFlipped;
+      resetPlayerPositions();
+      await showLabel(t('changeSides'), '#f2f4f8', 1.2);
     }
     if (match.winner === 0) {
       await showLabel(t('youWonMatch'), '#7ee787', 1.4);

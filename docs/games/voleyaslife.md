@@ -32,6 +32,20 @@ carrera).
   postes) y cada campo tiene su **línea de 3 metros** punteada a ~93px de la
   red (1/3 del medio campo, `threeM(team) = netY ± 93`) — límite de ataque
   de los zagueros.
+- **Atmósfera de estadio:** fondo con gradiente, **tribunas con multitud**
+  alrededor de la cancha (puntos que se agitan), publicidad en los costados
+  y un **marcador de estadio** arriba con el resultado. La **multitud
+  reacciona** (pulso) en los puntos y en los remates/bloqueos fuertes.
+- **El golpe se siente:** la pelota se **aplasta** en cada contacto, la
+  **cámara se sacude** sutilmente en remates fuertes, y cada toque muestra un
+  **anillo blanco** en el jugador (la **X** solo cuando la pelota toca el
+  suelo).
+- **Micro-reacciones:** el equipo que pierde el punto **baja los hombros**,
+  el bloqueador que bloquea **levanta los brazos**, el que anota festeja
+  (salto).
+- **Cambio de lado entre sets:** al terminar un set, los equipos **cambian
+  de cancha** (`match.sidesFlipped`, la alineación de tu equipo pasa arriba)
+  con el aviso "Cambio de lado".
 - **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
   va comentando el partido con **precisión de jugada por jugada**:
   quién hace cada acción y el desenlace. Ejemplos: "#2 recibe", "#4 levanta
