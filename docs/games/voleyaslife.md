@@ -38,7 +38,20 @@ carrera).
   arriba** del feed.
 - **Feedback del punto**: cuando se anota un punto, se muestra claramente
   quién lo ganó y el marcador antes de continuar (no solo se actualiza el
-  contador).
+  contador). Además del label y los comentarios, el feedback debe ser
+  **más visual**:
+  - **Banner grande en el centro** "¡PUNTO!" (verde si lo ganó tu equipo,
+    rojo/azul si el rival) que aparece y se desvanece.
+  - **Destello de color** sobre la cancha (flash breve del color del equipo
+    que anota).
+  - **El marcador del HUD parpadea** cuando cambia.
+  - **El equipo que anota celebra** (sus jugadores saltan).
+- **Aviso de saque**: antes de que el saque salga, un **aviso en el centro
+  de la cancha** ("Saque de #X", ~0.7s, con desvanecido) avisa que viene un
+  saque; se puede complementar con un anillo/pulso alrededor del sacador.
+- **Aproximación antes de decidir**: en los turnos del jugador, primero su
+  jugador **corre hasta la pelota** (pausa animada breve) y recién después
+  aparece el menú de decisión y el minijuego.
 - **Feedback del toque de suelo**: cuando la pelota toca el suelo (punto),
   se marca el lugar del impacto con un efecto visible que se desvanece
   (una "X" o un estallido/anillo en el punto de contacto) y la pelota

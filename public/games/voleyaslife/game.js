@@ -101,6 +101,9 @@
   var playerPhase = { 0: [], 1: [] };
   var playerJump = { 0: [], 1: [] };
   var ballNow = { x: W / 2, y: H / 2 };
+  var pointBanner = null;
+  var screenFlash = null;
+  var serveRing = null;
 
   function t(key) {
     return window.VAV.t(lang, key);
@@ -375,6 +378,7 @@
     ctx.restore();
 
     drawImpacts();
+    drawFeedback();
 
     if (label) {
       ctx.globalAlpha = Math.min(1, label.life * 2);
@@ -414,6 +418,45 @@
     for (var i = impacts.length - 1; i >= 0; i--) {
       impacts[i].life -= 0.025;
       if (impacts[i].life <= 0) impacts.splice(i, 1);
+    }
+    if (pointBanner) {
+      pointBanner.life -= 0.035;
+      if (pointBanner.life <= 0) pointBanner = null;
+    }
+    if (screenFlash) {
+      screenFlash.life -= 0.05;
+      if (screenFlash.life <= 0) screenFlash = null;
+    }
+    if (serveRing) {
+      serveRing.life -= 0.03;
+      if (serveRing.life <= 0) serveRing = null;
+    }
+  }
+
+  function drawFeedback() {
+    if (screenFlash) {
+      ctx.globalAlpha = screenFlash.life * 0.22;
+      ctx.fillStyle = screenFlash.color;
+      ctx.fillRect(COURT.x, COURT.y, COURT.w, COURT.h);
+      ctx.globalAlpha = 1;
+    }
+    if (serveRing) {
+      var sp = playerPos[serveRing.team][serveRing.index];
+      ctx.globalAlpha = serveRing.life;
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y - 10, 18 + (1 - serveRing.life) * 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (pointBanner) {
+      ctx.globalAlpha = Math.min(1, pointBanner.life * 1.6);
+      ctx.font = '800 38px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = pointBanner.color;
+      ctx.fillText(pointBanner.text, W / 2, COURT.y + COURT.h / 2);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -826,6 +869,10 @@
     var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
     var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 26 : COURT.y - 26 };
     moveTo(attacking, sidx, from);
+    pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
+    serveRing = { team: attacking, index: sidx, life: 1 };
+    await sleep(0.6);
+    serveRing = null;
     var sStat = playerStat(attacking, server, 'S');
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
     var reason = null;
@@ -865,6 +912,7 @@
     var decision = null;
     var quality = 0;
     if (isMy) {
+      await sleep(0.5);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('receive');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -901,6 +949,7 @@
     var quality = 0;
     var setZone = 4;
     if (isMy) {
+      await sleep(0.5);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('set');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -943,6 +992,7 @@
     var quality = 0;
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
+      await sleep(0.5);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('attack');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
@@ -997,6 +1047,7 @@
     var atkStat = playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A');
     var ok;
     if (isMyTurn(defending, 'defend')) {
+      await sleep(0.5);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       var decision = await askDecision('block');
       var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
@@ -1100,9 +1151,16 @@
     match.totalPoints[team]++;
     match.server = team;
     var who = team === 0 ? t('yourTeam') : match.rival.club;
+    var color = team === 0 ? '#7ee787' : '#4a8fe0';
     comment(t('cPoint').replace('{team}', who).replace('{score}', match.scores[0] + ' - ' + match.scores[1]));
     addImpact(ballNow.x, ballNow.y);
-    setLabel(t('pointFor') + ' ' + who, team === 0 ? '#7ee787' : '#e0c34a');
+    pointBanner = { text: t('pointFor') + ' ' + who, color: color, life: 1 };
+    screenFlash = { color: color, life: 1 };
+    for (var i = 0; i < 6; i++) setJump(team, i);
+    hudScore.classList.remove('hud-score-pulse');
+    void hudScore.offsetWidth;
+    hudScore.classList.add('hud-score-pulse');
+    setLabel(t('pointFor') + ' ' + who, color);
     await sleep(1.1);
     label = null;
     updateHud();
