@@ -221,6 +221,7 @@
   }
 
   function setReceiveFormation(team) {
+    var variant = Math.random() < 0.5 ? 'W' : 'two';
     for (var i = 0; i < teams[team].length; i++) {
       var p = teams[team][i];
       var zone = ROTATION_ORDER[p.zoneIndex];
@@ -228,16 +229,48 @@
       var t = { x: base.x, y: base.y };
       if (p.role === 'setter') {
         t.y = base.y + (team === 0 ? -42 : 42);
-      } else if (zone === 5) {
-        t.x = base.x - 20;
-        t.y = base.y + (team === 0 ? 14 : -14);
-      } else if (zone === 1) {
-        t.x = base.x + 20;
-        t.y = base.y + (team === 0 ? 14 : -14);
-      } else if (zone === 6) {
-        t.y = base.y + (team === 0 ? 20 : -20);
+      } else if (variant === 'W') {
+        if (zone === 5) {
+          t.x = base.x - 20;
+          t.y = base.y + (team === 0 ? 14 : -14);
+        } else if (zone === 1) {
+          t.x = base.x + 20;
+          t.y = base.y + (team === 0 ? 14 : -14);
+        } else if (zone === 6) {
+          t.y = base.y + (team === 0 ? 20 : -20);
+        }
+      } else {
+        if (zone === 5 || zone === 1) {
+          t.y = base.y + (team === 0 ? 22 : -22);
+        } else if (zone === 6) {
+          t.x = base.x + (Math.random() < 0.5 ? -26 : 26);
+          t.y = base.y + (team === 0 ? 8 : -8);
+        }
       }
       playerTarget[team][i] = t;
+    }
+  }
+
+  function setBlockFormation(team, hitZone) {
+    var targetX = zoneBasePos(team, hitZone).x;
+    var netOffset = team === 0 ? 16 : -16;
+    for (var i = 2; i <= 4; i++) {
+      var p = playerInZone(team, i);
+      if (!p) continue;
+      var idx = playerIndex(team, p);
+      var spread = i === 2 ? 26 : i === 4 ? -26 : 0;
+      moveTo(team, idx, { x: targetX + spread, y: COURT.netY + netOffset });
+      setJump(team, idx);
+    }
+  }
+
+  function setTransition(team) {
+    for (var i = 2; i <= 4; i++) {
+      var p = playerInZone(team, i);
+      if (!p) continue;
+      var idx = playerIndex(team, p);
+      var base = zoneBasePos(team, i);
+      moveTo(team, idx, { x: base.x, y: base.y + (team === 0 ? -24 : 24) });
     }
   }
 
@@ -882,6 +915,7 @@
     var aidx = playerIndex(attacking, attacker);
     var target = { x: playerPos[attacking][aidx].x, y: playerPos[attacking][aidx].y + (attacking === 0 ? -32 : 32) };
     setFormationTargets();
+    setTransition(attacking);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     await playSegment({
@@ -974,7 +1008,8 @@
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
       setFormationTargets();
-      moveTo(defending, didx, { x: from.x, y: from.y });
+      setBlockFormation(defending, hitZone);
+      moveTo(defending, didx, zoneBasePos(defending, hitZone));
       setJump(defending, didx);
       await playSegment({
         from: from,
@@ -985,7 +1020,8 @@
       var dReason = pickReason(['out', 'floor', 'three']);
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       setFormationTargets();
-      moveTo(defending, didx, { x: from.x, y: from.y });
+      setBlockFormation(defending, hitZone);
+      moveTo(defending, didx, zoneBasePos(defending, hitZone));
       setJump(defending, didx);
       await playSegment({
         from: from,
