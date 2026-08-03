@@ -726,25 +726,41 @@
     return team === 0 && isPlayerTurn(phase);
   }
 
+  function pickReason(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function reasonKey(reason) {
+    return 'reason' + reason.charAt(0).toUpperCase() + reason.slice(1);
+  }
+
   async function doServe(attacking, defender) {
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
     var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
     var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 26 : COURT.y - 26 };
-    var to = zoneSpot(defender);
-    moveTo(attacking, sidx, base);
-    await playSegment({
-      from: from,
-      to: to,
-      seconds: 0.7,
-      overNet: true,
-    });
+    moveTo(attacking, sidx, from);
     var sStat = playerStat(attacking, server, 'S');
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
+    var reason = null;
+    var to;
+    if (ok) {
+      to = zoneSpot(defender);
+    } else {
+      reason = pickReason(['net', 'out', 'foot']);
+      if (reason === 'net') {
+        to = { x: from.x + (Math.random() * 60 - 30), y: COURT.netY + 6 };
+      } else if (reason === 'out') {
+        to = { x: COURT.x + 60 + Math.random() * (COURT.w - 120), y: attacking === 0 ? COURT.y - 30 : COURT.y + COURT.h + 30 };
+      } else {
+        to = { x: from.x, y: from.y + (attacking === 0 ? 20 : -20) };
+      }
+    }
+    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : 0.7, overNet: !reason || reason === 'out' });
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
-      comment(t('serveError').replace('{name}', pName(attacking, server)));
-      await showLabel(t('serveOut'), '#e0503f', 0.8);
+      comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
+      await showLabel(t(reasonKey(reason)), '#e0503f', 0.8);
     }
     return { ok: ok, quality: sStat };
   }
@@ -784,7 +800,8 @@
       if (ok) {
         comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
       } else {
-        comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{team}', teamName(defender)));
+        var rReason = pickReason(['out', 'floor', 'net']);
+        comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
       }
     }
     return { ok: ok, direct: direct, quality: quality };
@@ -825,7 +842,8 @@
     if (ok) {
       comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
     } else {
-      comment(t('setFail').replace('{name}', setterName).replace('{team}', teamName(defender)));
+      var sReason = pickReason(['net', 'double']);
+      comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey(sReason))).replace('{team}', teamName(defender)));
     }
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
@@ -848,20 +866,31 @@
       hitZone = zones[Math.floor(Math.random() * 3)];
       quality = autoPhase(playerStat(attacking, attacker, 'A') + setQuality, teamPhaseStat(defender, 'B')) ? 2 : 0;
     }
-    var target = zoneBasePos(defender, hitZone);
+    var ok = isMy ? quality >= decision.threshold : quality > 0;
+    var direct = isMy && decision.directOnPerfect && quality === 3;
+    var aReason = null;
+    if (!ok) aReason = pickReason(['out', 'net', 'blocked', 'invade']);
+    var target;
+    if (!ok && aReason === 'out') {
+      target = { x: zoneBasePos(defender, hitZone).x, y: defender === 0 ? COURT.y + COURT.h + 30 : COURT.y - 30 };
+    } else if (!ok && aReason === 'net') {
+      target = { x: ballNow.x, y: COURT.netY + 6 };
+    } else if (!ok && aReason === 'blocked') {
+      target = { x: ballNow.x, y: ballNow.y + (attacking === 0 ? 50 : -50) };
+    } else {
+      target = zoneBasePos(defender, hitZone);
+    }
     setFormationTargets();
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     await playSegment({
       from: ballNow,
       to: target,
       seconds: 0.5,
-      overNet: true,
+      overNet: !aReason || aReason === 'invade',
     });
-    var ok = isMy ? quality >= decision.threshold : quality > 0;
-    var direct = isMy && decision.directOnPerfect && quality === 3;
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     if (!ok) {
-      comment(t('attackFail').replace('{name}', attackerName).replace('{team}', teamName(defender)));
+      comment(t('attackFail').replace('{name}', attackerName).replace('{reason}', t(reasonKey(aReason))).replace('{team}', teamName(defender)));
     } else if (isMy && decision.key === 'suelta') {
       comment(t('tipBy').replace('{name}', attackerName));
     } else {
@@ -898,7 +927,8 @@
         seconds: 0.5,
       });
     } else {
-      comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{team}', teamName(attacking)));
+      var dReason = pickReason(['out', 'floor', 'three']);
+      comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       setFormationTargets();
       moveTo(defending, didx, { x: from.x, y: from.y });
       await playSegment({
