@@ -383,6 +383,7 @@
 
   function draw() {
     stepPlayerMovement();
+    updateDynamicTargets();
     stepImpacts();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0f1218';
@@ -476,6 +477,22 @@
           cur.y += (dy / dist) * Math.min(step, dist);
         }
         if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
+      }
+    }
+  }
+
+  function updateDynamicTargets() {
+    if (!match || !teams[0]) return;
+    var ballTeam = ball.y > COURT.netY ? 0 : 1;
+    for (var key = 0; key < 2; key++) {
+      if (key !== ballTeam) continue;
+      for (var i = 0; i < playerPos[key].length; i++) {
+        var tgt = playerTarget[key][i];
+        var zone = ROTATION_ORDER[teams[key][i].zoneIndex];
+        var factor = zone === 5 || zone === 6 || zone === 1 ? 0.14 : 0.11;
+        var nx = tgt.x + (ball.x - tgt.x) * factor;
+        var ny = tgt.y + (ball.y - COURT.netY) * 0.02 * (key === 0 ? 1 : -1);
+        moveTo(key, i, { x: nx, y: ny });
       }
     }
   }

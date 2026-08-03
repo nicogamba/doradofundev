@@ -133,9 +133,24 @@ Cada jugador tiene un comportamiento simple según la situación (IA
 guionada por rol, no física):
 
 - **Recepción:** el equipo se acomoda en **formación de recepción
-  realista**: el armador se retira de la zona de recepción y los receptores
-  se distribuyen en la zona trasera (disposición tipo "W"); los que no
-  reciben protegen sus zonas.
+  realista (sistema 5-1)**: el armador se retira de la zona de recepción y
+  los receptores se distribuyen en la zona trasera (disposición tipo "W");
+  los que no reciben protegen sus zonas.
+- **Acomodo antes del saque:** al prepararse el saque, **ambos equipos deben
+  estar ya en posición**: el equipo que saca en sus posiciones base (el
+  sacador fuera de la cancha) y el equipo receptor en su **formación de
+  recepción W** (armador retirado, 3 receptores en W, primera fila
+  protegiendo). Esto se arma durante el aviso de saque, antes de que salga
+  la pelota.
+- **Capa reactiva continua (estilo Football Manager):** los jugadores **leen
+  la pelota y se adaptan en cada frame**, no solo van a un punto fijo:
+  - El equipo que está en el lado de la pelota (defensa/recepción) desplaza
+    su cobertura hacia la **X del balón** en cada frame (los de atrás más
+    que la primera fila): corren para quedar "bajo" la pelota y cubrir.
+  - La primera fila (bloqueo) sigue la X del balón en la red.
+  - Función `updateDynamicTargets()` que se corre en cada frame del rally y
+    recalcula los targets de los jugadores del equipo en el lado del balón
+    según su posición y rol.
 - **Transición:** el armador corre hacia la pelota (segunda pelota) y los
   atacantes hacen su aproximación a las zonas 2/4/6 según el armado.
 - **Ataque:** el atacante salta/remata hacia la zona elegida.
