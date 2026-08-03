@@ -215,11 +215,14 @@ guionada por rol, no física):
     3 m, `backAttackSpot`) y remata con salto desde ahí (remate de zaguero);
     si el balón se juega corto cerca de la red, el zaguero la toca **sin
     salto** (`jump = isFrontRow(atacante) || balón profundo`).
-- **Bloqueo/defensa:** los delanteros se alinean hacia la zona que el bloqueo
-  **lee** del atacante (`blockGuess`, según sus tendencias) y saltan los
-  **centrales delanteros**; los zagueros hacen **deslizamiento de zona**: el
-  más cercano a la zona del remate cierra (~50%), el lejano se abre (~25%) y
-  el **central zaguero** cubre profundo hacia la zona del remate.
+- **Bloqueo/defensa:** la primera fila arma la **línea de bloqueo** real
+  (`frontBlockZone`): **punta → Z4, central → Z3, opuesto → Z2** (con 2
+  centrales delanteros, el segundo tapa Z4) en vez de la columna de rotación.
+  Luego los delanteros se alinean hacia la zona que el bloqueo **lee** del
+  atacante (`blockGuess`, según sus tendencias) y saltan los **centrales
+  delanteros**; los zagueros hacen **deslizamiento de zona**: el más cercano
+  a la zona del remate cierra (~50%), el lejano se abre (~25%) y el **central
+  zaguero** cubre profundo hacia la zona del remate.
 - **Cadena de calidad recepción→armado→remate:** la recepción manda el pase
   con **spray** según su calidad (perfecta → exacto al armador; mala → se
   desvía y el armador persigue) y su calidad alimenta el armado; el armado

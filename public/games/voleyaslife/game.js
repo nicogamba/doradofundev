@@ -318,6 +318,24 @@
     return setterSpot(team);
   }
 
+  function frontBlockZone(team, index) {
+    var t = teams[team];
+    var firstMid = -1;
+    var firstOut = -1;
+    for (var i = 0; i < t.length; i++) {
+      if (!isFrontRow(team, i)) continue;
+      if (t[i].role === 'middle' && firstMid < 0) firstMid = i;
+      if (t[i].role === 'outside' && firstOut < 0) firstOut = i;
+    }
+    if (index === firstMid) return 3;
+    if (index === firstOut) return 4;
+    var role = t[index].role;
+    if (role === 'opposite') return 2;
+    if (role === 'outside') return 2;
+    if (role === 'middle') return 4;
+    return 2;
+  }
+
   function formationSpot(team, index, state) {
     var p = teams[team][index];
     var zone = ROTATION_ORDER[p.zoneIndex];
@@ -341,6 +359,9 @@
           : { x: columnX(team, 5), y: backY(team) };
       }
       if (isFrontRow(team, index)) {
+        if (state === 'defense') {
+          return { x: columnX(team, frontBlockZone(team, index)), y: frontY(team) };
+        }
         return { x: x, y: frontY(team) };
       }
       return { x: columnX(team, 5), y: backY(team) };
@@ -364,6 +385,9 @@
     }
     if (state === 'defense' && !isFrontRow(team, index) && p.role === 'outside') {
       return { x: columnX(team, 6), y: backY(team) };
+    }
+    if (state === 'defense' && isFrontRow(team, index)) {
+      return { x: columnX(team, frontBlockZone(team, index)), y: frontY(team) };
     }
     return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
   }
