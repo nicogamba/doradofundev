@@ -112,24 +112,27 @@
   var crowdDots = [];
 
   (function () {
-    var palette = ['#4a5568', '#5a6478', '#3d4657', '#6b7688', '#2a303d', '#56617a'];
-    var spots = [
-      { x0: 0, x1: W, y0: 0, y1: 150 },
-      { x0: 0, x1: W, y0: 755, y1: H },
-      { x0: 0, x1: 102, y0: 150, y1: 755 },
-      { x0: 378, x1: W, y0: 150, y1: 755 },
-    ];
-    for (var s = 0; s < spots.length; s++) {
-      var sp = spots[s];
-      for (var i = 0; i < 120; i++) {
-        crowdDots.push({
-          x: sp.x0 + Math.random() * (sp.x1 - sp.x0),
-          y: sp.y0 + Math.random() * (sp.y1 - sp.y0),
-          r: 1.4 + Math.random() * 2,
-          c: palette[Math.floor(Math.random() * palette.length)],
-          ph: Math.random() * Math.PI * 2,
-        });
-      }
+    var palette = ['#39425a', '#454f6b', '#2f3749', '#525d78', '#2a3142'];
+    function dot(x, y) {
+      crowdDots.push({
+        x: x + (Math.random() * 5 - 2.5),
+        y: y + (Math.random() * 3 - 1.5),
+        r: 1.2 + Math.random() * 1.1,
+        c: palette[Math.floor(Math.random() * palette.length)],
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
+    for (var r = 0; r < 5; r++) {
+      var yt = 22 + r * 22;
+      for (var xt = 4; xt < W - 4; xt += 24) dot(xt, yt);
+    }
+    for (var r2 = 0; r2 < 3; r2++) {
+      var yb = 764 + r2 * 18;
+      for (var xb = 4; xb < W - 4; xb += 24) dot(xb, yb);
+    }
+    var cols = [14, 52, 414, 452];
+    for (var c = 0; c < cols.length; c++) {
+      for (var ys = 190; ys < 700; ys += 22) dot(cols[c], ys);
     }
   })();
   var ballNow = { x: W / 2, y: H / 2 };
@@ -636,13 +639,18 @@
 
   function drawArena() {
     var pulse = crowdPulse;
+    ctx.fillStyle = '#0a0e16';
+    ctx.fillRect(0, 0, W, 160);
+    ctx.fillRect(0, 742, W, H - 742);
+    ctx.fillRect(0, 160, 108, 582);
+    ctx.fillRect(372, 160, W - 372, 582);
     for (var i = 0; i < crowdDots.length; i++) {
       var d = crowdDots[i];
-      var a = Math.sin(simTime * 0.05 + d.ph) * 1.2;
-      ctx.globalAlpha = Math.min(1, 0.5 + pulse * 0.5);
+      var a = Math.sin(simTime * 0.05 + d.ph) * 1.1;
+      ctx.globalAlpha = Math.min(1, 0.42 + pulse * 0.4);
       ctx.fillStyle = d.c;
       ctx.beginPath();
-      ctx.arc(d.x + a, d.y, d.r * (1 + pulse * 0.35), 0, Math.PI * 2);
+      ctx.arc(d.x + a, d.y, d.r * (1 + pulse * 0.3), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
