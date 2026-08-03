@@ -267,59 +267,50 @@
     }
   }
 
-  function setBlockFormation(team, hitZone) {
-    var targetX = zoneBasePos(team, hitZone).x;
-    var netOffset = team === 0 ? 16 : -16;
-    for (var i = 2; i <= 4; i++) {
-      var p = playerInZone(team, i);
-      if (!p) continue;
-      var idx = playerIndex(team, p);
-      var spread = i === 2 ? 26 : i === 4 ? -26 : 0;
-      moveTo(team, idx, { x: targetX + spread, y: COURT.netY + netOffset });
-      setJump(team, idx);
+  function roleSpot(team, role, state) {
+    var base;
+    var x, y;
+    if (role === 'setter') {
+      x = team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95;
+      y = COURT.netY + (team === 0 ? 34 : -34);
+    } else if (role === 'outside') {
+      x = team === 0 ? COURT.x + 45 : COURT.x + COURT.w - 45;
+      y = state === 'defense' ? COURT.netY + (team === 0 ? 130 : -130) : COURT.netY + (team === 0 ? 60 : -60);
+    } else if (role === 'opposite') {
+      x = team === 0 ? COURT.x + COURT.w - 45 : COURT.x + 45;
+      y = state === 'defense' ? COURT.netY + (team === 0 ? 130 : -130) : COURT.netY + (team === 0 ? 60 : -60);
+    } else if (role === 'middle') {
+      x = COURT.x + COURT.w / 2;
+      y = state === 'defense' ? COURT.netY + (team === 0 ? 40 : -40) : COURT.netY + (team === 0 ? 52 : -52);
+    } else {
+      x = COURT.x + COURT.w / 2;
+      y = COURT.netY + (team === 0 ? 140 : -140);
     }
+    base = { x: x, y: y };
+    return base;
+  }
+
+  function setOffenseFormation(team, setZone) {
+    var roles = ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'];
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      var spot = roleSpot(team, p.role, 'offense');
+      moveTo(team, i, spot);
+    }
+    var attacker = playerByRole(team, roleForZone(setZone));
+    moveTo(team, playerIndex(team, attacker), attackSpot(team, setZone));
   }
 
   function setDefenseFormation(team, hitZone) {
-    setBlockFormation(team, hitZone);
-    var centerX = zoneBasePos(team, 6).x;
-    for (var i = 5; i <= 6; i++) {
-      var p = playerInZone(team, i);
-      if (!p) continue;
-      var idx = playerIndex(team, p);
-      if (i === 6) {
-        moveTo(team, idx, zoneBasePos(team, hitZone));
-        setJump(team, idx);
-      } else {
-        var base = zoneBasePos(team, i);
-        var tx = base.x + (i === 5 ? -12 : 12);
-        if (hitZone === 6) tx = centerX + (i === 5 ? -34 : 34);
-        moveTo(team, idx, { x: tx, y: base.y + (team === 0 ? 12 : -12) });
-      }
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      var spot = roleSpot(team, p.role, 'defense');
+      moveTo(team, i, spot);
+      if (p.role === 'middle') setJump(team, i);
     }
-  }
-
-  function setCover(team) {
-    var centerX = zoneBasePos(team, 6).x;
-    for (var i = 5; i <= 6; i++) {
-      var p = playerInZone(team, i);
-      if (!p) continue;
-      var idx = playerIndex(team, p);
-      var base = zoneBasePos(team, i);
-      var tx = base.x;
-      if (i === 6) tx = centerX;
-      moveTo(team, idx, { x: tx, y: base.y + (team === 0 ? 18 : -18) });
-    }
-  }
-
-  function setTransition(team) {
-    for (var i = 2; i <= 4; i++) {
-      var p = playerInZone(team, i);
-      if (!p) continue;
-      var idx = playerIndex(team, p);
-      var base = zoneBasePos(team, i);
-      moveTo(team, idx, { x: base.x, y: base.y + (team === 0 ? -24 : 24) });
-    }
+    var libero = playerByRole(team, 'libero');
+    moveTo(team, playerIndex(team, libero), zoneBasePos(team, hitZone));
+    setJump(team, playerIndex(team, libero));
   }
 
   function playerInZone(team, zone) {
@@ -334,6 +325,40 @@
       if (teams[team][i].role === 'setter') return teams[team][i];
     }
     return teams[team][0];
+  }
+
+  function playerByRole(team, role) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === role) return teams[team][i];
+    }
+    return teams[team][0];
+  }
+
+  function playerRole() {
+    if (career.position === 'punta') return 'outside';
+    if (career.position === 'opuesto') return 'opposite';
+    if (career.position === 'central') return 'middle';
+    if (career.position === 'libero') return 'libero';
+    return 'setter';
+  }
+
+  function roleForZone(zone) {
+    return zone === 4 ? 'outside' : 'opposite';
+  }
+
+  function isMyAttack(attacking, setZone) {
+    if (attacking !== 0 || career.suspended || career.benched) return false;
+    if (career.position === 'punta' || career.position === 'opuesto') {
+      return roleForZone(setZone) === playerRole();
+    }
+    return false;
+  }
+
+  function attackSpot(team, zone) {
+    if (zone === 6) {
+      return { x: zoneBasePos(team, 6).x, y: team === 0 ? COURT.netY + 130 : COURT.netY - 130 };
+    }
+    return { x: zoneBasePos(team, zone).x, y: zoneBasePos(team, zone).y + (team === 0 ? -34 : 34) };
   }
 
   function serverPlayer(team) {
@@ -888,7 +913,7 @@
     if (career.position === 'punta') return phase === 'receive' || phase === 'attack';
     if (career.position === 'armador') return phase === 'set';
     if (career.position === 'opuesto') return phase === 'attack';
-    if (career.position === 'central') return phase === 'attack' || phase === 'defend';
+    if (career.position === 'central') return phase === 'defend';
     return phase === 'receive';
   }
 
@@ -1013,12 +1038,11 @@
       setZone = zones[Math.floor(Math.random() * 3)];
       quality = Math.random() < 0.85 ? 2 : 1;
     }
-    var attacker = playerInZone(attacking, setZone);
+    var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
-    var target = { x: playerPos[attacking][aidx].x, y: playerPos[attacking][aidx].y + (attacking === 0 ? -32 : 32) };
+    var target = attackSpot(attacking, setZone);
     setFormationTargets();
-    setTransition(attacking);
-    setCover(attacking);
+    setOffenseFormation(attacking, setZone);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     await playSegment({
@@ -1041,14 +1065,14 @@
   }
 
   async function doAttack(attacking, defender, setQuality, setZone) {
-    var isMy = isMyTurn(attacking, 'attack');
-    var attacker = playerInZone(attacking, setZone);
+    var isMy = isMyAttack(attacking, setZone);
+    var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
     var decision = null;
     var quality = 0;
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
-      await approach(attacking, isMy ? 0 : aidx, ballNow, 1.2);
+      await approach(attacking, 0, attackSpot(attacking, setZone), 1.2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('attack');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
