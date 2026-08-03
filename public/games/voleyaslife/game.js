@@ -13,6 +13,7 @@
   var SPEED_BASE = 1.35;
   var LEAGUE_SIZE = 8;
   var SEASON_MATCHES = (LEAGUE_SIZE - 1) * 2;
+  var PLAYER_MOVE_SPEED = 200;
 
   var STATS = ['S', 'A', 'R', 'B', 'D'];
   var STAT_LABEL = { S: 'saque', A: 'ataque', R: 'recepcion', B: 'bloqueo', D: 'defensa' };
@@ -462,15 +463,21 @@
 
   function stepPlayerMovement() {
     simTime++;
+    var step = PLAYER_MOVE_SPEED / 60;
     for (var key = 0; key < 2; key++) {
       for (var i = 0; i < playerPos[key].length; i++) {
         var cur = playerPos[key][i];
         var tgt = playerTarget[key][i];
-        cur.x += (tgt.x - cur.x) * 0.12;
-        cur.y += (tgt.y - cur.y) * 0.12;
+        var dx = tgt.x - cur.x;
+        var dy = tgt.y - cur.y;
+        var dist = Math.hypot(dx, dy);
+        if (dist > 2) {
+          cur.x += (dx / dist) * Math.min(step, dist);
+          cur.y += (dy / dist) * Math.min(step, dist);
+        }
         var ph = playerPhase[key][i];
-        cur.x += Math.sin(simTime * 0.05 + ph) * 1.1;
-        cur.y += Math.cos(simTime * 0.04 + ph * 1.3) * 1.1;
+        cur.x += Math.sin(simTime * 0.04 + ph) * 0.5;
+        cur.y += Math.cos(simTime * 0.033 + ph * 1.3) * 0.5;
         if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
       }
     }
@@ -490,7 +497,7 @@
       if (impacts[i].life <= 0) impacts.splice(i, 1);
     }
     if (pointBanner) {
-      pointBanner.life -= 0.035;
+      pointBanner.life -= 0.02;
       if (pointBanner.life <= 0) pointBanner = null;
     }
     if (screenFlash) {
@@ -946,7 +953,7 @@
     moveTo(attacking, sidx, from);
     pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
     serveRing = { team: attacking, index: sidx, life: 1 };
-    await sleep(0.6);
+    await sleep(0.9);
     serveRing = null;
     var sStat = playerStat(attacking, server, 'S');
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
@@ -969,7 +976,7 @@
     if (!ok) {
       comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
       pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
-      await sleep(0.7);
+      await sleep(1.0);
     }
     return { ok: ok, quality: sStat };
   }
@@ -988,7 +995,7 @@
     var decision = null;
     var quality = 0;
     if (isMy) {
-      await approach(attacking, isMy ? 0 : ridx, from, 1.2);
+      await approach(attacking, isMy ? 0 : ridx, from, 2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('receive');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -1013,7 +1020,7 @@
         var rReason = pickReason(['out', 'floor', 'net']);
         comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
         pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
-        await sleep(0.7);
+        await sleep(1.0);
       }
     }
     return { ok: ok, direct: direct, quality: quality };
@@ -1027,7 +1034,7 @@
     var quality = 0;
     var setZone = 4;
     if (isMy) {
-      await approach(attacking, isMy ? 0 : sidx, ballNow, 1.2);
+      await approach(attacking, isMy ? 0 : sidx, ballNow, 2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('set');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -1059,7 +1066,7 @@
       var sReason = pickReason(['net', 'double']);
       comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey(sReason))).replace('{team}', teamName(defender)));
       pointBanner = { text: reasonBannerText(sReason), color: '#e0503f', life: 1 };
-      await sleep(0.7);
+      await sleep(1.0);
     }
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
@@ -1072,7 +1079,7 @@
     var quality = 0;
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
-      await approach(attacking, 0, attackSpot(attacking, setZone), 1.2);
+      await approach(attacking, 0, attackSpot(attacking, setZone), 2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('attack');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
@@ -1111,7 +1118,7 @@
     if (!ok) {
       comment(t('attackFail').replace('{name}', attackerName).replace('{reason}', t(reasonKey(aReason))).replace('{team}', teamName(defender)));
       pointBanner = { text: reasonBannerText(aReason), color: '#e0503f', life: 1 };
-      await sleep(0.7);
+      await sleep(1.0);
     } else if (isMy && decision.key === 'suelta') {
       comment(t('tipBy').replace('{name}', attackerName));
     } else {
@@ -1146,7 +1153,7 @@
     var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
     var ok;
     if (isMyTurn(defending, 'defend')) {
-      await approach(defending, 0, { x: zoneBasePos(defending, hitZone).x, y: COURT.netY + (defending === 0 ? 16 : -16) }, 1.2);
+      await approach(defending, 0, { x: zoneBasePos(defending, hitZone).x, y: COURT.netY + (defending === 0 ? 16 : -16) }, 2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       var decision = await askDecision('block');
       var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
@@ -1168,7 +1175,7 @@
       var dReason = pickReason(['out', 'floor', 'three']);
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
-      await sleep(0.7);
+      await sleep(1.0);
       setFormationTargets();
       setDefenseFormation(defending, hitZone);
       await playSegment({
@@ -1244,7 +1251,7 @@
   }
   async function showDirectPoint() {
     pointBanner = { text: t('directPoint'), color: '#ffd166', life: 1 };
-    await sleep(0.7);
+    await sleep(1.0);
   }
 
   async function scorePoint(team) {
@@ -1265,7 +1272,7 @@
     void hudScore.offsetWidth;
     hudScore.classList.add('hud-score-pulse');
     setLabel(t('pointFor') + ' ' + who, color);
-    await sleep(1.1);
+    await sleep(1.4);
     label = null;
     updateHud();
     if (match.scores[team] >= SET_TARGET && match.scores[team] - match.scores[1 - team] >= 2) {

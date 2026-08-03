@@ -46,12 +46,21 @@ carrera).
     que anota).
   - **El marcador del HUD parpadea** cuando cambia.
   - **El equipo que anota celebra** (sus jugadores saltan).
+- **Dos mensajes en secuencia al anotar**: primero **"qué pasó"** (la razón
+  del punto como mensaje visual: "¡Tocó la red!", "¡Salió fuera!",
+  "¡Bloqueado!", "¡Doble toque!", "¡Punto directo!" para sueltas/pasarlas
+  perfectas, etc.) y después **"Punto para X"** (quién lo ganó), y ahí
+  continúa el juego. Los avisos deben durar lo suficiente para leerse
+  (desvanecido lento, ~1s visible).
 - **Aviso de saque**: antes de que el saque salga, un **aviso en el centro
   de la cancha** ("Saque de #X", ~0.7s, con desvanecido) avisa que viene un
   saque; se puede complementar con un anillo/pulso alrededor del sacador.
 - **Aproximación antes de decidir**: en los turnos del jugador, primero su
-  jugador **corre hasta la pelota** (pausa animada breve) y recién después
-  aparece el menú de decisión y el minijuego.
+  jugador **corre hasta la pelota** y recién después aparece el menú de
+  decisión. La espera debe ser **hasta que el jugador llegue a la pelota**
+  (no un tiempo fijo que puede quedar corto): el aviso "es tu turno" no
+  aparece mientras el balón esté sobre otro jugador o el jugador aún no
+  llegó.
 - **Feedback del toque de suelo**: cuando la pelota toca el suelo (punto),
   se marca el lugar del impacto con un efecto visible que se desvanece
   (una "X" o un estallido/anillo en el punto de contacto) y la pelota
@@ -142,12 +151,31 @@ guionada por rol, no física):
     intención tras cada toque (no solo "cerca de la pelota").
   - **Variedad de formaciones de recepción:** alternar W / 2 receptores según
     la situación del saque.
+  - **Posicionamiento con y sin pelota (reglas reales):** los jugadores sin
+    pelota se posicionan según su **rol** (la rotación solo define la
+    formación inicial; cuando la pelota entra en juego cada rol va a su
+    posición):
+    - **Ataque propio:** el armador va a su zona de armado; el **punta
+      ataca siempre por la zona 4** (aunque la rotación lo arranque en
+      otra), el **opuesto por la 2** (y pipe por la 6), el central por la
+      3; los demás cubren el centro/atrás.
+    - **Defensa (rival ataca):** el **punta cubre la zona 5**, el opuesto la
+      **1**, el **líbero la 6** (profundo), los **centrales bloquean en la
+      red** y el armador va a su zona de armado.
+    - El set (armar a 2/4/6) elige al atacante **por rol** (4 → punta,
+      2 → opuesto, 6 → opuesto/pipe); el turno de remate del jugador
+      ocurre cuando el set va a su zona de rol.
 - **Movimiento continuo:** los jugadores se desplazan de forma **visible y
   constante** (nunca se quedan quietos): deriva (lerp) hacia su posición de
   rol en cada frame con velocidad suficiente para notarse, más un pequeño
   balanceo/bamboleo propio (oscilación leve por jugador) que los mantiene
   vivos incluso cuando ya llegaron a su posición. Implementación barata en
   el bucle de dibujo.
+- **Movimiento a velocidad constante (no "disparo"):** el movimiento hacia la
+  pelota/posición debe ser a **velocidad constante y natural** (correr a un
+  ritmo real, ~200px/s), NO un lerp exponencial que da un gran salto inicial
+  y parece un disparo. El bamboleo en el lugar debe ser **sutil** (±0.5px),
+  no un movimiento visible mientras esperan.
 
 ### 5.3 Resolución del rally
 
@@ -155,14 +183,19 @@ guionada por rol, no física):
   bloqueo/defensa, comparando **stats con aleatoriedad**.
 - **Fallos con razón específica**: cuando una fase falla, no basta decir
   "falló" — el comentario y (cuando aplique) la trayectoria de la pelota
-  deben indicar el motivo real:
-  - **Saque:** tocó la red (la pelota corta en la red) · salió fuera (más
+  deben indicar el motivo real:  - **Saque:** tocó la red (la pelota corta en la red) · salió fuera (más
     allá de la línea de fondo) · pisó la línea de fondo (no llega a despegar).
   - **Recepción:** salió fuera · cayó al suelo · tocó la red.
   - **Armado:** tocó la red · doble toque del armador.
   - **Remate:** salió fuera · tocó la red · bloqueado por el rival (la pelota
     vuelve hacia el atacante) · invadió la cancha rival.
   - **Defensa:** salió fuera · cayó al suelo · más de 3 toques del equipo.
+- **Probabilidad de bloqueo (con stats de todos los involucrados):** el
+  bloqueo se resuelve comparando la **suma del Bloqueo de TODOS los
+  bloqueadores de la primera fila** contra el **Ataque del atacante** (+
+  calidad del remate + dificultad de la zona). Si el **jugador** bloquea, su
+  resultado del **minijuego (0-3) se suma a su stat de Bloqueo** y se compara
+  contra las stats del atacante.
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
