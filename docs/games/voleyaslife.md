@@ -194,18 +194,35 @@ guionada por rol, no física):
     3 m, `backAttackSpot`) y remata con salto desde ahí (remate de zaguero);
     si el balón se juega corto cerca de la red, el zaguero la toca **sin
     salto** (`jump = isFrontRow(atacante) || balón profundo`).
-- **Bloqueo/defensa:** los delanteros se alinean hacia la zona del remate
-  (bloqueo que sigue, ~40% del desplazamiento hacia la X del `hitZone`) y
-  solo los **centrales delanteros saltan**; los zagueros cubren sus columnas
-  y el **central zaguero** se desplaza a la zona del remate.
-- **Mejoras de IA (revisión):**
-  - **Bloqueo en la red visible:** los jugadores de primera línea se alinean
-    en la red hacia la zona del remate rival y saltan a bloquear (no solo un
-    defensor corre al balón).
-  - **Anticipación defensiva:** los defensores se mueven hacia la zona de
-    aterrizaje probable **antes** de que llegue la pelota (no después).
-  - **Transición deliberada:** el armador y los atacantes se reposicionan con
-    intención tras cada toque (no solo "cerca de la pelota").
+- **Bloqueo/defensa:** los delanteros se alinean hacia la zona que el bloqueo
+  **lee** del atacante (`blockGuess`, según sus tendencias) y saltan los
+  **centrales delanteros**; los zagueros hacen **deslizamiento de zona**: el
+  más cercano a la zona del remate cierra (~50%), el lejano se abre (~25%) y
+  el **central zaguero** cubre profundo hacia la zona del remate.
+- **Cadena de calidad recepción→armado→remate:** la recepción manda el pase
+  con **spray** según su calidad (perfecta → exacto al armador; mala → se
+  desvía y el armador persigue) y su calidad alimenta el armado; el armado
+  alimenta el remate; un buen defensa (dig) alimenta el siguiente armado.
+- **El remate cae en la zona:** un remate exitoso aterriza **dentro de la
+  zona** (profundo, ~netY±128..162, con dispersión) con **arco plano** (~52)
+  — no en la red ni con globo.
+- **IA individual por jugador (3 niveles):**
+  - **Nivel 1 — Decisiones situacionales:** el armador elige zona por
+    ponderación (calidad de recepción, atacante disponible delantero/zaguero,
+    sus stats, tendencia y lectura aleatoria acotada — `setZoneChoice`); el
+    atacante elige zona de remate leyendo el bloqueo (rematar lejos de la
+    columna del set) y su tendencia/agresividad (`hitZoneChoice`); el bloqueo
+    lee al atacante (`blockGuess`): si acierta la zona, el remate es más
+    difícil (-2.2); si no, más fácil (+0.6).
+  - **Nivel 2 — Movimiento con propósito:** el **receptor más cercano** al
+    saque sale a recibirlo (no siempre el de zona 6); el deslizamiento de
+    zona cubre el hueco cuando un zaguero sale; la lectura reactiva dibuja a
+    cada jugador inclinándose hacia la pelota (offset acotado, zagueros más).
+  - **Nivel 3 — Identidad por jugador:** cada jugador tiene un **perfil de
+    tendencias** (`tend`: zona favorita de armado/remate, agresividad,
+    inteligencia) generado de sus stats + azar, que sesga las decisiones. El
+    rival se puede **estudiar**: en la pantalla entre-partido aparece un
+    **análisis (scouting)** de su juego (dónde arma, dónde remata, riesgo).
 - **Bloqueo visible en la red:** el remate debe llegar **visiblemente hasta
   la red** (la zona donde bloquea la primera fila) y ser bloqueado ahí — la
   pelota no debe pasar directo al fondo del campo rival sin pasar por la red.
@@ -483,6 +500,13 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   zaguero cubre el fondo), recepción 5-1 con las puntas/opuesto de
   receptores, remate de zaguero desde el último cuarto (o sin salto cerca de
   la red) y línea de 3 metros + red visible en la cancha.
+- **IA individual por jugador (§5.2, 3 niveles):** decisiones situacionales
+  (armador elige por recepción+atacante, atacante lee el bloqueo, bloqueo
+  lee al atacante con `blockGuess` que afecta el remate), cadena de calidad
+  recepción→armado→defensa→armado con spray, remate que cae en la zona con
+  arco plano, receptor más cercano, deslizamiento de zona en defensa, perfil
+  de **tendencias por jugador** y **scouting del rival** en la pantalla
+  entre-partido.
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 

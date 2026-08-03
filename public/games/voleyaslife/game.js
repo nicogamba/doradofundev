@@ -163,7 +163,7 @@
     return { x: x, y: y };
   }
 
-  function makeLineup(isPlayerTeam) {
+  function makeLineup(isPlayerTeam, scout) {
     var roles = isPlayerTeam
       ? (career.position === 'punta'
           ? ['outside', 'setter', 'middle', 'opposite', 'middle', 'outside']
@@ -181,13 +181,49 @@
     var numbers = pool.slice(0, 6);
     if (isPlayerTeam) numbers[0] = career.number;
     return roles.map(function (role, i) {
-      return { role: role, zoneIndex: i, isPlayer: isPlayerTeam && i === 0, number: numbers[i] };
+      var tend = makeTend(role, isPlayerTeam && i === 0);
+      if (scout) {
+        if (role === 'setter') tend.setPref = scout.setPref;
+        if (role === 'outside' || role === 'opposite') tend.hitPref = scout.hitPref;
+        tend.aggr = Math.max(0.15, Math.min(0.9, scout.aggr + (Math.random() * 0.2 - 0.1)));
+        tend.smart = Math.max(0.25, Math.min(0.9, scout.smart + (Math.random() * 0.2 - 0.1)));
+      }
+      return { role: role, zoneIndex: i, isPlayer: isPlayerTeam && i === 0, number: numbers[i], tend: tend };
     });
+  }
+
+  function makeTend(role, isPlayer) {
+    var tend = { setPref: 4, hitPref: 6, aggr: 0.4, smart: 0.5 };
+    if (role === 'setter') {
+      tend.setPref = [2, 4, 6][Math.floor(Math.random() * 3)];
+    } else if (role === 'outside' || role === 'opposite') {
+      tend.hitPref = [1, 5, 6][Math.floor(Math.random() * 3)];
+    }
+    tend.aggr = Math.max(0.15, Math.min(0.9, 0.35 + Math.random() * 0.55));
+    tend.smart = Math.max(0.25, Math.min(0.9, 0.4 + Math.random() * 0.5));
+    if (isPlayer) tend.smart = Math.max(tend.smart, 0.65);
+    return tend;
+  }
+
+  function weightedPick(items, weights) {
+    var total = 0;
+    for (var i = 0; i < weights.length; i++) total += Math.max(0, weights[i]);
+    var r = Math.random() * total;
+    for (var j = 0; j < items.length; j++) {
+      r -= Math.max(0, weights[j]);
+      if (r <= 0) return items[j];
+    }
+    return items[items.length - 1];
+  }
+
+  function tendOf(team, index) {
+    var p = teams[team][index];
+    return (p && p.tend) || makeTend('outside', false);
   }
 
   function initTeams() {
     teams[0] = makeLineup(true);
-    teams[1] = makeLineup(false);
+    teams[1] = makeLineup(false, match && match.rival ? match.rival.scout : null);
     for (var key = 0; key < 2; key++) {
       playerPos[key] = teams[key].map(function (p) {
         return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
@@ -304,18 +340,43 @@
     moveTo(team, aidx, isFrontRow(team, aidx) ? attackSpot(team, setZone) : backAttackSpot(team, setZone));
   }
 
-  function setDefenseFormation(team, hitZone) {
-    var hx = zoneBasePos(team, hitZone).x;
+  function setDefenseFormation(team, hitZone, blockZone) {
+    var coverX = zoneBasePos(team, hitZone).x;
+    var blockX = zoneBasePos(team, blockZone || hitZone).x;
+    var backs = [];
     for (var i = 0; i < teams[team].length; i++) {
-      var p = teams[team][i];
-      var spot = formationSpot(team, i, 'defense');
-      if (isFrontRow(team, i)) {
-        spot.x = spot.x + (hx - spot.x) * 0.4;
-        if (p.role === 'middle') setJump(team, i);
-      } else if (p.role === 'middle') {
-        spot = { x: hx, y: backY(team) };
+      if (!isFrontRow(team, i)) {
+        backs.push({
+          i: i,
+          p: teams[team][i],
+          x: columnX(team, ROTATION_ORDER[teams[team][i].zoneIndex]),
+        });
       }
-      moveTo(team, i, spot);
+    }
+    backs.sort(function (a, b) {
+      return Math.abs(a.x - coverX) - Math.abs(b.x - coverX);
+    });
+    for (var k = 0; k < backs.length; k++) {
+      var bk = backs[k];
+      var spot = formationSpot(team, bk.i, 'defense');
+      if (bk.p.role === 'middle') {
+        spot = { x: coverX, y: backY(team) };
+      } else if (k === 0) {
+        spot.x += (coverX - bk.x) * 0.5;
+      } else if (k === backs.length - 1) {
+        spot.x -= (bk.x - coverX) * 0.25;
+      } else {
+        spot.x += (coverX - bk.x) * 0.15;
+      }
+      moveTo(team, bk.i, spot);
+    }
+    for (var j = 0; j < teams[team].length; j++) {
+      var fp = teams[team][j];
+      if (!isFrontRow(team, j)) continue;
+      var fspot = formationSpot(team, j, 'defense');
+      fspot.x = fspot.x + (blockX - fspot.x) * 0.5;
+      if (fp.role === 'middle') setJump(team, j);
+      moveTo(team, j, fspot);
     }
   }
 
@@ -509,10 +570,11 @@
     if (!match || !ball || !teams[team]) return { x: 0, y: 0 };
     var p = playerPos[team][index];
     var z = ROTATION_ORDER[teams[team][index].zoneIndex];
-    var xl = (z === 5 || z === 6 || z === 1) ? 16 : 11;
-    var yl = (z === 5 || z === 6 || z === 1) ? 10 : 6;
-    var bx = Math.max(-xl, Math.min(xl, (ball.x - p.x) * 0.05));
-    var by = Math.max(-yl, Math.min(yl, (ball.y - p.y) * 0.02));
+    var isBack = z === 5 || z === 6 || z === 1;
+    var xl = isBack ? 26 : 14;
+    var yl = isBack ? 14 : 8;
+    var bx = Math.max(-xl, Math.min(xl, (ball.x - p.x) * 0.07));
+    var by = Math.max(-yl, Math.min(yl, (ball.y - p.y) * 0.03));
     return { x: bx, y: by };
   }
 
@@ -653,7 +715,9 @@
     var to = script.to;
     var seconds = script.seconds || 0.5;
     var overNet = script.overNet;
-    var arc = overNet ? 130 : Math.abs(to.y - from.y) > 120 ? 90 : 30;
+    var arc = script.arc !== undefined
+      ? script.arc
+      : (overNet ? 130 : Math.abs(to.y - from.y) > 120 ? 90 : 30);
     var t0 = await raf();
     var dur = ((seconds * SPEED_BASE) / thisSpeed) * 1000;
     while (true) {
@@ -719,6 +783,7 @@
   var match = null;
 
   function newMatch(rival) {
+    if (rival && !rival.scout) rival.scout = oppScout(rival);
     match = {
       rival: rival,
       scores: [0, 0],
@@ -891,6 +956,26 @@
     s.pts += won ? 3 : 0;
   }
 
+  function oppScout(opp) {
+    if (!opp.scout) {
+      opp.scout = {
+        setPref: [2, 4, 6][Math.floor(Math.random() * 3)],
+        hitPref: [1, 5, 6][Math.floor(Math.random() * 3)],
+        aggr: Math.max(0.15, Math.min(0.9, 0.35 + Math.random() * 0.55)),
+        smart: Math.max(0.25, Math.min(0.9, 0.4 + Math.random() * 0.5)),
+      };
+    }
+    return opp.scout;
+  }
+
+  function scoutingText(opp) {
+    var s = oppScout(opp);
+    var setDesc = s.setPref === 4 ? t('scoutSet4') : s.setPref === 2 ? t('scoutSet2') : t('scoutSet6');
+    var hitDesc = s.hitPref === 1 ? t('scoutHit1') : s.hitPref === 5 ? t('scoutHit5') : t('scoutHit6');
+    var aggDesc = s.aggr > 0.65 ? t('scoutAgg') : s.aggr < 0.4 ? t('scoutSafe') : t('scoutBal');
+    return '<p class="subtitle scout-line">' + t('scout') + ' ' + setDesc + ', ' + hitDesc + ' · ' + aggDesc + '.</p>';
+  }
+
   function currentOpponent() {
     var me = myLocalIdx();
     var pairs = career.schedule && career.schedule[career.week];
@@ -954,6 +1039,88 @@
     return match.rival.stats[stat];
   }
 
+  // ---------- IA: decisiones situacionales (Nivel 1) ----------
+
+  function setZoneChoice(attacking, defender, receiveQuality) {
+    var zones = [2, 4, 6];
+    var setter = setterPlayer(attacking);
+    var tend = tendOf(attacking, playerIndex(attacking, setter));
+    var rq = typeof receiveQuality === 'number' ? receiveQuality : 2;
+    var weights = zones.map(function (z) {
+      var w = 1;
+      if (z === 4) w += 1.1;
+      if (z === 6) w -= 0.4;
+      if (rq < 1.5) {
+        if (z === 4) w += 1.6;
+        else w -= 0.8;
+      } else if (rq >= 3) {
+        if (z !== 4) w += 0.7;
+      }
+      var attacker = playerByRole(attacking, roleForZone(z));
+      var aidx = playerIndex(attacking, attacker);
+      var aStat = playerStat(attacking, attacker, 'A');
+      w += (aStat - 5) * 0.25 + (isFrontRow(attacking, aidx) ? 0.4 : -0.6);
+      if (z === tend.setPref) w += tend.smart * 1.2;
+      w += (Math.random() - 0.5) * (1.6 - tend.smart);
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function hitZoneChoice(attacking, defender, setZone, aStat) {
+    var zones = [1, 5, 6];
+    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var stat = typeof aStat === 'number' ? aStat : 5;
+    var weights = zones.map(function (z) {
+      var w = 1;
+      if (z === 6) {
+        w += 0.5 + (1 - tend.aggr) * 0.7;
+      } else {
+        w += tend.aggr * 0.9 + Math.max(0, stat - 5) * 0.15;
+      }
+      if (setZone === 2 && z === 5) w += 0.8 + tend.smart * 0.5;
+      if (setZone === 4 && z === 1) w += 0.8 + tend.smart * 0.5;
+      if (setZone === 6 && z !== 6) w += 0.3;
+      if (z === tend.hitPref) w += tend.smart * 1.0;
+      w += (Math.random() - 0.5) * (1.8 - tend.smart);
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function blockGuess(defending, attacking, setZone) {
+    var zones = [1, 5, 6];
+    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var smart = tend.smart * 0.45 + 0.1;
+    var weights = zones.map(function (z) {
+      var w = 0.5 + Math.random() * 1.4;
+      if (z === tend.hitPref) w += smart * 1.0;
+      if (setZone === 2 && z === 5) w += smart * 0.6;
+      if (setZone === 4 && z === 1) w += smart * 0.6;
+      if (setZone === 6 && z !== 6) w += smart * 0.3;
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function closestReceiver(team, spot) {
+    var best = -1;
+    var bestD = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === 'setter' || p.role === 'middle') continue;
+      var d = Math.hypot(playerPos[team][i].x - spot.x, playerPos[team][i].y - spot.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0) best = playerIndex(team, playerInZone(team, 6));
+    return best;
+  }
+
   function isPlayerTurn(phase) {
     if (career.suspended || career.benched) return false;
     if (career.position === 'punta') return phase === 'receive' || phase === 'attack';
@@ -1011,7 +1178,7 @@
         to = { x: from.x, y: from.y + (attacking === 0 ? 20 : -20) };
       }
     }
-    var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : playerIndex(defender, playerInZone(defender, 6));
+    var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
     if (ridxA >= 0) moveTo(defender, ridxA, to);
     await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : 0.7, overNet: !reason || reason === 'out' });
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
@@ -1026,16 +1193,16 @@
   async function doReceive(attacking, defender, incoming) {
     match.rallyTouches[attacking]++;
     var isMy = isMyTurn(attacking, 'receive');
-    var receiver = playerInZone(attacking, 6);
-    var ridx = playerIndex(attacking, receiver);
     var setter = setterPlayer(attacking);
     var sidx = playerIndex(attacking, setter);
+    var ridx = isMy ? 0 : closestReceiver(attacking, ballNow);
+    if (ridx < 0) ridx = playerIndex(attacking, playerInZone(attacking, 6));
     var from = ballNow;
-    var to = playerPos[attacking][sidx];
-    setReceiveFormation(attacking);
-    moveTo(attacking, isMy ? 0 : ridx, { x: from.x, y: from.y });
+    var sp = playerPos[attacking][sidx];
     var decision = null;
     var quality = 0;
+    var ok;
+    var direct = false;
     if (isMy) {
       if (watchMode) {
         decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'receive', zone: 6 };
@@ -1045,30 +1212,36 @@
         decision = await askDecision('receive');
         quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
       }
-      setLabel(resultLabel(quality), resultColor(quality));
+      ok = quality >= decision.threshold;
+      direct = decision.directOnPerfect && quality === 3;
+    } else {
+      quality = autoPhase(playerStat(attacking, teams[attacking][ridx], 'R'), incoming) ? 2 : 0;
+      ok = quality > 0;
     }
+    setReceiveFormation(attacking);
+    moveTo(attacking, ridx, { x: from.x, y: from.y });
+    var spray = 1 - Math.max(0, Math.min(3, quality)) / 3;
+    var to = {
+      x: sp.x + (Math.random() - 0.5) * 2 * spray * 46,
+      y: sp.y + (Math.random() - 0.5) * 2 * spray * 32,
+    };
+    if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     await playSegment({
       from: from,
       to: to,
       seconds: 0.5,
     });
     label = null;
-    var ok;
-    var direct = false;
+    var receiver = teams[attacking][ridx];
     if (isMy) {
-      ok = quality >= decision.threshold;
-      direct = decision.directOnPerfect && quality === 3;
       comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
+    } else if (ok) {
+      comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
     } else {
-      ok = autoPhase(playerStat(attacking, receiver, 'R'), incoming);
-      if (ok) {
-        comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
-      } else {
-        var rReason = pickReason(['out', 'floor', 'net']);
-        comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
-        pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
-        await sleep(0.6);
-      }
+      var rReason = pickReason(['out', 'floor', 'net']);
+      comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
+      pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
+      await sleep(0.6);
     }
     return { ok: ok, direct: direct, quality: quality };
   }
@@ -1083,20 +1256,19 @@
     var setZone = 4;
     if (isMy) {
       if (watchMode) {
-        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'set', zone: [2, 4, 6][Math.floor(Math.random() * 3)] };
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'set', zone: setZoneChoice(attacking, defender, receiveQuality) };
         setZone = decision.zone;
-        quality = Math.random() < 0.85 ? 2 : 1;
+        quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
       } else {
         await showLabel(t('decisionPhase'), '#ffd166', 0.35);
         decision = await askDecision('set');
-        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0) + (receiveQuality < 1 ? -1 : 0));
         setZone = decision.zone;
       }
       setLabel(resultLabel(quality), resultColor(quality));
     } else {
-      var zones = [2, 4, 6];
-      setZone = zones[Math.floor(Math.random() * 3)];
-      quality = Math.random() < 0.85 ? 2 : 1;
+      setZone = setZoneChoice(attacking, defender, receiveQuality);
+      quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
     }
     var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
@@ -1135,21 +1307,26 @@
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
       if (watchMode) {
-        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'attack', zone: [1, 5, 6][Math.floor(Math.random() * 3)] };
-        hitZone = decision.zone;
-        quality = autoPhase(playerStat(attacking, thePlayer(), 'A') + setQuality, teamPhaseStat(defender, 'B')) ? 2 : 0;
+        hitZone = hitZoneChoice(attacking, defender, setZone, playerStat(attacking, thePlayer(), 'A'));
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'attack', zone: hitZone };
       } else {
         await showLabel(t('decisionPhase'), '#ffd166', 0.35);
         decision = await askDecision('attack');
         quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
         hitZone = decision.zone;
       }
-      setLabel(resultLabel(quality), resultColor(quality));
     } else {
-      var zones = [1, 5, 6];
-      hitZone = zones[Math.floor(Math.random() * 3)];
-      quality = autoPhase(playerStat(attacking, attacker, 'A') + setQuality, teamPhaseStat(defender, 'B')) ? 2 : 0;
+      hitZone = hitZoneChoice(attacking, defender, setZone, playerStat(attacking, attacker, 'A'));
     }
+    var blockG = blockGuess(defender, attacking, setZone);
+    var readBlock = blockG === hitZone;
+    if (isMy && !watchMode) {
+      if (readBlock) quality = Math.max(0, quality - 1);
+    } else {
+      var atkStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
+      quality = autoPhase(atkStat + setQuality + (readBlock ? -1.3 : 0.35), teamPhaseStat(defender, 'B')) ? 2 : 0;
+    }
+    if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     var ok = isMy ? quality >= decision.threshold : quality > 0;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var aReason = null;
@@ -1162,10 +1339,13 @@
     } else if (!ok && aReason === 'blocked') {
       target = { x: ballNow.x, y: ballNow.y + (attacking === 0 ? 50 : -50) };
     } else {
-      target = { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 24 : -24) };
+      target = {
+        x: zoneBasePos(defender, hitZone).x + (Math.random() * 46 - 23),
+        y: defender === 0 ? COURT.netY + 128 + Math.random() * 34 : COURT.netY - 128 - Math.random() * 34,
+      };
     }
     setOffenseFormation(attacking, setZone);
-    setDefenseFormation(defender, hitZone);
+    setDefenseFormation(defender, hitZone, blockG);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
       setJump(attacking, isMy ? 0 : aidx);
@@ -1179,6 +1359,7 @@
       to: target,
       seconds: 0.5,
       overNet: !aReason || aReason === 'invade',
+      arc: 52,
     });
     label = null;
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
@@ -1221,6 +1402,7 @@
     var from = ballNow;
     var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
     var ok;
+    var digQuality = 0;
     if (isMyTurn(defending, 'defend')) {
       var bq;
       if (watchMode) {
@@ -1232,15 +1414,22 @@
       }
       setLabel(resultLabel(bq), resultColor(bq));
       ok = autoPhase(blockPower(defending, bq), atkPower);
+      digQuality = ok ? (bq >= 2 ? 2 : 1) : 0;
     } else {
       ok = autoPhase(blockPower(defending), atkPower);
+      digQuality = ok ? 2 : 0;
     }
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
       setDefenseFormation(defending, hitZone);
+      var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
+      var to = {
+        x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
+        y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
+      };
       await playSegment({
         from: from,
-        to: playerPos[defending][sidx],
+        to: to,
         seconds: 0.5,
       });
       label = null;
@@ -1257,7 +1446,7 @@
       });
       label = null;
     }
-    return { ok: ok };
+    return { ok: ok, quality: digQuality };
   }
 
   function resultLabel(q) {
@@ -1307,9 +1496,10 @@
           await scorePoint(attacking);
           return;
         }
+        incoming = receive.quality;
         firstOffense = false;
       }
-      var set = await doSet(attacking, defending, receive ? receive.quality : 0);
+      var set = await doSet(attacking, defending, incoming);
       if (touchFault(attacking)) { await threeTouches(defending); return; }
       if (!set.ok) {
         await scorePoint(defending);
@@ -1338,7 +1528,7 @@
         await scorePoint(attacking);
         return;
       }
-      incoming = 3;
+      incoming = def.quality;
       var tmp = attacking;
       attacking = defending;
       defending = tmp;
@@ -1765,6 +1955,7 @@
       '<p class="subtitle">' + t('season') + ' · ' + t(career.country) + ' · ' + t('division' + myDivision()) + ' · ' + weekName(career.week) + '</p>' +
       '<div class="card opponent-card"><p class="subtitle">' + t('nextMatch') + '</p>' +
       '<p class="club-name">' + t('vs') + ' ' + opp.name + '</p>' +
+      scoutingText(opp) +
       '</div>' +
       '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
@@ -1781,7 +1972,7 @@
       currentScreen = 'match';
       screen.innerHTML = '';
       var opp2 = currentOpponent();
-      match = newMatch({ club: opp2.name, stats: clubStats(opp2.power) });
+      match = newMatch({ club: opp2.name, stats: clubStats(opp2.power), scout: oppScout(opp2) });
       playMatch().catch(function (e) {
         console.error('VoleyAsLife:', e);
       });
