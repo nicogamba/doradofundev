@@ -109,32 +109,6 @@
   var crowdPulse = 0;
   var ballSquish = 0;
   var cameraShake = 0;
-  var crowdDots = [];
-
-  (function () {
-    var palette = ['#39425a', '#454f6b', '#2f3749', '#525d78', '#2a3142'];
-    function dot(x, y) {
-      crowdDots.push({
-        x: x + (Math.random() * 5 - 2.5),
-        y: y + (Math.random() * 3 - 1.5),
-        r: 1.2 + Math.random() * 1.1,
-        c: palette[Math.floor(Math.random() * palette.length)],
-        ph: Math.random() * Math.PI * 2,
-      });
-    }
-    for (var r = 0; r < 5; r++) {
-      var yt = 22 + r * 22;
-      for (var xt = 4; xt < W - 4; xt += 24) dot(xt, yt);
-    }
-    for (var r2 = 0; r2 < 3; r2++) {
-      var yb = 764 + r2 * 18;
-      for (var xb = 4; xb < W - 4; xb += 24) dot(xb, yb);
-    }
-    var cols = [14, 52, 414, 452];
-    for (var c = 0; c < cols.length; c++) {
-      for (var ys = 190; ys < 700; ys += 22) dot(cols[c], ys);
-    }
-  })();
   var ballNow = { x: W / 2, y: H / 2 };
   var pointBanner = null;
   var screenFlash = null;
@@ -639,21 +613,27 @@
 
   function drawArena() {
     var pulse = crowdPulse;
-    ctx.fillStyle = '#0a0e16';
-    ctx.fillRect(0, 0, W, 160);
-    ctx.fillRect(0, 742, W, H - 742);
+    var tiers = ['#0a0e17', '#0e1320', '#121828', '#161d30', '#1b2338'];
+    for (var ti = 0; ti < tiers.length; ti++) {
+      ctx.fillStyle = tiers[ti];
+      ctx.fillRect(0, 8 + ti * 27, W, 27);
+    }
+    for (var bi = 0; bi < 4; bi++) {
+      ctx.fillStyle = tiers[bi];
+      ctx.fillRect(0, 744 + bi * 14, W, 14);
+    }
+    ctx.fillStyle = '#0d121c';
     ctx.fillRect(0, 160, 108, 582);
     ctx.fillRect(372, 160, W - 372, 582);
-    for (var i = 0; i < crowdDots.length; i++) {
-      var d = crowdDots[i];
-      var a = Math.sin(simTime * 0.05 + d.ph) * 1.1;
-      ctx.globalAlpha = Math.min(1, 0.42 + pulse * 0.4);
-      ctx.fillStyle = d.c;
-      ctx.beginPath();
-      ctx.arc(d.x + a, d.y, d.r * (1 + pulse * 0.3), 0, Math.PI * 2);
-      ctx.fill();
+    ctx.globalAlpha = Math.min(1, 0.25 + pulse * 0.5);
+    ctx.fillStyle = '#f2f4f8';
+    for (var x = 14; x < W - 14; x += 22) {
+      ctx.fillRect(x, 12 + pulse * 2, 2, 4);
     }
     ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#2a3446';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(COURT.x - 16, COURT.y - 16, COURT.w + 32, COURT.h + 32);
     ctx.fillStyle = '#1d2431';
     ctx.fillRect(COURT.x - 44, COURT.y + 26, 20, COURT.h - 52);
     ctx.fillRect(COURT.x + COURT.w + 24, COURT.y + 26, 20, COURT.h - 52);
@@ -1084,7 +1064,7 @@
       ball.y = from.y + (to.y - from.y) * p - arcOffset;
       ball.h = arcOffset;
       ball.maxH = arc;
-      ball.rot += 0.12 + Math.hypot(to.x - from.x, to.y - from.y) / 5000;
+      ball.rot += 0.08 + Math.hypot(to.x - from.x, to.y - from.y) / 8000;
       ballTrail.push({ x: ball.x, y: ball.y, a: 1 });
       if (ballTrail.length > 8) ballTrail.shift();
       draw();
@@ -1618,10 +1598,12 @@
     };
     var contact = { x: playerPos[attacking][ridx].x, y: playerPos[attacking][ridx].y };
     if (isMy) setLabel(resultLabel(quality), resultColor(quality));
+    var passDist = dist2(contact, to);
     await playSegment({
       from: contact,
       to: to,
-      seconds: segSeconds(dist2(contact, to), ballSpeed(playerStat(attacking, teams[attacking][ridx], 'R'))),
+      seconds: segSeconds(passDist, 90 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
+      arc: 50,
     });
     label = null;
     addTouch(contact.x, contact.y);
@@ -1666,7 +1648,7 @@
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     var setterR = playerStat(attacking, setter, 'R');
-    var setSpeed = 105 + (setterR + quality) * 12;
+    var setSpeed = 95 + (setterR + quality) * 12;
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
@@ -1675,6 +1657,7 @@
       from: ballNow,
       to: target,
       seconds: segSeconds(stDist, setSpeed),
+      arc: 35,
     });
     label = null;
     addTouch(setTouch.x, setTouch.y);
@@ -1826,10 +1809,12 @@
       y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
     };
     var contact = { x: playerPos[defending][didx].x, y: playerPos[defending][didx].y };
+    var digDist = dist2(from, to);
     await playSegment({
       from: from,
       to: to,
-      seconds: segSeconds(dist2(from, to), ballSpeed(3 + digQuality)),
+      seconds: segSeconds(digDist, 70 + digQuality * 18),
+      arc: 28,
     });
     label = null;
     addTouch(contact.x, contact.y);

@@ -32,10 +32,10 @@ carrera).
   postes) y cada campo tiene su **línea de 3 metros** punteada a ~93px de la
   red (1/3 del medio campo, `threeM(team) = netY ± 93`) — límite de ataque
   de los zagueros.
-- **Atmósfera de estadio:** fondo con gradiente, **tribunas con multitud**
-  alrededor de la cancha (puntos que se agitan), publicidad en los costados
-  y un **marcador de estadio** arriba con el resultado. La **multitud
-  reacciona** (pulso) en los puntos y en los remates/bloqueos fuertes.
+- **Atmósfera de estadio:** fondo con gradiente, **gradas llenas** alrededor
+  de la cancha (bandas/tiers de colores, sin motas), una **barrera** perimetral,
+  publicidad en los costados y un **marcador de estadio** arriba con el
+  resultado. La **multitud reacciona** (pulso de luces) en los puntos.
 - **El golpe se siente:** la pelota se **aplasta** en cada contacto, la
   **cámara se sacude** sutilmente en remates fuertes, y cada toque muestra un
   **anillo blanco** en el jugador (la **X** solo cuando la pelota toca el
@@ -312,18 +312,21 @@ guionada por rol, no física):
   contra las stats del atacante.
 - **Física pelota–jugador (la pelota encuentra al jugador):** la pelota vuela
   a una **velocidad según la stat del que le pega** (`ballSpeed(stat)` =
-  175 + stat×20 px/s; el armado es más controlado: `setSpeed` = 105 + (R+calidad)×12)
-  y el jugador que debe tocarla corre a **su velocidad** (`moveSpeed` = 165 +
-  D×15 px/s). Hay una **carrera** en cada fase de persecución (`raceReaches`):
-  si el jugador llega antes que la pelota al punto de contacto, **la toca** y
-  el rally sigue; si la pelota llega primero (jugador lento o golpe muy
-  bueno), **la pelota toca el suelo** (ace en el saque, set malo si el
-  atacante no llega, o remate que entra si el defensor no llega). El saque
-  tiene un **vuelo mínimo** (~0.45s) para que el profundo no "zumba". La
-  **calidad** del toque sale del margen de la carrera + la stat y alimenta la
-  cadena recepción→armado→remate. El pase/remate sale de la **posición real
-  del jugador** y cada toque muestra un **anillo blanco** en el jugador (la
-  **X** solo cuando la pelota toca el suelo).
+  175 + stat×20 px/s para saque/remate; los **pases** son controlados: la
+  **recepción** va a `90 + R×12` px/s con arco 50, el **armado** a `95 +
+  (R+calidad)×12` con arco 35 y el **dig** a `70 + calidad×18` con arco 28 —
+  nada de curvas ni velocidad de golpe duro en los pases). El jugador que
+  debe tocarla corre a **su velocidad** (`moveSpeed` = 165 + D×15 px/s). Hay
+  una **carrera** en cada fase de persecución (`raceReaches`): si el jugador
+  llega antes que la pelota al punto de contacto, **la toca** y el rally
+  sigue; si la pelota llega primero (jugador lento o golpe muy bueno), **la
+  pelota toca el suelo** (ace en el saque, set malo si el atacante no llega,
+  o remate que entra si el defensor no llega). El saque tiene un **vuelo
+  mínimo** (~0.45s) para que el profundo no "zumba". La **calidad** del toque
+  sale del margen de la carrera + la stat y alimenta la cadena
+  recepción→armado→remate. El pase/remate sale de la **posición real del
+  jugador** y cada toque muestra un **anillo blanco** en el jugador (la **X**
+  solo cuando la pelota toca el suelo).
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
