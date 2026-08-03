@@ -89,7 +89,8 @@
   var offsetX = 0;
   var offsetY = 0;
 
-  var ball = { x: W / 2, y: H / 2, h: 0, maxH: 1 };
+  var ball = { x: W / 2, y: H / 2, h: 0, maxH: 1, rot: 0 };
+  var ballTrail = [];
   var label = null;
   var mg = null;
   var impacts = [];
@@ -98,6 +99,7 @@
   var playerPos = { 0: [], 1: [] };
   var playerTarget = { 0: [], 1: [] };
   var playerPhase = { 0: [], 1: [] };
+  var playerJump = { 0: [], 1: [] };
   var ballNow = { x: W / 2, y: H / 2 };
 
   function t(key) {
@@ -189,6 +191,9 @@
       });
       playerPhase[key] = playerPos[key].map(function () {
         return Math.random() * Math.PI * 2;
+      });
+      playerJump[key] = playerPos[key].map(function () {
+        return 0;
       });
     }
     ballNow = { x: W / 2, y: COURT.netY };
@@ -297,13 +302,44 @@
     drawTeam(0, '#e0c34a', true);
 
     var ballScale = 1 + 0.4 * ((ball.h || 0) / (ball.maxH || 1));
+
+    // sombra en el suelo (se achica con la altura)
+    var shadowScale = 1 - 0.6 * ((ball.h || 0) / (ball.maxH || 1));
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(ball.x, ball.y + (ball.h || 0), 10 * shadowScale, 4.5 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // estela
+    for (var tr = 0; tr < ballTrail.length; tr++) {
+      var tp = ballTrail[tr];
+      var f = tr / ballTrail.length;
+      ctx.globalAlpha = f * 0.35;
+      ctx.fillStyle = '#f2f4f8';
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 6 * f, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    var br = Math.max(5, 9 * ballScale);
     ctx.fillStyle = '#f2f4f8';
     ctx.shadowColor = '#f2f4f8';
     ctx.shadowBlur = 12;
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, Math.max(5, 9 * ballScale), 0, Math.PI * 2);
+    ctx.arc(ball.x, ball.y, br, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+    // giro: una marca que rota
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(ball.rot);
+    ctx.fillStyle = 'rgba(255,209,102,0.85)';
+    ctx.beginPath();
+    ctx.arc(0, 0, br * 0.42, 0.6, 2.2);
+    ctx.lineTo(0, 0);
+    ctx.fill();
+    ctx.restore();
 
     drawImpacts();
 
@@ -328,8 +364,13 @@
         var ph = playerPhase[key][i];
         cur.x += Math.sin(simTime * 0.05 + ph) * 1.1;
         cur.y += Math.cos(simTime * 0.04 + ph * 1.3) * 1.1;
+        if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
       }
     }
+  }
+
+  function setJump(team, index) {
+    if (playerJump[team]) playerJump[team][index] = 1;
   }
 
   function addImpact(x, y) {
@@ -367,24 +408,32 @@
     var players = playerPos[team];
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
+      var jump = playerJump[team][i] || 0;
+      var drawY = p.y - jump * 22;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 13, 0, Math.PI * 2);
+      ctx.arc(p.x, drawY, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
+      if (jump > 0.1) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 13, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.font = '700 10px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(teams[team][i].number), p.x, p.y + 1);
+      ctx.fillText(String(teams[team][i].number), p.x, drawY + 1);
       ctx.textBaseline = 'alphabetic';
       if (highlightPlayer && i === 0) {
         ctx.strokeStyle = '#ffd166';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 17, 0, Math.PI * 2);
+        ctx.arc(p.x, drawY, 17, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -424,10 +473,14 @@
       ball.y = from.y + (to.y - from.y) * p - arcOffset;
       ball.h = arcOffset;
       ball.maxH = arc;
+      ball.rot += 0.12 + Math.hypot(to.x - from.x, to.y - from.y) / 5000;
+      ballTrail.push({ x: ball.x, y: ball.y, a: 1 });
+      if (ballTrail.length > 8) ballTrail.shift();
       draw();
       if (p >= 1) break;
     }
     ball.h = 0;
+    ballTrail.length = 0;
     ballNow = { x: to.x, y: to.y };
   }
 
@@ -882,6 +935,7 @@
     }
     setFormationTargets();
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
+    setJump(attacking, isMy ? 0 : aidx);
     await playSegment({
       from: ballNow,
       to: target,
@@ -921,6 +975,7 @@
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
       setFormationTargets();
       moveTo(defending, didx, { x: from.x, y: from.y });
+      setJump(defending, didx);
       await playSegment({
         from: from,
         to: playerPos[defending][sidx],
@@ -931,6 +986,7 @@
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       setFormationTargets();
       moveTo(defending, didx, { x: from.x, y: from.y });
+      setJump(defending, didx);
       await playSegment({
         from: from,
         to: { x: from.x, y: from.y + 40 },
