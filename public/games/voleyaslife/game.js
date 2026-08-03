@@ -274,7 +274,7 @@
   }
 
   function threeM(team) {
-    return COURT.netY + (team === 0 ? 187 : -187);
+    return COURT.netY + (team === 0 ? 93 : -93);
   }
 
   function isDeep(team, y) {
@@ -309,9 +309,9 @@
     }
     if (p.role === 'setter') {
       if (state === 'offense') {
-        return { x: COURT.x + COURT.w - 95, y: COURT.netY + (team === 0 ? 40 : -40) };
+        return { x: team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (team === 0 ? 40 : -40) };
       }
-      return { x: COURT.x + COURT.w - 45, y: backY(team) + 12 };
+      return { x: team === 0 ? COURT.x + COURT.w - 45 : COURT.x + 45, y: backY(team) + 12 };
     }
     if (p.role === 'middle') {
       if (state === 'receive') {

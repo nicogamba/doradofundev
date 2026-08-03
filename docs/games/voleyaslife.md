@@ -29,8 +29,9 @@ carrera).
 - **Cada jugador muestra su número de camiseta** en la cancha (el jugador del
   usuario lleva su número elegido; los demás tienen números propios).
 - **Cancha legible:** la **red** se dibuja blanca y gruesa (con brillo y
-  postes) y cada campo tiene su **línea de 3 metros** punteada (límite de
-  ataque de los zagueros).
+  postes) y cada campo tiene su **línea de 3 metros** punteada a ~93px de la
+  red (1/3 del medio campo, `threeM(team) = netY ± 93`) — límite de ataque
+  de los zagueros.
 - **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
   va comentando el partido con **precisión de jugada por jugada**:
   quién hace cada acción y el desenlace. Ejemplos: "#2 recibe", "#4 levanta
@@ -182,7 +183,9 @@ guionada por rol, no física):
   armador, 2 centrales, 1 opuesto**; el **central zaguero** hace la cobertura
   profunda que antes hacía el líbero.
   - **Armador:** ofensiva → red-derecha (a armar); defensa/recepción/saque →
-    retirado a la derecha-atrás (el "1"), no recibe.
+    retirado a la derecha-atrás (el "1"), no recibe. El spot del armador está
+    **espejado por equipo** (su "derecha" es la derecha de pantalla para el
+    equipo de abajo y la izquierda para el de arriba).
   - **Puntas y opuesto:** son los receptores/atacantes — delanteros a la red
     en su columna, zagueros al fondo en su columna.
   - **Centrales:** delantero protege la red (centro, ~netY±50); zaguero
