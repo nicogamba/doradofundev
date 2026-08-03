@@ -191,8 +191,23 @@ guionada por rol, no física):
     equipo** (su "derecha" es la derecha de pantalla abajo, izquierda arriba).
   - **Puntas y opuesto:** son los receptores/atacantes — delanteros a la red
     en su columna, zagueros al fondo en su columna.
-  - **Centrales:** delantero protege la red (centro, ~netY±50); zaguero
-    protege su columna trasera (~netY±148).
+  - **Centrales (jugador central real):**
+    - **Delantero + recibe saque:** protege la red al centro (netY±50),
+      listo para el **quick**; no recibe.
+    - **Delantero + su equipo saca:** a la red a bloquear (su fila).
+    - **Zaguero + recibe:** se posiciona en **zona 5** (izquierda-atrás), no
+      recibe.
+    - **Zaguero + su equipo saca:** **zona 5** (izquierda-atrás), en defensa.
+      (El central zaguero SIEMPRE juega en zona 5, sin importar su columna
+      de rotación.)
+    - **Ataque:** ataca el **quick (zona 3)** — `roleForZone(3)='middle'`,
+      `attackerForZone` usa el central delantero (o el jugador si su
+      posición es central). El armador IA arma el quick solo con **recepción
+      buena + central delantero** (`setZoneChoice` agrega zona 3). El turno
+      de remate del jugador central ocurre en zona 3 (`isMyAttack` incluye
+      'central').
+    - **Bloqueo:** el central delantero es el bloqueador principal (salta y
+      se alinea con `blockGuess`).
 - **Ataque según fila:** el atacante se elige por rol (4 → punta, 2 → opuesto,
   6 → opuesto/pipe) pero su posición y salto dependen de su fila:
   - **Delantero** → remata en la red con salto.
@@ -287,6 +302,94 @@ guionada por rol, no física):
   2. **Minijuego de timing bar** (§6) para ejecutar.
   3. El resultado se incorpora al rally según la cascada.
 - (futuro) El saque como momento de decisión.
+
+### 5.4 Movimientos por rol (sistema 5-1 profesional)
+
+Guía definitiva de la IA de cada rol. **K1** = su equipo recibe el saque;
+**K2** = su equipo saca. "Antes del saque" respeta la regla de rotación;
+"luego del saque" los jugadores se mueven libres a su rol.
+
+**ARMADOR** — base entre zona 2 y 3; no recibe el saque.
+- K1 delantero (2/3/4): antes cerca de la red (lo más a la derecha posible
+  sin faltar posición); luego → corre a la zona de armado (2-3). Arma y
+  cubre el ataque.
+- K1 zaguero (1/6/5): antes "escondido" detrás de la línea de 3 m; luego →
+  **penetra** (corre) a la zona de armado (2-3) apenas golpea el sacador.
+- K2 delantero: antes en la red; luego → permuta a **zona 2** (bloquea por
+  la derecha, cubre cortos). Arma el contraataque.
+- K2 zaguero: antes detrás de la 3 m (si saca, fuera en zona 1); luego →
+  permuta a **zona 1** (defiende); listo para **penetrar** a la red si hay
+  freeball o defensa exitosa.
+
+**OPUESTO** — atacante de mayor volumen; base zona 2 (delantero) / zona 1
+(zaguero); no recibe el saque.
+- K1 delantero: pegado a la red (derecha o centro); luego → zona 2 (o se
+  abre fuera por derecha a tomar carrera). Ataca zona 2.
+- K1 zaguero: escondido detrás de la 3 m; luego → zona 1, listo para atacar
+  **de zaguero por zona 1**.
+- K2 delantero: en la red; luego → zona 2 (bloquea derecha). Transición para
+  contraatacar por zona 2.
+- K2 zaguero: defensa; luego → zona 1 (defiende largos). Transición rápida
+  para contraataque zaguero.
+
+**PUNTA** (2 en cancha) — completos: reciben y atacan; base zona 4
+(delantero) / zona 6 zaguero (jugada **pipe**).
+- K1 delantero: integrado en la línea de recepción (retrocede); luego → si
+  recibe, pasa al armador y corre fuera por zona 4 a tomar carrera; si no,
+  va directo. Ataca zona 4.
+- K1 zaguero: parte principal de la recepción; luego → tras pasar, se prepara
+  en el centro detrás de la 3 m. Ataca **pipe (zona 6)**.
+- K2 delantero: en la red; luego → zona 4 (bloquea izquierda, cortos).
+  Transición para contraatacar.
+- K2 zaguero: fondo; luego → zona 6 (centro-fondo). Defiende y contraataca
+  pipe.
+
+**CENTRAL** — especialista en ataque rápido y bloqueo; base zona 3;
+**reemplazado por el líbero en posiciones zagueras** (excepto al sacar).
+- K1 delantero: cerca de la red sin tapar receptores; luego → corre al centro
+  de la red (zona 3) para el **primer tiempo** (ataque rápido).
+- K1 zaguero: **no está en cancha** (lo reemplaza el líbero).
+- K2 delantero: en la red; luego → zona 3 (**lidera el bloqueo**: salta en el
+  centro o se mueve a los extremos para bloqueo doble). Contraataque rápido.
+- K2 zona 1 (al sacar): fuera sacando; luego → ingresa a defender **zona 5**.
+  Al terminar el punto lo reemplaza el líbero.
+
+**LÍBERO** — especialista defensivo; solo juega de zaguero (reemplaza al
+central); base zona 5; **no saca, no bloquea ni ataca por encima de la red**.
+- K1 zaguero: líder de la línea de recepción (cubre la mayor parte); luego →
+  cubre el ataque y va a zona 5. Si el armador defiende el primer toque, el
+  líbero arma de manejo (desde atrás de la 3 m).
+- K2: espera en zagueros; luego → **zona 5** (defensa principal de diagonales
+  y ataques potentes). Asistencia de armado si el armador defiende.
+
+### 5.5 Decisiones de armado (modal del armador) — 4 botones contextuales
+
+El armador arma según la **calidad de la recepción** y la rotación:
+
+- **Botón 1 — Armar a Zona 4:** punta delantero.
+- **Botón 2 — Armar a Zona 6 / Pipe:** punta zaguero (pase alto al centro-
+  atrás, ataque de zaguero).
+- **Botón 3 — Armar Quick a Zona 3:** central delantero (primer tiempo).
+- **Botón 4 (dinámico) — Armar al Opuesto:** si el opuesto es delantero →
+  **zona 2**; si es zaguero → **zona 1** (ataque zaguero del opuesto, arma
+  principal del 5-1).
+
+**Filtro de calidad de recepción:**
+- **Pase bueno/perfecto (calidad ≥ 2):** habilitadas las 4 opciones.
+- **Pase regular/malo (calidad < 2):** Quick (Z3) y Pipe (Z6) se
+  **deshabilitan o fallan automáticamente** — solo pelotas altas a los
+  extremos (Z4 y opuesto Z2/Z1).
+
+**Máquina de estados del armador (regla de oro):**
+- **K1 (su equipo recibe):** el armador zaguero **penetra** a la red (entre
+  Z2 y Z3) apenas el rival golpea el saque — única misión: llegar a tiempo
+  para armar. El armador delantero va a la red (Z2-Z3) también.
+- **K2 (su equipo sacó):** si el armador es **delantero**, permuta a la red
+  **zona 2 a bloquear**; si es **zaguero**, permuta a **zona 1** y se queda a
+  defender. **Solo penetra a la red cuando su equipo defendió o hay
+  freeball** (si penetrara antes, deja un hueco en la defensa de Z1).
+- **Si el armador defiende el primer toque**, la IA asigna el armado al
+  **líbero** (de manejo, desde atrás de la 3 m) o a una **punta**.
 
 ## 6. Minijuego (timing bar)
 
@@ -513,6 +616,14 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   arco plano, receptor más cercano, deslizamiento de zona en defensa, perfil
   de **tendencias por jugador** y **scouting del rival** en la pantalla
   entre-partido.
+- **IA por rol (sistema 5-1, §5.4/§5.5):** **central real** — ataca el
+  **quick (Z3)**, el **central zaguero juega en zona 5**, nunca recibe,
+  bloquea (`blockGuess`); zonas de ataque correctas (**punta** Z4 + pipe Z6,
+  **opuesto** Z2 + Z1 zaguero, **central** quick Z3) con `attackerForZone`
+  según la fila; **armador K1/K2** — K1 penetra a la red a armar, K2 delantero
+  **bloquea Z2** / zaguero **defiende Z1** y penetra al recuperar; **modal de
+  armado con 4 botones contextuales** (Z4 · Pipe Z6 · Quick Z3 · Opuesto
+  dinámico Z2/Z1) y **filtro de calidad**: pase < 2 deshabilita Quick y Pipe.
 - **Balance de la simulación (§5.3):** los compañeros del jugador escalan con
   el **poder de su club** (`teammateStat` usa `clubStats(power)`, ya no fijo
   en 4) y `autoPhase` traduce la diferencia de stats con **efecto moderado**
@@ -526,3 +637,8 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   irte), forma/DT (jugar más o menos partidos según forma y técnico),
   divisiones y ligas múltiples, premios individuales, uso del dinero,
   más adversidades. Ver §14.
+- **Banco de suplentes + DT + Líbero (§5.4):** el líbero entra por el
+  **central** cuando rota a zaguero (swap automático de fila trasera; no
+  saca/bloquea/ataca por encima de la red; si el armador defiende, el líbero
+  arma de manejo). El **DT es ilustrativo por ahora** (figura/pantalla sin
+  lógica); luego se le agrega complejidad (gestionar sustituciones, etc.).

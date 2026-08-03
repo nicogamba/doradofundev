@@ -43,7 +43,7 @@
       { key: 'armarA2', threshold: 2, directOnPerfect: false, zone: 2, diff: 0.05, setBoost: 1 },
       { key: 'armarA4', threshold: 2, directOnPerfect: false, zone: 4, diff: 0.05, setBoost: 1 },
       { key: 'armarA6', threshold: 2, directOnPerfect: false, zone: 6, diff: 0.1, setBoost: 2 },
-      { key: 'pasarla', threshold: 3, directOnPerfect: true, zone: 3, diff: 0.05, setBoost: 0 },
+      { key: 'armarA3', threshold: 2, directOnPerfect: false, zone: 3, diff: 0.05, setBoost: 0 },
     ],
     block: [
       { key: 'bloqueoSeguro', threshold: 1, directOnPerfect: false, diff: -0.05 },
@@ -193,7 +193,9 @@
   function makeTend(role, isPlayer) {
     var tend = { setPref: 4, hitPref: 6, aggr: 0.4, smart: 0.5 };
     if (role === 'setter') {
-      tend.setPref = [2, 4, 6][Math.floor(Math.random() * 3)];
+      tend.setPref = [2, 3, 4, 6][Math.floor(Math.random() * 4)];
+    } else if (role === 'middle') {
+      tend.hitPref = [1, 5, 6][Math.floor(Math.random() * 3)];
     } else if (role === 'outside' || role === 'opposite') {
       tend.hitPref = [1, 5, 6][Math.floor(Math.random() * 3)];
     }
@@ -305,6 +307,17 @@
     return { x: team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (team === 0 ? 40 : -40) };
   }
 
+  function setterDefenseSpot(team) {
+    if (match && match.k2 === team) {
+      var si = playerIndex(team, setterPlayer(team));
+      if (si >= 0 && isFrontRow(team, si)) {
+        return { x: columnX(team, 2), y: frontY(team) };
+      }
+      return { x: columnX(team, 1), y: backY(team) };
+    }
+    return setterSpot(team);
+  }
+
   function formationSpot(team, index, state) {
     var p = teams[team][index];
     var zone = ROTATION_ORDER[p.zoneIndex];
@@ -313,8 +326,11 @@
       x = COURT.x + COURT.w / 2 + 50;
     }
     if (p.role === 'setter') {
-      if (state === 'offense' || state === 'defense') {
+      if (state === 'offense') {
         return setterSpot(team);
+      }
+      if (state === 'defense') {
+        return setterDefenseSpot(team);
       }
       return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
     }
@@ -322,9 +338,12 @@
       if (state === 'receive') {
         return isFrontRow(team, index)
           ? { x: COURT.x + COURT.w / 2, y: COURT.netY + (team === 0 ? 50 : -50) }
-          : { x: x, y: backY(team) };
+          : { x: columnX(team, 5), y: backY(team) };
       }
-      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+      if (isFrontRow(team, index)) {
+        return { x: x, y: frontY(team) };
+      }
+      return { x: columnX(team, 5), y: backY(team) };
     }
     if (state === 'receive') {
       return isFrontRow(team, index)
@@ -338,7 +357,7 @@
     for (var i = 0; i < teams[team].length; i++) {
       moveTo(team, i, formationSpot(team, i, 'offense'));
     }
-    var attacker = playerByRole(team, roleForZone(setZone));
+    var attacker = attackerForZone(team, setZone);
     var aidx = playerIndex(team, attacker);
     moveTo(team, aidx, isFrontRow(team, aidx) ? attackSpot(team, setZone) : backAttackSpot(team, setZone));
   }
@@ -350,7 +369,7 @@
     var backs = [];
     for (var i = 0; i < teams[team].length; i++) {
       if (i === setterIdx) {
-        moveTo(team, i, setterSpot(team));
+        moveTo(team, i, setterDefenseSpot(team));
         continue;
       }
       if (!isFrontRow(team, i)) {
@@ -422,15 +441,39 @@
   }
 
   function roleForZone(zone) {
-    return zone === 4 ? 'outside' : 'opposite';
+    return zone === 3 ? 'middle' : (zone === 4 || zone === 6) ? 'outside' : 'opposite';
+  }
+
+  function attackerRow(zone) {
+    return (zone === 2 || zone === 3 || zone === 4) ? 'front' : 'back';
+  }
+
+  function playerByRoleRow(team, role, row) {
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === role && (row === 'front' ? isFrontRow(team, i) : !isFrontRow(team, i))) return p;
+    }
+    return null;
+  }
+
+  function attackerForZone(team, setZone) {
+    var role = roleForZone(setZone);
+    var row = attackerRow(setZone);
+    if (team === 0 && career && role === playerRole()) {
+      var pFront = isFrontRow(team, 0);
+      if ((row === 'front' && pFront) || (row === 'back' && !pFront)) return thePlayer();
+    }
+    var rp = playerByRoleRow(team, role, row);
+    if (rp) return rp;
+    return playerByRole(team, role);
   }
 
   function isMyAttack(attacking, setZone) {
     if (attacking !== 0 || career.suspended || career.benched) return false;
-    if (career.position === 'punta' || career.position === 'opuesto') {
-      return roleForZone(setZone) === playerRole();
-    }
-    return false;
+    if (career.position !== 'punta' && career.position !== 'opuesto' && career.position !== 'central') return false;
+    if (roleForZone(setZone) !== playerRole()) return false;
+    var front = isFrontRow(attacking, 0);
+    return attackerRow(setZone) === 'front' ? front : !front;
   }
 
   function attackSpot(team, zone) {
@@ -975,7 +1018,7 @@
   function oppScout(opp) {
     if (!opp.scout) {
       opp.scout = {
-        setPref: [2, 4, 6][Math.floor(Math.random() * 3)],
+        setPref: [2, 3, 4, 6][Math.floor(Math.random() * 4)],
         hitPref: [1, 5, 6][Math.floor(Math.random() * 3)],
         aggr: Math.max(0.15, Math.min(0.9, 0.35 + Math.random() * 0.55)),
         smart: Math.max(0.25, Math.min(0.9, 0.4 + Math.random() * 0.5)),
@@ -1058,24 +1101,32 @@
   // ---------- IA: decisiones situacionales (Nivel 1) ----------
 
   function setZoneChoice(attacking, defender, receiveQuality) {
-    var zones = [2, 4, 6];
+    var rq = typeof receiveQuality === 'number' ? receiveQuality : 2;
+    var zones = [];
+    if (playerByRoleRow(attacking, 'outside', 'front')) zones.push(4);
+    if (rq >= 2 && playerByRoleRow(attacking, 'outside', 'back')) zones.push(6);
+    if (rq >= 2 && playerByRoleRow(attacking, 'middle', 'front')) zones.push(3);
+    if (playerByRoleRow(attacking, 'opposite', 'front')) zones.push(2);
+    if (playerByRoleRow(attacking, 'opposite', 'back')) zones.push(1);
+    if (!zones.length) zones = [4, 2];
     var setter = setterPlayer(attacking);
     var tend = tendOf(attacking, playerIndex(attacking, setter));
-    var rq = typeof receiveQuality === 'number' ? receiveQuality : 2;
     var weights = zones.map(function (z) {
       var w = 1;
       if (z === 4) w += 1.1;
-      if (z === 6) w -= 0.4;
+      if (z === 6) w -= 0.2;
+      if (z === 3) w += tend.smart * 0.8 + (rq >= 3 ? 0.4 : 0);
+      if (z === 1) w += 0.2;
       if (rq < 1.5) {
         if (z === 4) w += 1.6;
         else w -= 0.8;
       } else if (rq >= 3) {
         if (z !== 4) w += 0.7;
       }
-      var attacker = playerByRole(attacking, roleForZone(z));
+      var attacker = attackerForZone(attacking, z);
       var aidx = playerIndex(attacking, attacker);
       var aStat = playerStat(attacking, attacker, 'A');
-      w += (aStat - 5) * 0.25 + (isFrontRow(attacking, aidx) ? 0.4 : -0.6);
+      w += (aStat - 5) * 0.25 + (attackerRow(z) === 'front' ? 0.4 : -0.4);
       if (z === tend.setPref) w += tend.smart * 1.2;
       w += (Math.random() - 0.5) * (1.6 - tend.smart);
       return Math.max(0.1, w);
@@ -1085,7 +1136,7 @@
 
   function hitZoneChoice(attacking, defender, setZone, aStat) {
     var zones = [1, 5, 6];
-    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var attacker = attackerForZone(attacking, setZone);
     var tend = tendOf(attacking, playerIndex(attacking, attacker));
     var stat = typeof aStat === 'number' ? aStat : 5;
     var weights = zones.map(function (z) {
@@ -1107,7 +1158,7 @@
 
   function blockGuess(defending, attacking, setZone) {
     var zones = [1, 5, 6];
-    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var attacker = attackerForZone(attacking, setZone);
     var tend = tendOf(attacking, playerIndex(attacking, attacker));
     var smart = tend.smart * 0.45 + 0.1;
     var weights = zones.map(function (z) {
@@ -1280,7 +1331,7 @@
         quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
       } else {
         await showLabel(t('decisionPhase'), '#ffd166', 0.35);
-        decision = await askDecision('set');
+        decision = await askDecision('set', receiveQuality);
         quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0) + (receiveQuality < 1 ? -1 : 0));
         setZone = decision.zone;
       }
@@ -1289,7 +1340,7 @@
       setZone = setZoneChoice(attacking, defender, receiveQuality);
       quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
     }
-    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var attacker = attackerForZone(attacking, setZone);
     var aidx = playerIndex(attacking, attacker);
     var target = isFrontRow(attacking, aidx) ? attackSpot(attacking, setZone) : backAttackSpot(attacking, setZone);
     setOffenseFormation(attacking, setZone);
@@ -1319,7 +1370,7 @@
   async function doAttack(attacking, defender, setQuality, setZone) {
     match.rallyTouches[attacking]++;
     var isMy = isMyAttack(attacking, setZone);
-    var attacker = playerByRole(attacking, roleForZone(setZone));
+    var attacker = attackerForZone(attacking, setZone);
     var aidx = playerIndex(attacking, attacker);
     var decision = null;
     var quality = 0;
@@ -1440,6 +1491,7 @@
     }
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
+      match.k2 = -1;
       setDefenseFormation(defending, hitZone);
       var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
       var to = {
@@ -1489,6 +1541,7 @@
   async function playRally(server) {
     resetPlayerPositions();
     match.rallyTouches = [0, 0];
+    match.k2 = server;
     var receiveTeam = 1 - server;
     setReceiveFormation(receiveTeam);
     setDefenseReady(server);
@@ -1664,8 +1717,29 @@
 
   // ---------- Decision ----------
 
-  function decisionConfig(phase) {
-    var list = DECISIONS[phase];
+  function setDecisionOptions(rq) {
+    var opts = [];
+    var t = 0;
+    if (playerByRoleRow(t, 'outside', 'front')) {
+      opts.push({ key: 'armarA4', zone: 4, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    }
+    if (rq >= 2 && playerByRoleRow(t, 'outside', 'back')) {
+      opts.push({ key: 'armarA6', zone: 6, threshold: 2, directOnPerfect: false, diff: 0.1, setBoost: 2 });
+    }
+    if (rq >= 2 && playerByRoleRow(t, 'middle', 'front')) {
+      opts.push({ key: 'armarA3', zone: 3, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 0 });
+    }
+    if (playerByRoleRow(t, 'opposite', 'front')) {
+      opts.push({ key: 'armarA2', zone: 2, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    } else if (playerByRoleRow(t, 'opposite', 'back')) {
+      opts.push({ key: 'armarA1', zone: 1, threshold: 2, directOnPerfect: false, diff: 0.1, setBoost: 1 });
+    }
+    if (!opts.length) opts.push({ key: 'armarA4', zone: 4, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    return opts;
+  }
+
+  function decisionConfig(phase, extra) {
+    var list = phase === 'set' ? setDecisionOptions(extra) : DECISIONS[phase];
     return list.map(function (d) {
       return {
         key: d.key,
@@ -1681,10 +1755,10 @@
     });
   }
 
-  function askDecision(phase) {
+  function askDecision(phase, extra) {
     return new Promise(function (resolve) {
       showModal(t('choosePlay'), t('decisionPhase'));
-      var opts = decisionConfig(phase);
+      var opts = decisionConfig(phase, extra);
       var config = opts.slice(0, 4).map(function (o) {
         return { label: o.label + ' — ' + o.desc, fn: function () { resolve(o); } };
       });
