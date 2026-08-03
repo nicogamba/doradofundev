@@ -238,33 +238,36 @@
   }
 
   function setReceiveFormation(team) {
-    var variant = Math.random() < 0.5 ? 'W' : 'two';
     for (var i = 0; i < teams[team].length; i++) {
       var p = teams[team][i];
       var zone = ROTATION_ORDER[p.zoneIndex];
       var base = zoneBasePos(team, zone);
       var t = { x: base.x, y: base.y };
       if (p.role === 'setter') {
-        t.y = base.y + (team === 0 ? -42 : 42);
-      } else if (variant === 'W') {
-        if (zone === 5) {
-          t.x = base.x - 20;
-          t.y = base.y + (team === 0 ? 14 : -14);
-        } else if (zone === 1) {
-          t.x = base.x + 20;
-          t.y = base.y + (team === 0 ? 14 : -14);
-        } else if (zone === 6) {
-          t.y = base.y + (team === 0 ? 20 : -20);
-        }
-      } else {
-        if (zone === 5 || zone === 1) {
-          t.y = base.y + (team === 0 ? 22 : -22);
-        } else if (zone === 6) {
-          t.x = base.x + (Math.random() < 0.5 ? -26 : 26);
-          t.y = base.y + (team === 0 ? 8 : -8);
-        }
+        t.y = base.y + (team === 0 ? 52 : -52);
+      } else if (zone === 5) {
+        t.x = base.x - 26;
+        t.y = base.y + (team === 0 ? 22 : -22);
+      } else if (zone === 1) {
+        t.x = base.x + 26;
+        t.y = base.y + (team === 0 ? 22 : -22);
+      } else if (zone === 6) {
+        t.y = base.y + (team === 0 ? 34 : -34);
+      } else if (zone === 4) {
+        t.x = base.x - 12;
+        t.y = base.y + (team === 0 ? 14 : -14);
+      } else if (zone === 2) {
+        t.x = base.x + 12;
+        t.y = base.y + (team === 0 ? 14 : -14);
       }
       playerTarget[team][i] = t;
+    }
+  }
+
+  function setDefenseReady(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      moveTo(team, i, roleSpot(team, p.role, 'defense'));
     }
   }
 
@@ -968,7 +971,7 @@
     moveTo(attacking, sidx, from);
     pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
     serveRing = { team: attacking, index: sidx, life: 1 };
-    await sleep(0.9);
+    await sleep(1.5);
     serveRing = null;
     var sStat = playerStat(attacking, server, 'S');
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
@@ -1005,7 +1008,6 @@
     var sidx = playerIndex(attacking, setter);
     var from = ballNow;
     var to = playerPos[attacking][sidx];
-    setFormationTargets();
     setReceiveFormation(attacking);
     moveTo(attacking, isMy ? 0 : ridx, { x: from.x, y: from.y });
     var decision = null;
@@ -1065,8 +1067,8 @@
     var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
     var target = attackSpot(attacking, setZone);
-    setFormationTargets();
     setOffenseFormation(attacking, setZone);
+    setDefenseReady(defending);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     await playSegment({
@@ -1122,7 +1124,8 @@
     } else {
       target = { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 24 : -24) };
     }
-    setFormationTargets();
+    setOffenseFormation(attacking, setZone);
+    setDefenseReady(defending);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     setJump(attacking, isMy ? 0 : aidx);
     await playSegment({
@@ -1183,7 +1186,6 @@
     }
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
-      setFormationTargets();
       setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
@@ -1195,7 +1197,6 @@
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
       await sleep(1.0);
-      setFormationTargets();
       setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
@@ -1228,6 +1229,8 @@
     resetPlayerPositions();
     match.rallyTouches = [0, 0];
     var receiveTeam = 1 - server;
+    setReceiveFormation(receiveTeam);
+    setDefenseReady(server);
     var serve = await doServe(server, receiveTeam);
     if (!serve.ok) {
       await scorePoint(receiveTeam);

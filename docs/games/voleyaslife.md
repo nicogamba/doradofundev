@@ -137,20 +137,22 @@ guionada por rol, no física):
   los receptores se distribuyen en la zona trasera (disposición tipo "W");
   los que no reciben protegen sus zonas.
 - **Acomodo antes del saque:** al prepararse el saque, **ambos equipos deben
-  estar ya en posición**: el equipo que saca en sus posiciones base (el
-  sacador fuera de la cancha) y el equipo receptor en su **formación de
-  recepción W** (armador retirado, 3 receptores en W, primera fila
-  protegiendo). Esto se arma durante el aviso de saque, antes de que salga
-  la pelota.
-- **Capa reactiva continua (estilo Football Manager):** los jugadores **leen
-  la pelota y se adaptan en cada frame**, no solo van a un punto fijo:
-  - El equipo que está en el lado de la pelota (defensa/recepción) desplaza
-    su cobertura hacia la **X del balón** en cada frame (los de atrás más
-    que la primera fila): corren para quedar "bajo" la pelota y cubrir.
-  - La primera fila (bloqueo) sigue la X del balón en la red.
-  - Función `updateDynamicTargets()` que se corre en cada frame del rally y
-    recalcula los targets de los jugadores del equipo en el lado del balón
-    según su posición y rol.
+  estar ya en posición**: el equipo que saca en formación defensiva (a
+  cubrir) y el equipo receptor en su **formación de recepción 5-1 W**
+  (armador retirado, 3 receptores en W en la trasera, primera fila
+  protegiendo). Se arma durante el aviso de saque (que dura ~1.5 s), antes
+  de que salga la pelota: `playRally()` llama `setReceiveFormation(receiver)`
+  y `setDefenseReady(server)` antes de `doServe()`.
+- **Capa reactiva a la pelota (estilo Football Manager):** los jugadores
+  **leen la pelota**: un pequeño **offset de dibujo acotado**
+  (`ballReact()`, máx ±16 px en X y ±10 px en Y) inclina a cada jugador
+  hacia la pelota en cada frame (los de atrás más que la primera fila), sin
+  alterar sus posiciones reales — da vida sin romper la lógica del partido.
+- **Formaciones de juego en curso:** durante el rally los equipos NO vuelven
+  a su posición de rotación; el equipo con la pelota está en **formación de
+  ataque** (`setOffenseFormation`) y el rival en **formación defensiva**
+  (`setDefenseReady`/`setDefenseFormation`). Solo al empezar cada rally
+  (`resetPlayerPositions`) se vuelve a la posición de rotación (alineación).
 - **Transición:** el armador corre hacia la pelota (segunda pelota) y los
   atacantes hacen su aproximación a las zonas 2/4/6 según el armado.
 - **Ataque:** el atacante salta/remata hacia la zona elegida.
