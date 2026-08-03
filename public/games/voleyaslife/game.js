@@ -689,11 +689,44 @@
     }
   }
 
+  function ballSpeed(stat) {
+    return 130 + stat * 30;
+  }
+
+  function moveSpeed(team, index) {
+    if (!teams[team] || !teams[team][index]) return 200;
+    return 150 + playerStat(team, teams[team][index], 'D') * 20;
+  }
+
+  function dist2(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function raceTime(team, index, contact) {
+    return dist2(playerPos[team][index], contact) / moveSpeed(team, index);
+  }
+
+  function raceReaches(team, index, contact, ballTime) {
+    var pt = raceTime(team, index, contact);
+    pt *= 0.92 + Math.random() * 0.16;
+    return pt <= ballTime;
+  }
+
+  function segSeconds(dist, speed) {
+    return (dist / speed) * thisSpeed / SPEED_BASE;
+  }
+
+  function qualityFromMargin(margin, stat) {
+    var q = 1 + Math.round(margin * 3);
+    q += Math.round((stat - 4) * 0.4);
+    return Math.max(1, Math.min(3, q));
+  }
+
   function stepPlayerMovement() {
     simTime++;
-    var step = PLAYER_MOVE_SPEED / 60;
     for (var key = 0; key < 2; key++) {
       for (var i = 0; i < playerPos[key].length; i++) {
+        var step = moveSpeed(key, i) / 60;
         var cur = playerPos[key][i];
         var tgt = playerTarget[key][i];
         var dx = tgt.x - cur.x;
@@ -1364,10 +1397,15 @@
       }
     }
     var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
-    if (ridxA >= 0) moveTo(defender, ridxA, to);
+    if (ridxA < 0) ridxA = playerIndex(defender, playerInZone(defender, 6));
     var sIdxA = playerIndex(defender, setterPlayer(defender));
     if (sIdxA >= 0) moveTo(defender, sIdxA, setterSpot(defender));
-    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : 0.7, overNet: !reason || reason === 'out' });
+    var svDist = dist2(from, to);
+    var svTime = svDist / ballSpeed(sStat);
+    var received = ok ? raceReaches(defender, ridxA, to, svTime) : false;
+    var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
+    if (ridxA >= 0) moveTo(defender, ridxA, to);
+    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : segSeconds(svDist, ballSpeed(sStat)), overNet: !reason || reason === 'out' });
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
@@ -1375,61 +1413,67 @@
       pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
       await sleep(0.6);
     }
-    return { ok: ok, quality: sStat };
+    return { ok: ok, quality: sStat, received: received, margin: margin, to: to };
   }
 
-  async function doReceive(attacking, defender, incoming) {
+  async function doReceive(attacking, defender, serve) {
     match.rallyTouches[attacking]++;
     var isMy = isMyTurn(attacking, 'receive');
     var setter = setterPlayer(attacking);
     var sidx = playerIndex(attacking, setter);
-    var ridx = isMy ? 0 : closestReceiver(attacking, ballNow);
+    var ridx = isMy ? 0 : closestReceiver(attacking, serve.to);
     if (ridx < 0) ridx = playerIndex(attacking, playerInZone(attacking, 6));
-    var from = ballNow;
-    var sp = playerTarget[attacking][sidx];
+    var landing = serve.to;
+    var received = serve.received;
     var decision = null;
     var quality = 0;
     var ok;
     var direct = false;
+    if (!received) {
+      addImpact(landing.x, landing.y);
+      comment(t('aceBy').replace('{name}', pName(defender, serverPlayer(defender))));
+      pointBanner = { text: t('ace'), color: '#ffd166', life: 1 };
+      await sleep(0.7);
+      return { ok: false, direct: false, quality: 0 };
+    }
     if (isMy) {
       if (watchMode) {
         decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'receive', zone: 6 };
-        quality = autoPhase(playerStat(attacking, thePlayer(), 'R'), incoming) ? 2 : 0;
+        quality = qualityFromMargin(serve.margin, playerStat(attacking, thePlayer(), 'R'));
+        ok = true;
       } else {
         await showLabel(t('decisionPhase'), '#ffd166', 0.35);
         decision = await askDecision('receive');
         quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
+        ok = quality >= decision.threshold;
+        direct = decision.directOnPerfect && quality === 3;
       }
-      ok = quality >= decision.threshold;
-      direct = decision.directOnPerfect && quality === 3;
     } else {
-      quality = autoPhase(playerStat(attacking, teams[attacking][ridx], 'R'), incoming) ? 2 : 0;
-      ok = quality > 0;
+      quality = qualityFromMargin(serve.margin, playerStat(attacking, teams[attacking][ridx], 'R'));
+      ok = true;
     }
     setReceiveFormation(attacking);
-    moveTo(attacking, ridx, { x: from.x, y: from.y });
+    moveTo(attacking, ridx, { x: landing.x, y: landing.y });
+    var sp = playerTarget[attacking][sidx];
     var spray = 1 - Math.max(0, Math.min(3, quality)) / 3;
     var to = {
       x: sp.x + (Math.random() - 0.5) * 2 * spray * 46,
       y: sp.y + (Math.random() - 0.5) * 2 * spray * 32,
     };
+    var contact = { x: playerPos[attacking][ridx].x, y: playerPos[attacking][ridx].y };
     if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     await playSegment({
-      from: from,
+      from: contact,
       to: to,
-      seconds: 0.5,
+      seconds: segSeconds(dist2(contact, to), ballSpeed(playerStat(attacking, teams[attacking][ridx], 'R'))),
     });
     label = null;
+    addImpact(contact.x, contact.y);
     var receiver = teams[attacking][ridx];
     if (isMy) {
       comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
-    } else if (ok) {
-      comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
     } else {
-      var rReason = pickReason(['out', 'floor', 'net']);
-      comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
-      pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
-      await sleep(0.6);
+      comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
     }
     return { ok: ok, direct: direct, quality: quality };
   }
@@ -1465,24 +1509,29 @@
     setDefenseReady(defender);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
+    var setterR = playerStat(attacking, setter, 'R');
+    var setSpeed = 80 + (setterR + quality) * 14;
+    var stDist = dist2(ballNow, target);
+    var stTime = stDist / setSpeed;
+    var arrived = raceReaches(attacking, aidx, target, stTime);
     await playSegment({
       from: ballNow,
       to: target,
-      seconds: 0.45,
+      seconds: segSeconds(stDist, setSpeed),
     });
     label = null;
-    var ok = isMy ? quality >= decision.threshold : true;
+    var ok = isMy ? quality >= decision.threshold : arrived;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
-    if (ok) {
-      comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
+    if (!ok) {
+      addImpact(target.x, target.y);
+      comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey('floor'))).replace('{team}', teamName(defender)));
+      pointBanner = { text: t('reasonFloor'), color: '#e0503f', life: 1 };
+      await sleep(0.7);
     } else {
-      var sReason = pickReason(['net', 'double']);
-      comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey(sReason))).replace('{team}', teamName(defender)));
-      pointBanner = { text: reasonBannerText(sReason), color: '#e0503f', life: 1 };
-      await sleep(0.6);
+      comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
     }
-    return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
+    return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker, arrived: arrived };
   }
 
   async function doAttack(attacking, defender, setQuality, setZone) {
@@ -1542,14 +1591,22 @@
     }
     var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : -1;
     if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 16 : -16) });
+    var atkStat2 = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
+    var spikeSpeed = ballSpeed(atkStat2 + setQuality);
+    var skDist = dist2(ballNow, target);
+    var skTime = skDist / spikeSpeed;
+    var digIdx = closestDefender(defender, target);
+    var reached = ok ? (digIdx >= 0 && raceReaches(defender, digIdx, target, skTime)) : false;
+    var defenseMargin = ok ? skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0) : 0;
     await playSegment({
       from: ballNow,
       to: target,
-      seconds: 0.5,
+      seconds: segSeconds(skDist, spikeSpeed),
       overNet: !aReason || aReason === 'invade',
       arc: 52,
     });
     label = null;
+    addImpact(target.x, target.y);
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
@@ -1561,81 +1618,60 @@
     } else {
       comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
     }
-    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat };
+    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat, reached: reached, defenseMargin: defenseMargin };
   }
 
-  function blockPower(team, bq) {
-    var sum = 0;
-    var hasPlayer = false;
-    for (var i = 2; i <= 4; i++) {
-      var p = playerInZone(team, i);
-      if (!p) continue;
-      if (p.isPlayer) {
-        sum += career.stats.B + (bq || 0);
-        hasPlayer = true;
-      } else {
-        sum += playerStat(team, p, 'B');
+  function closestDefender(team, spot) {
+    var best = -1;
+    var bestD = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      if (isFrontRow(team, i)) continue;
+      var d = Math.hypot(playerPos[team][i].x - spot.x, playerPos[team][i].y - spot.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
       }
     }
-    if (!hasPlayer && bq !== undefined) sum += career.stats.B + bq;
-    return sum;
+    return best;
   }
 
-  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat) {
+  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat, defenseMargin) {
     match.rallyTouches[defending]++;
     var dig = playerInZone(defending, 6);
     var didx = playerIndex(defending, dig);
     var setter = setterPlayer(defending);
     var sidx = playerIndex(defending, setter);
     var from = ballNow;
-    var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
-    var ok;
     var digQuality = 0;
     if (isMyTurn(defending, 'defend')) {
-      var bq;
       if (watchMode) {
-        bq = autoPhase(playerStat(defending, thePlayer(), 'B'), atkPower) ? 2 : 0;
+        digQuality = qualityFromMargin(defenseMargin, playerStat(defending, thePlayer(), 'B'));
       } else {
         await showLabel(t('decisionPhase'), '#ffd166', 0.35);
         var decision = await askDecision('block');
-        bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
+        digQuality = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
       }
-      setLabel(resultLabel(bq), resultColor(bq));
-      ok = autoPhase(blockPower(defending, bq), atkPower);
-      digQuality = ok ? (bq >= 2 ? 2 : 1) : 0;
+      setLabel(resultLabel(digQuality), resultColor(digQuality));
     } else {
-      ok = autoPhase(blockPower(defending), atkPower);
-      digQuality = ok ? 2 : 0;
+      digQuality = qualityFromMargin(defenseMargin, playerStat(defending, dig, 'D'));
     }
-    if (ok) {
-      comment(t('defendOk').replace('{name}', pName(defending, dig)));
-      match.k2 = -1;
-      setDefenseFormation(defending, hitZone);
-      var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
-      var to = {
-        x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
-        y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
-      };
-      await playSegment({
-        from: from,
-        to: to,
-        seconds: 0.5,
-      });
-      label = null;
-    } else {
-      var dReason = pickReason(['out', 'floor', 'three']);
-      comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
-      pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
-      await sleep(0.6);
-      setDefenseFormation(defending, hitZone);
-      await playSegment({
-        from: from,
-        to: zoneBasePos(defending, hitZone),
-        seconds: 0.4,
-      });
-      label = null;
-    }
-    return { ok: ok, quality: digQuality };
+    comment(t('defendOk').replace('{name}', pName(defending, dig)));
+    match.k2 = -1;
+    setDefenseFormation(defending, hitZone);
+    var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
+    var to = {
+      x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
+      y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
+    };
+    var contact = { x: playerPos[defending][didx].x, y: playerPos[defending][didx].y };
+    await playSegment({
+      from: from,
+      to: to,
+      seconds: segSeconds(dist2(from, to), ballSpeed(3 + digQuality)),
+    });
+    label = null;
+    addImpact(contact.x, contact.y);
+    return { ok: true, quality: digQuality };
   }
 
   function resultLabel(q) {
@@ -1681,7 +1717,7 @@
     var firstOffense = true;
     for (var guard = 0; guard < 20; guard++) {
       if (firstOffense) {
-        var receive = await doReceive(attacking, defending, incoming);
+        var receive = await doReceive(attacking, defending, serve);
         if (touchFault(attacking)) { await threeTouches(defending); return; }
         if (!receive.ok) {
           await scorePoint(defending);
@@ -1718,7 +1754,14 @@
         return;
       }
       match.rallyTouches = [0, 0];
-      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat);
+      if (!attack.reached) {
+        comment(t('spikeScore').replace('{name}', pName(attacking, attackerForZone(attacking, set.zone))).replace('{zone}', attack.zone));
+        pointBanner = { text: t('spikeScoreShort'), color: '#e0c34a', life: 1 };
+        await sleep(0.7);
+        await scorePoint(attacking);
+        return;
+      }
+      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat, attack.defenseMargin);
       if (touchFault(defending)) { await threeTouches(attacking); return; }
       if (!def.ok) {
         await scorePoint(attacking);

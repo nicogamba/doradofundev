@@ -296,6 +296,19 @@ guionada por rol, no física):
   calidad del remate + dificultad de la zona). Si el **jugador** bloquea, su
   resultado del **minijuego (0-3) se suma a su stat de Bloqueo** y se compara
   contra las stats del atacante.
+- **Física pelota–jugador (la pelota encuentra al jugador):** la pelota vuela
+  a una **velocidad según la stat del que le pega** (`ballSpeed(stat)` =
+  130 + stat×30 px/s) y el jugador que debe tocarla corre a **su velocidad**
+  (`moveSpeed` = 150 + D×20 px/s). Hay una **carrera** en cada fase de
+  persecución (`raceReaches`): si el jugador llega antes que la pelota al
+  punto de contacto, **la toca** y el rally sigue; si la pelota llega primero
+  (jugador lento o golpe muy bueno), **la pelota toca el suelo** (ace en el
+  saque, set malo si el atacante no llega, o remate que entra si el defensor
+  no llega). La **calidad** del toque sale del margen de la carrera (llegó
+  con ventaja → pase perfecto) + la stat, y alimenta la cadena
+  recepción→armado→remate. El pase/remate sale de la **posición real del
+  jugador** (no del punto vacío) y se ve el **impacto en el suelo** cuando la
+  pelota vence al jugador.
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
