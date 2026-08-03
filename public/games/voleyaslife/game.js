@@ -26,8 +26,6 @@
     libero: { S: 1, A: 1, R: 6, B: 1, D: 6 },
   };
 
-  var TEAM_BASE = { S: 4, A: 4, R: 4, B: 4, D: 4 };
-  var TEAMMATE = { S: 4, A: 4, R: 4, B: 4, D: 4 };
   var ROTATION_ORDER = [1, 6, 5, 4, 3, 2];
 
   var DECISIONS = {
@@ -750,12 +748,20 @@
     };
   }
 
+  function clubPowerOfPlayer() {
+    return career && career.clubs ? career.clubs[career.clubIdx].power : 4;
+  }
+
+  function teammateStat(stat) {
+    return clubStats(clubPowerOfPlayer())[stat];
+  }
+
   function playerStat(team, player, stat) {
     if (team === 0) {
       if (player.isPlayer) {
         return career.suspended ? suspendedStat(stat) : career.stats[stat];
       }
-      return TEAMMATE[stat];
+      return teammateStat(stat);
     }
     return match.rival.stats[stat];
   }
@@ -892,7 +898,7 @@
     if (team === 0) {
       var sum = 0;
       for (var i = 0; i < STATS.length; i++) {
-        var v = career.benched ? TEAM_BASE[STATS[i]] : teamPhaseStat(0, STATS[i]);
+        var v = career.benched ? teammateStat(STATS[i]) : teamPhaseStat(0, STATS[i]);
         sum += v;
       }
       return sum / STATS.length;
@@ -1026,14 +1032,14 @@
 
   function autoPhase(attackerStat, defenderStat) {
     var diff = attackerStat - defenderStat;
-    var p = Math.max(0.08, Math.min(0.9, 0.4 + diff * 0.08 + (Math.random() - 0.5) * 0.3));
+    var p = Math.max(0.12, Math.min(0.88, 0.42 + diff * 0.055 + (Math.random() - 0.5) * 0.26));
     return Math.random() < p;
   }
 
   function teamPhaseStat(team, stat) {
     if (team === 0) {
       var pStat = career.suspended || career.injured ? suspendedStat(stat) : career.stats[stat];
-      var combined = (TEAM_BASE[stat] + pStat) / 2;
+      var combined = (teammateStat(stat) + pStat) / 2;
       return Math.max(1, Math.min(10, Math.round(combined)));
     }
     return match.rival.stats[stat];

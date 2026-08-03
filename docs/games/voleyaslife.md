@@ -507,6 +507,12 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   arco plano, receptor más cercano, deslizamiento de zona en defensa, perfil
   de **tendencias por jugador** y **scouting del rival** en la pantalla
   entre-partido.
+- **Balance de la simulación (§5.3):** los compañeros del jugador escalan con
+  el **poder de su club** (`teammateStat` usa `clubStats(power)`, ya no fijo
+  en 4) y `autoPhase` traduce la diferencia de stats con **efecto moderado**
+  (0.055 por punto y techo/piso 0.12-0.88), para que la ventaja de club se
+  sienta pero no se vuelva un 8-0: un club fuerte de Div B gana ~5/8 y uno de
+  fondo pierde más (el poder del club importa, como en FM).
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
