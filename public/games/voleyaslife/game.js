@@ -109,6 +109,34 @@
   var crowdPulse = 0;
   var ballSquish = 0;
   var cameraShake = 0;
+  var crowdDots = [];
+
+  (function () {
+    var palette = ['#3a4360', '#485475', '#2f3850', '#5a6478', '#a08b3a', '#3a5a8c', '#6b6b4e'];
+    function dot(x, y) {
+      crowdDots.push({
+        x: x + (Math.random() * 3 - 1.5),
+        y: y + (Math.random() * 2 - 1),
+        r: 1.3 + Math.random() * 1.1,
+        c: palette[Math.floor(Math.random() * palette.length)],
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
+    for (var r = 0; r < 5; r++) {
+      var yt = 22 + r * 27;
+      for (var x = 8; x < W - 8; x += 7) dot(x, yt);
+    }
+    for (var r2 = 0; r2 < 4; r2++) {
+      var yb = 751 + r2 * 14;
+      for (var x2 = 8; x2 < W - 8; x2 += 7) dot(x2, yb);
+    }
+    for (var yy = 200; yy < 690; yy += 9) {
+      dot(12, yy);
+      dot(34, yy);
+      dot(436, yy);
+      dot(458, yy);
+    }
+  })();
   var ballNow = { x: W / 2, y: H / 2 };
   var pointBanner = null;
   var screenFlash = null;
@@ -631,6 +659,16 @@
       ctx.fillRect(x, 12 + pulse * 2, 2, 4);
     }
     ctx.globalAlpha = 1;
+    for (var i = 0; i < crowdDots.length; i++) {
+      var d = crowdDots[i];
+      var a = Math.sin(simTime * 0.04 + d.ph) * 1;
+      ctx.globalAlpha = Math.min(1, 0.55 + pulse * 0.45);
+      ctx.fillStyle = d.c;
+      ctx.beginPath();
+      ctx.arc(d.x + a, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = '#2a3446';
     ctx.lineWidth = 3;
     ctx.strokeRect(COURT.x - 16, COURT.y - 16, COURT.w + 32, COURT.h + 32);
@@ -1040,6 +1078,16 @@
     var t0 = await raf();
     var dur = (seconds * SPEED_BASE) * 1000;
     while (true) {
+      var t = await raf();
+      draw();
+      if (t - t0 >= dur) break;
+    }
+  }
+
+  async function ensureContact(team, idx, spot, maxWait) {
+    var t0 = await raf();
+    var dur = (maxWait || 0.4) * 1000 * SPEED_BASE;
+    while (Math.hypot(playerPos[team][idx].x - spot.x, playerPos[team][idx].y - spot.y) > 16) {
       var t = await raf();
       draw();
       if (t - t0 >= dur) break;
@@ -1652,7 +1700,8 @@
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
-    var setTouch = { x: ballNow.x, y: ballNow.y };
+    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.35);
+    var setTouch = { x: playerPos[attacking][isMy ? 0 : sidx].x, y: playerPos[attacking][isMy ? 0 : sidx].y };
     await playSegment({
       from: ballNow,
       to: target,
@@ -1762,7 +1811,7 @@
     } else {
       comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
     }
-    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat, reached: reached, defenseMargin: defenseMargin };
+    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat, reached: reached, defenseMargin: defenseMargin, digIdx: digIdx };
   }
 
   function closestDefender(team, spot) {
@@ -1779,12 +1828,12 @@
     return best;
   }
 
-  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat, defenseMargin) {
+  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat, defenseMargin, digIdx) {
     match.rallyTouches[defending]++;
-    var dig = playerInZone(defending, 6);
-    var didx = playerIndex(defending, dig);
     var setter = setterPlayer(defending);
     var sidx = playerIndex(defending, setter);
+    var didx = (typeof digIdx === 'number' && digIdx >= 0) ? digIdx : playerIndex(defending, playerInZone(defending, 6));
+    var dig = teams[defending][didx];
     var from = ballNow;
     var digQuality = 0;
     if (isMyTurn(defending, 'defend')) {
@@ -1808,16 +1857,16 @@
       x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
       y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
     };
-    var contact = { x: playerPos[defending][didx].x, y: playerPos[defending][didx].y };
-    var digDist = dist2(from, to);
+    var digFrom = { x: playerPos[defending][didx].x, y: playerPos[defending][didx].y };
+    var digDist = dist2(digFrom, to);
     await playSegment({
-      from: from,
+      from: digFrom,
       to: to,
       seconds: segSeconds(digDist, 70 + digQuality * 18),
       arc: 28,
     });
     label = null;
-    addTouch(contact.x, contact.y);
+    addTouch(digFrom.x, digFrom.y);
     crowdPulse = Math.max(crowdPulse, 0.4);
     return { ok: true, quality: digQuality };
   }
@@ -1910,7 +1959,7 @@
         await scorePoint(attacking);
         return;
       }
-      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat, attack.defenseMargin);
+      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat, attack.defenseMargin, attack.digIdx);
       if (touchFault(defending)) { await threeTouches(attacking); return; }
       if (!def.ok) {
         await scorePoint(attacking);
