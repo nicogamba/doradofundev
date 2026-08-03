@@ -644,8 +644,16 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   irte), forma/DT (jugar más o menos partidos según forma y técnico),
   divisiones y ligas múltiples, premios individuales, uso del dinero,
   más adversidades. Ver §14.
-- **Banco de suplentes + DT + Líbero (§5.4):** el líbero entra por el
-  **central** cuando rota a zaguero (swap automático de fila trasera; no
-  saca/bloquea/ataca por encima de la red; si el armador defiende, el líbero
-  arma de manejo). El **DT es ilustrativo por ahora** (figura/pantalla sin
-  lógica); luego se le agrega complejidad (gestionar sustituciones, etc.).
+- **Complejidad del DT:** hoy es ilustrativo (nombre + figura en el banco);
+  luego puede gestionar sustituciones reales y dar indicaciones tácticas.
+
+**Hecho:**
+
+- **Líbero (§5.4):** entra automáticamente por el **central zaguero** (zona
+  5 o 6; si el central está en zona 1, saca primero y el líbero ingresa
+  después). Solo juega de zaguero, base **zona 5**, stats de especialista
+  (R=6/D=6), **no saca, no bloquea ni ataca por encima de la red**, es el
+  **receptor principal** (`closestReceiver`). Swap aplicado al inicio del
+  rally y deshecho antes de rotar (`applyLibero`/`undoLibero`). **Banco
+  visible** en la cancha (el que sale —central o líbero— + el nombre del
+  **DT** al costado) y **DT** con nombre en la pantalla entre-partido.

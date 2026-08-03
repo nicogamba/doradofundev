@@ -26,6 +26,8 @@
     libero: { S: 1, A: 1, R: 6, B: 1, D: 6 },
   };
 
+  var LIBERO_STATS = { S: 1, A: 1, R: 6, B: 1, D: 6 };
+
   var ROTATION_ORDER = [1, 6, 5, 4, 3, 2];
 
   var DECISIONS = {
@@ -100,6 +102,8 @@
   var playerTarget = { 0: [], 1: [] };
   var playerPhase = { 0: [], 1: [] };
   var playerJump = { 0: [], 1: [] };
+  var teamLibero = { 0: null, 1: null };
+  var teamStash = { 0: null, 1: null };
   var ballNow = { x: W / 2, y: H / 2 };
   var pointBanner = null;
   var screenFlash = null;
@@ -221,9 +225,52 @@
     return (p && p.tend) || makeTend('outside', false);
   }
 
+  function makeLibero(team) {
+    return {
+      role: 'libero',
+      isLibero: true,
+      isPlayer: false,
+      zoneIndex: -1,
+      number: 13 + Math.floor(Math.random() * 6),
+      tend: makeTend('libero'),
+    };
+  }
+
+  function applyLibero(team, includeZone1) {
+    if (teamStash[team]) return;
+    var t = teams[team];
+    for (var i = 0; i < t.length; i++) {
+      var p = t[i];
+      if (p.role !== 'middle' || p.isPlayer) continue;
+      if (isFrontRow(team, i)) continue;
+      var z = ROTATION_ORDER[p.zoneIndex];
+      if (z === 1 && !includeZone1) continue;
+      var clone = Object.assign({}, teamLibero[team], { zoneIndex: p.zoneIndex });
+      teamStash[team] = { index: i, player: p };
+      t[i] = clone;
+      playerPos[team][i] = Object.assign({}, playerPos[team][i]);
+      playerTarget[team][i] = Object.assign({}, playerTarget[team][i]);
+      playerJump[team][i] = 0;
+      playerPhase[team][i] = Math.random() * Math.PI * 2;
+      return;
+    }
+  }
+
+  function undoLibero(team) {
+    var st = teamStash[team];
+    if (st) {
+      teams[team][st.index] = st.player;
+      teamStash[team] = null;
+    }
+  }
+
   function initTeams() {
     teams[0] = makeLineup(true);
     teams[1] = makeLineup(false, match && match.rival ? match.rival.scout : null);
+    teamLibero[0] = makeLibero(0);
+    teamLibero[1] = makeLibero(1);
+    teamStash[0] = null;
+    teamStash[1] = null;
     for (var key = 0; key < 2; key++) {
       playerPos[key] = teams[key].map(function (p) {
         return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
@@ -351,6 +398,9 @@
         return setterDefenseSpot(team);
       }
       return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+    }
+    if (p.role === 'libero') {
+      return { x: columnX(team, 5), y: backY(team) };
     }
     if (p.role === 'middle') {
       if (state === 'receive') {
@@ -583,6 +633,8 @@
 
     drawTeam(1, '#4a8fe0', false);
     drawTeam(0, '#e0c34a', true);
+    drawBench(1);
+    drawBench(0);
 
     var ballScale = 1 + 0.4 * ((ball.h || 0) / (ball.maxH || 1));
 
@@ -782,6 +834,32 @@
     }
   }
 
+  function drawBench(team) {
+    if (!match) return;
+    var out = null;
+    if (teamStash[team]) out = teamStash[team].player;
+    else if (teamLibero[team]) out = teamLibero[team];
+    if (!out) return;
+    var bx = team === 0 ? COURT.x + COURT.w - 28 : COURT.x + 28;
+    var by = team === 0 ? COURT.y + COURT.h + 38 : COURT.y - 38;
+    ctx.fillStyle = team === 0 ? '#e0c34a' : '#4a8fe0';
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(bx, by, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(out.number), bx, by + 1);
+    ctx.fillStyle = '#8a93a6';
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.fillText(out.isLibero ? t('libero') : t('suplente'), bx, by + 22);
+    ctx.fillText(t('coach') + ': ' + (career.dt || '—'), bx, by + 34);
+  }
+
   // ---------- rAF helpers ----------
 
   function raf() {
@@ -849,6 +927,7 @@
   }
 
   function playerStat(team, player, stat) {
+    if (player && player.isLibero) return LIBERO_STATS[stat];
     if (team === 0) {
       if (player.isPlayer) {
         return career.suspended ? suspendedStat(stat) : career.stats[stat];
@@ -1578,13 +1657,19 @@
   }
 
   async function playRally(server) {
+    undoLibero(0);
+    undoLibero(1);
     resetPlayerPositions();
     match.rallyTouches = [0, 0];
     match.k2 = server;
     var receiveTeam = 1 - server;
+    applyLibero(0, false);
+    applyLibero(1, false);
     setReceiveFormation(receiveTeam);
     setDefenseReady(server);
     var serve = await doServe(server, receiveTeam);
+    applyLibero(0, true);
+    applyLibero(1, true);
     if (!serve.ok) {
       await scorePoint(receiveTeam);
       return;
@@ -1652,6 +1737,8 @@
   }
 
   async function scorePoint(team) {
+    undoLibero(0);
+    undoLibero(1);
     if (match.server !== team) {
       rotateTeam(team);
     }
@@ -2026,6 +2113,12 @@
     if (!setupData.position) checkStart();
   }
 
+  var DT_NAMES = ['Carlos Ferreyra', 'Juan Palacios', 'Marcelo Domínguez', 'Sergio Videla', 'Raúl Benítez', 'Héctor Salas', 'Luis Roldán', 'Pablo Escudero'];
+
+  function randomDT() {
+    return DT_NAMES[Math.floor(Math.random() * DT_NAMES.length)];
+  }
+
   function startCareer(position, name, sex, number, clubIdx, age, country) {
     career = {
       name: name,
@@ -2037,6 +2130,7 @@
       stats: defaultStats(position),
       age: age || 20,
       country: country || 'argentina',
+      dt: randomDT(),
       salary: 1000,
       money: 1000,
       form: 5,
@@ -2091,7 +2185,8 @@
       '</div>' +
       '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
       '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
-      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p></div>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p>' +
+      '<p class="subtitle">' + t('coach') + ': ' + (career.dt || '—') + ' · ' + t('libero') + ': #' + (teamLibero[0] ? teamLibero[0].number : '—') + '</p></div>' +
       benchNote + injNote +
       (career.benched ? '' :       '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
       '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
@@ -2533,6 +2628,7 @@
     if (typeof career.form !== 'number') career.form = 5;
     if (typeof career.salary !== 'number') career.salary = 1000;
     if (typeof career.money !== 'number') career.money = 1000;
+    if (!career.dt) career.dt = randomDT();
     if (!career.country) career.country = 'argentina';
     if (typeof career.seasonPos !== 'number') career.seasonPos = 0;
     if (!career.seasonStats) career.seasonStats = { points: 0 };
