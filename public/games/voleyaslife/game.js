@@ -383,7 +383,6 @@
 
   function draw() {
     stepPlayerMovement();
-    updateDynamicTargets();
     stepImpacts();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0f1218';
@@ -481,20 +480,15 @@
     }
   }
 
-  function updateDynamicTargets() {
-    if (!match || !teams[0]) return;
-    var ballTeam = ball.y > COURT.netY ? 0 : 1;
-    for (var key = 0; key < 2; key++) {
-      if (key !== ballTeam) continue;
-      for (var i = 0; i < playerPos[key].length; i++) {
-        var tgt = playerTarget[key][i];
-        var zone = ROTATION_ORDER[teams[key][i].zoneIndex];
-        var factor = zone === 5 || zone === 6 || zone === 1 ? 0.14 : 0.11;
-        var nx = tgt.x + (ball.x - tgt.x) * factor;
-        var ny = tgt.y + (ball.y - COURT.netY) * 0.02 * (key === 0 ? 1 : -1);
-        moveTo(key, i, { x: nx, y: ny });
-      }
-    }
+  function ballReact(team, index) {
+    if (!match || !ball || !teams[team]) return { x: 0, y: 0 };
+    var p = playerPos[team][index];
+    var z = ROTATION_ORDER[teams[team][index].zoneIndex];
+    var xl = (z === 5 || z === 6 || z === 1) ? 16 : 11;
+    var yl = (z === 5 || z === 6 || z === 1) ? 10 : 6;
+    var bx = Math.max(-xl, Math.min(xl, (ball.x - p.x) * 0.05));
+    var by = Math.max(-yl, Math.min(yl, (ball.y - p.y) * 0.02));
+    return { x: bx, y: by };
   }
 
   function setJump(team, index) {
@@ -579,8 +573,9 @@
       var ph = playerPhase[team][i];
       var swayX = Math.sin(simTime * 0.05 + ph) * 1.2;
       var swayY = Math.cos(simTime * 0.04 + ph * 1.3) * 1.2;
-      var drawX = p.x + swayX;
-      var drawY = p.y + swayY - jump * 22;
+      var react = ballReact(team, i);
+      var drawX = p.x + swayX + react.x;
+      var drawY = p.y + swayY - jump * 22 + react.y;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(drawX, drawY, 13, 0, Math.PI * 2);
