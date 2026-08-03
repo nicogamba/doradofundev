@@ -863,6 +863,11 @@
     return 'reason' + reason.charAt(0).toUpperCase() + reason.slice(1);
   }
 
+  function reasonBannerText(reason) {
+    var txt = t(reasonKey(reason));
+    return '¡' + txt.charAt(0).toUpperCase() + txt.slice(1) + '!';
+  }
+
   async function doServe(attacking, defender) {
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
@@ -893,7 +898,8 @@
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
       comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
-      await showLabel(t(reasonKey(reason)), '#e0503f', 0.8);
+      pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
+      await sleep(0.7);
     }
     return { ok: ok, quality: sStat };
   }
@@ -936,6 +942,8 @@
       } else {
         var rReason = pickReason(['out', 'floor', 'net']);
         comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
+        pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
+        await sleep(0.7);
       }
     }
     return { ok: ok, direct: direct, quality: quality };
@@ -980,6 +988,8 @@
     } else {
       var sReason = pickReason(['net', 'double']);
       comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey(sReason))).replace('{team}', teamName(defender)));
+      pointBanner = { text: reasonBannerText(sReason), color: '#e0503f', life: 1 };
+      await sleep(0.7);
     }
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
@@ -1027,24 +1037,43 @@
       overNet: !aReason || aReason === 'invade',
     });
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
+    var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
       comment(t('attackFail').replace('{name}', attackerName).replace('{reason}', t(reasonKey(aReason))).replace('{team}', teamName(defender)));
+      pointBanner = { text: reasonBannerText(aReason), color: '#e0503f', life: 1 };
+      await sleep(0.7);
     } else if (isMy && decision.key === 'suelta') {
       comment(t('tipBy').replace('{name}', attackerName));
     } else {
       comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
     }
-    return { ok: ok, direct: direct, quality: quality, zone: hitZone };
+    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat };
   }
 
-  async function doDefend(defending, attacking, hitZone, attackQuality) {
+  function blockPower(team, bq) {
+    var sum = 0;
+    var hasPlayer = false;
+    for (var i = 2; i <= 4; i++) {
+      var p = playerInZone(team, i);
+      if (!p) continue;
+      if (p.isPlayer) {
+        sum += career.stats.B + (bq || 0);
+        hasPlayer = true;
+      } else {
+        sum += playerStat(team, p, 'B');
+      }
+    }
+    if (!hasPlayer && bq !== undefined) sum += career.stats.B + bq;
+    return sum;
+  }
+
+  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat) {
     var dig = playerInZone(defending, 6);
     var didx = playerIndex(defending, dig);
     var setter = setterPlayer(defending);
     var sidx = playerIndex(defending, setter);
     var from = ballNow;
-    var defStat = teamPhaseStat(defending, 'B') + teamPhaseStat(defending, 'D') + attackQuality + defZoneMod(hitZone);
-    var atkStat = playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A');
+    var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
     var ok;
     if (isMyTurn(defending, 'defend')) {
       await sleep(0.5);
@@ -1052,9 +1081,9 @@
       var decision = await askDecision('block');
       var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
       await showLabel(resultLabel(bq), resultColor(bq), 0.8);
-      ok = bq >= decision.threshold;
+      ok = autoPhase(blockPower(defending, bq), atkPower);
     } else {
-      ok = autoPhase(defStat, atkStat);
+      ok = autoPhase(blockPower(defending), atkPower);
     }
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
@@ -1070,6 +1099,8 @@
     } else {
       var dReason = pickReason(['out', 'floor', 'three']);
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
+      pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
+      await sleep(0.7);
       setFormationTargets();
       setBlockFormation(defending, hitZone);
       moveTo(defending, didx, zoneBasePos(defending, hitZone));
@@ -1109,6 +1140,7 @@
         return;
       }
       if (receive.direct) {
+        await showDirectPoint();
         await scorePoint(attacking);
         return;
       }
@@ -1118,6 +1150,7 @@
         return;
       }
       if (set.direct) {
+        await showDirectPoint();
         await scorePoint(attacking);
         return;
       }
@@ -1127,10 +1160,11 @@
         return;
       }
       if (attack.direct) {
+        await showDirectPoint();
         await scorePoint(attacking);
         return;
       }
-      var def = await doDefend(defending, attacking, attack.zone, attack.quality);
+      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat);
       if (!def.ok) {
         await scorePoint(attacking);
         return;
@@ -1141,6 +1175,10 @@
       defending = tmp;
     }
     await scorePoint(defending);
+  }
+  async function showDirectPoint() {
+    pointBanner = { text: t('directPoint'), color: '#ffd166', life: 1 };
+    await sleep(0.7);
   }
 
   async function scorePoint(team) {
