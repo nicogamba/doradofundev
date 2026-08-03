@@ -48,6 +48,17 @@ carrera).
   punto más alto del arco** (sensación de proximidad al punto de vista del
   jugador) y a tamaño real cerca del suelo. Perspectiva simple:
   escala = 1 + (altura / alturaMáxima) × factor.
+- **Pulido de la simulación (visual):**
+  - **Sombra de la pelota en el suelo**: una elipse bajo la pelota que se
+    achica cuando la pelota sube (ayuda a leer la altura del arco).
+  - **Estela de la pelota**: rastro de círculos que se desvanecen detrás de
+    la pelota (ayuda a leer la trayectoria).
+  - **Salto en remate y bloqueo**: el atacante y el bloqueador se elevan
+    visualmente en el momento del golpe.
+  - **Giro de la pelota**: una marca en la pelota que rota durante el vuelo
+    (sensación de efecto).
+- **Sonido: NO por ahora** (se descarta; en el futuro podría sumarse con
+  WebAudio y un botón de silencio).
 - Botón de velocidad **×1/×2** durante el partido.
 - HUD: marcador (sets y puntos), rival actual, tu posición.
 
@@ -88,8 +99,9 @@ carrera).
 - Al **ganar el saque** (side-out), el equipo **rota en sentido horario**: cada
   jugador avanza una zona (1→6→5→4→3→2→1). Saca el jugador en zona 1.
 - **El sacador se ubica FUERA de la cancha** (detrás de la línea de fondo,
-  como en el vóley real) y tras el saque se reposiciona a su zona, como
-  todos los jugadores tras cada jugada.
+  como en el vóley real): **el jugador se ve parado fuera de la cancha**
+  mientras saca y tras el saque se reposiciona a su zona, como todos los
+  jugadores tras cada jugada.
 - **Ambos equipos rotan** y usan la misma IA. El rival se comporta igual que
   el equipo del jugador.
 
@@ -107,6 +119,16 @@ guionada por rol, no física):
 - **Ataque:** el atacante salta/remata hacia la zona elegida.
 - **Bloqueo/defensa:** los bloqueadores se alinean en la red hacia la zona
   probable del remate; los de atrás se mueven hacia esa zona.
+- **Mejoras de IA (revisión):**
+  - **Bloqueo en la red visible:** los jugadores de primera línea se alinean
+    en la red hacia la zona del remate rival y saltan a bloquear (no solo un
+    defensor corre al balón).
+  - **Anticipación defensiva:** los defensores se mueven hacia la zona de
+    aterrizaje probable **antes** de que llegue la pelota (no después).
+  - **Transición deliberada:** el armador y los atacantes se reposicionan con
+    intención tras cada toque (no solo "cerca de la pelota").
+  - **Variedad de formaciones de recepción:** alternar W / 2 receptores según
+    la situación del saque.
 - **Movimiento continuo:** los jugadores se desplazan de forma **visible y
   constante** (nunca se quedan quietos): deriva (lerp) hacia su posición de
   rol en cada frame con velocidad suficiente para notarse, más un pequeño
@@ -118,6 +140,16 @@ guionada por rol, no física):
 
 - Cada rally se resuelve por **fases**: saque → recepción → armado → remate →
   bloqueo/defensa, comparando **stats con aleatoriedad**.
+- **Fallos con razón específica**: cuando una fase falla, no basta decir
+  "falló" — el comentario y (cuando aplique) la trayectoria de la pelota
+  deben indicar el motivo real:
+  - **Saque:** tocó la red (la pelota corta en la red) · salió fuera (más
+    allá de la línea de fondo) · pisó la línea de fondo (no llega a despegar).
+  - **Recepción:** salió fuera · cayó al suelo · tocó la red.
+  - **Armado:** tocó la red · doble toque del armador.
+  - **Remate:** salió fuera · tocó la red · bloqueado por el rival (la pelota
+    vuelve hacia el atacante) · invadió la cancha rival.
+  - **Defensa:** salió fuera · cayó al suelo · más de 3 toques del equipo.
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
@@ -334,6 +366,12 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   Italia con progresión), uso del dinero (entrenamiento personal), más
   adversidades (lesión y rumores) y más posiciones (opuesto, central,
   líbero).
+- **Pulido de la simulación (§2/§5.2/§5.3):** sombra y estela de la pelota,
+  giro, salto en remate/bloqueo, sacador visiblemente fuera de la cancha,
+  fallos con razón específica (red, fuera, pie de línea, bloqueo, doble
+  toque, más de 3 toques, invasión), bloqueo en la red visible,
+  anticipación defensiva, transición deliberada y variedad de formaciones
+  de recepción.
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
