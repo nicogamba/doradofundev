@@ -159,9 +159,14 @@ guionada por rol, no física):
       ataca siempre por la zona 4** (aunque la rotación lo arranque en
       otra), el **opuesto por la 2** (y pipe por la 6), el central por la
       3; los demás cubren el centro/atrás.
-    - **Defensa (rival ataca):** el **punta cubre la zona 5**, el opuesto la
-      **1**, el **líbero la 6** (profundo), los **centrales bloquean en la
-      red** y el armador va a su zona de armado.
+  - **Defensa (rival ataca):** el **punta cubre la zona 5**, el opuesto la
+    **1**, el **líbero la 6** (profundo), los **centrales bloquean en la
+    red** y el armador va a su zona de armado.
+- **Bloqueo visible en la red:** el remate debe llegar **visiblemente hasta
+  la red** (la zona donde bloquea la primera fila) y ser bloqueado ahí — la
+  pelota no debe pasar directo al fondo del campo rival sin pasar por la red.
+  Si el bloqueo tiene éxito, la pelota se desvía en la red (la primera fila
+  salta a bloquear); si falla, continúa al fondo y la defensa la recupera.
     - El set (armar a 2/4/6) elige al atacante **por rol** (4 → punta,
       2 → opuesto, 6 → opuesto/pipe); el turno de remate del jugador
       ocurre cuando el set va a su zona de rol.
@@ -176,6 +181,10 @@ guionada por rol, no física):
   ritmo real, ~200px/s), NO un lerp exponencial que da un gran salto inicial
   y parece un disparo. El bamboleo en el lugar debe ser **sutil** (±0.5px),
   no un movimiento visible mientras esperan.
+- **Balanceo puramente visual (sin vibración):** el balanceo del jugador en
+  el lugar NO debe tocar su posición real (no pelear contra el movimiento):
+  se aplica como un **desplazamiento de dibujo** en drawTeam (offset suave
+  sin/cos por jugador), de modo que nunca vibre.
 
 ### 5.3 Resolución del rally
 
@@ -190,6 +199,12 @@ guionada por rol, no física):
   - **Remate:** salió fuera · tocó la red · bloqueado por el rival (la pelota
     vuelve hacia el atacante) · invadió la cancha rival.
   - **Defensa:** salió fuera · cayó al suelo · más de 3 toques del equipo.
+- **Contador de toques (límite legal de 3):** cada equipo tiene **máximo 3
+  toques** por rally; si los supera, el punto es para el rival (razón "más
+  de 3 toques"). El flujo debe ser: saque → (recepción → armado → remate)
+  → (defensa = 1er toque → armado → remate) → … **La recepción SOLO es el
+  primer toque tras el saque**; tras una defensa exitosa el equipo NO vuelve
+  a "recepcionar" (serían 4 toques): pasa directo a armado → remate.
 - **Probabilidad de bloqueo (con stats de todos los involucrados):** el
   bloqueo se resuelve comparando la **suma del Bloqueo de TODOS los
   bloqueadores de la primera fila** contra el **Ataque del atacante** (+

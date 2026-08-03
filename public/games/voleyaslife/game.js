@@ -475,9 +475,6 @@
           cur.x += (dx / dist) * Math.min(step, dist);
           cur.y += (dy / dist) * Math.min(step, dist);
         }
-        var ph = playerPhase[key][i];
-        cur.x += Math.sin(simTime * 0.04 + ph) * 0.5;
-        cur.y += Math.cos(simTime * 0.033 + ph * 1.3) * 0.5;
         if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
       }
     }
@@ -562,10 +559,14 @@
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
       var jump = playerJump[team][i] || 0;
-      var drawY = p.y - jump * 22;
+      var ph = playerPhase[team][i];
+      var swayX = Math.sin(simTime * 0.05 + ph) * 1.2;
+      var swayY = Math.cos(simTime * 0.04 + ph * 1.3) * 1.2;
+      var drawX = p.x + swayX;
+      var drawY = p.y + swayY - jump * 22;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(p.x, drawY, 13, 0, Math.PI * 2);
+      ctx.arc(drawX, drawY, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
@@ -573,20 +574,20 @@
       if (jump > 0.1) {
         ctx.strokeStyle = 'rgba(255,255,255,0.25)';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 13, 0, Math.PI * 2);
+        ctx.arc(drawX, p.y + swayY, 13, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.font = '700 10px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(teams[team][i].number), p.x, drawY + 1);
+      ctx.fillText(String(teams[team][i].number), drawX, drawY + 1);
       ctx.textBaseline = 'alphabetic';
       if (highlightPlayer && i === 0) {
         ctx.strokeStyle = '#ffd166';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(p.x, drawY, 17, 0, Math.PI * 2);
+        ctx.arc(drawX, drawY, 17, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -689,6 +690,7 @@
       setIndex: 0,
       server: Math.random() < 0.5 ? 0 : 1,
       over: false,
+      rallyTouches: [0, 0],
     };
     initTeams();
     return match;
@@ -946,6 +948,7 @@
   }
 
   async function doServe(attacking, defender) {
+    match.rallyTouches[attacking]++;
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
     var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
@@ -982,6 +985,7 @@
   }
 
   async function doReceive(attacking, defender, incoming) {
+    match.rallyTouches[attacking]++;
     var isMy = isMyTurn(attacking, 'receive');
     var receiver = playerInZone(attacking, 6);
     var ridx = playerIndex(attacking, receiver);
@@ -1027,6 +1031,7 @@
   }
 
   async function doSet(attacking, defender, receiveQuality) {
+    match.rallyTouches[attacking]++;
     var isMy = isMyTurn(attacking, 'set');
     var setter = setterPlayer(attacking);
     var sidx = playerIndex(attacking, setter);
@@ -1072,6 +1077,7 @@
   }
 
   async function doAttack(attacking, defender, setQuality, setZone) {
+    match.rallyTouches[attacking]++;
     var isMy = isMyAttack(attacking, setZone);
     var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
@@ -1102,7 +1108,7 @@
     } else if (!ok && aReason === 'blocked') {
       target = { x: ballNow.x, y: ballNow.y + (attacking === 0 ? 50 : -50) };
     } else {
-      target = zoneBasePos(defender, hitZone);
+      target = { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 24 : -24) };
     }
     setFormationTargets();
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
@@ -1145,6 +1151,7 @@
   }
 
   async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat) {
+    match.rallyTouches[defending]++;
     var dig = playerInZone(defending, 6);
     var didx = playerIndex(defending, dig);
     var setter = setterPlayer(defending);
@@ -1180,8 +1187,8 @@
       setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
-        to: { x: from.x, y: from.y + 40 },
-        seconds: 0.35,
+        to: zoneBasePos(defending, hitZone),
+        seconds: 0.4,
       });
     }
     return { ok: ok };
@@ -1195,29 +1202,47 @@
     return q === 3 ? '#7ee787' : q === 2 ? '#7ee787' : q === 1 ? '#f0ad4e' : '#e0503f';
   }
 
+  async function threeTouches(winnerTeam) {
+    pointBanner = { text: reasonBannerText('three'), color: '#e0503f', life: 1 };
+    await sleep(1.0);
+    await scorePoint(winnerTeam);
+  }
+
+  function touchFault(team) {
+    return match.rallyTouches[team] > 3;
+  }
+
   async function playRally(server) {
     resetPlayerPositions();
+    match.rallyTouches = [0, 0];
     var receiveTeam = 1 - server;
     var serve = await doServe(server, receiveTeam);
     if (!serve.ok) {
       await scorePoint(receiveTeam);
       return;
     }
+    match.rallyTouches = [0, 0];
     var attacking = receiveTeam;
     var defending = server;
     var incoming = serve.quality;
+    var firstOffense = true;
     for (var guard = 0; guard < 20; guard++) {
-      var receive = await doReceive(attacking, defending, incoming);
-      if (!receive.ok) {
-        await scorePoint(defending);
-        return;
+      if (firstOffense) {
+        var receive = await doReceive(attacking, defending, incoming);
+        if (touchFault(attacking)) { await threeTouches(defending); return; }
+        if (!receive.ok) {
+          await scorePoint(defending);
+          return;
+        }
+        if (receive.direct) {
+          await showDirectPoint();
+          await scorePoint(attacking);
+          return;
+        }
+        firstOffense = false;
       }
-      if (receive.direct) {
-        await showDirectPoint();
-        await scorePoint(attacking);
-        return;
-      }
-      var set = await doSet(attacking, defending, receive.quality);
+      var set = await doSet(attacking, defending, receive ? receive.quality : 0);
+      if (touchFault(attacking)) { await threeTouches(defending); return; }
       if (!set.ok) {
         await scorePoint(defending);
         return;
@@ -1228,6 +1253,7 @@
         return;
       }
       var attack = await doAttack(attacking, defending, set.quality, set.zone);
+      if (touchFault(attacking)) { await threeTouches(defending); return; }
       if (!attack.ok) {
         await scorePoint(defending);
         return;
@@ -1237,7 +1263,9 @@
         await scorePoint(attacking);
         return;
       }
+      match.rallyTouches = [0, 0];
       var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat);
+      if (touchFault(defending)) { await threeTouches(attacking); return; }
       if (!def.ok) {
         await scorePoint(attacking);
         return;
