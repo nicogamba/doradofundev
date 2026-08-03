@@ -624,6 +624,10 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   **bloquea Z2** / zaguero **defiende Z1** y penetra al recuperar; **modal de
   armado con 4 botones contextuales** (Z4 · Pipe Z6 · Quick Z3 · Opuesto
   dinámico Z2/Z1) y **filtro de calidad**: pase < 2 deshabilita Quick y Pipe.
+- **Opuesto no recibe el saque** (§5.4): excluido de `closestReceiver` y de la
+  W de recepción (se queda en su base Z2/Z1). **Permutas defensivas K2:** la
+  **punta zaguero → Z6** (centro-fondo) y el **opuesto zaguero → Z1**
+  (derecha) en la formación defensiva.
 - **Balance de la simulación (§5.3):** los compañeros del jugador escalan con
   el **poder de su club** (`teammateStat` usa `clubStats(power)`, ya no fijo
   en 4) y `autoPhase` traduce la diferencia de stats con **efecto moderado**

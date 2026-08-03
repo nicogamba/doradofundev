@@ -345,10 +345,25 @@
       }
       return { x: columnX(team, 5), y: backY(team) };
     }
+    if (p.role === 'opposite') {
+      if (state === 'receive') {
+        var ob = isFrontRow(team, index) ? columnX(team, 2) : columnX(team, 1);
+        return { x: ob, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+      }
+      if (state === 'defense' && !isFrontRow(team, index)) {
+        return { x: columnX(team, 1), y: backY(team) };
+      }
+    }
     if (state === 'receive') {
-      return isFrontRow(team, index)
-        ? { x: x, y: COURT.netY + (team === 0 ? 106 : -106) }
-        : { x: x, y: COURT.netY + (team === 0 ? 134 : -134) };
+      if (p.role === 'outside') {
+        return isFrontRow(team, index)
+          ? { x: x, y: COURT.netY + (team === 0 ? 106 : -106) }
+          : { x: x, y: COURT.netY + (team === 0 ? 134 : -134) };
+      }
+      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+    }
+    if (state === 'defense' && !isFrontRow(team, index) && p.role === 'outside') {
+      return { x: columnX(team, 6), y: backY(team) };
     }
     return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
   }
@@ -1177,7 +1192,7 @@
     var bestD = Infinity;
     for (var i = 0; i < teams[team].length; i++) {
       var p = teams[team][i];
-      if (p.role === 'setter' || p.role === 'middle') continue;
+      if (p.role === 'setter' || p.role === 'middle' || p.role === 'opposite') continue;
       var d = Math.hypot(playerPos[team][i].x - spot.x, playerPos[team][i].y - spot.y);
       if (d < bestD) {
         bestD = d;
