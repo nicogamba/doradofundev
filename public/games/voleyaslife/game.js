@@ -166,9 +166,9 @@
   function makeLineup(isPlayerTeam) {
     var roles = isPlayerTeam
       ? (career.position === 'punta'
-          ? ['outside', 'setter', 'middle', 'opposite', 'middle', 'libero']
-          : ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'])
-      : ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'];
+          ? ['outside', 'setter', 'middle', 'opposite', 'middle', 'outside']
+          : ['setter', 'outside', 'middle', 'opposite', 'middle', 'outside'])
+      : ['setter', 'outside', 'middle', 'opposite', 'middle', 'outside'];
     var pool = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12].filter(function (n) {
       return !isPlayerTeam || n !== career.number;
     });
@@ -226,84 +226,101 @@
     playerTarget[team][index] = { x: pos.x, y: pos.y };
   }
 
+  function isFrontRow(team, index) {
+    var z = ROTATION_ORDER[teams[team][index].zoneIndex];
+    return z === 2 || z === 3 || z === 4;
+  }
+
+  function frontY(team) {
+    return COURT.netY + (team === 0 ? 62 : -62);
+  }
+
+  function backY(team) {
+    return COURT.netY + (team === 0 ? 148 : -148);
+  }
+
+  function threeM(team) {
+    return COURT.netY + (team === 0 ? 187 : -187);
+  }
+
+  function isDeep(team, y) {
+    return team === 0 ? y > threeM(team) : y < threeM(team);
+  }
+
   function setReceiveFormation(team) {
     for (var i = 0; i < teams[team].length; i++) {
-      var p = teams[team][i];
-      var zone = ROTATION_ORDER[p.zoneIndex];
-      var base = zoneBasePos(team, zone);
-      var t = { x: base.x, y: base.y };
-      if (p.role === 'setter') {
-        t.y = base.y + (team === 0 ? 52 : -52);
-      } else if (zone === 5) {
-        t.x = base.x - 26;
-        t.y = base.y + (team === 0 ? 22 : -22);
-      } else if (zone === 1) {
-        t.x = base.x + 26;
-        t.y = base.y + (team === 0 ? 22 : -22);
-      } else if (zone === 6) {
-        t.y = base.y + (team === 0 ? 34 : -34);
-      } else if (zone === 4) {
-        t.x = base.x - 12;
-        t.y = base.y + (team === 0 ? 14 : -14);
-      } else if (zone === 2) {
-        t.x = base.x + 12;
-        t.y = base.y + (team === 0 ? 14 : -14);
-      }
-      playerTarget[team][i] = t;
+      moveTo(team, i, formationSpot(team, i, 'receive'));
     }
   }
 
   function setDefenseReady(team) {
     for (var i = 0; i < teams[team].length; i++) {
-      var p = teams[team][i];
-      moveTo(team, i, roleSpot(team, p.role, 'defense'));
+      moveTo(team, i, formationSpot(team, i, 'defense'));
     }
   }
 
-  function roleSpot(team, role, state) {
-    var base;
-    var x, y;
-    if (role === 'setter') {
-      x = team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95;
-      y = COURT.netY + (team === 0 ? 34 : -34);
-    } else if (role === 'outside') {
-      x = team === 0 ? COURT.x + 45 : COURT.x + COURT.w - 45;
-      y = state === 'defense' ? COURT.netY + (team === 0 ? 130 : -130) : COURT.netY + (team === 0 ? 60 : -60);
-    } else if (role === 'opposite') {
-      x = team === 0 ? COURT.x + COURT.w - 45 : COURT.x + 45;
-      y = state === 'defense' ? COURT.netY + (team === 0 ? 130 : -130) : COURT.netY + (team === 0 ? 60 : -60);
-    } else if (role === 'middle') {
-      x = COURT.x + COURT.w / 2;
-      y = state === 'defense' ? COURT.netY + (team === 0 ? 40 : -40) : COURT.netY + (team === 0 ? 52 : -52);
-    } else {
-      x = COURT.x + COURT.w / 2;
-      y = COURT.netY + (team === 0 ? 140 : -140);
+  function columnX(team, zone) {
+    var col = zone === 1 || zone === 2 ? 2 : zone === 4 || zone === 5 ? 0 : 1;
+    return team === 0
+      ? [COURT.x + 45, COURT.x + COURT.w / 2, COURT.x + COURT.w - 45][col]
+      : [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45][col];
+  }
+
+  function formationSpot(team, index, state) {
+    var p = teams[team][index];
+    var zone = ROTATION_ORDER[p.zoneIndex];
+    var x = columnX(team, zone);
+    if (p.role !== 'setter' && zone === 1 && state === 'receive') {
+      x = COURT.x + COURT.w / 2 + 50;
     }
-    base = { x: x, y: y };
-    return base;
+    if (p.role === 'setter') {
+      if (state === 'offense') {
+        return { x: COURT.x + COURT.w - 95, y: COURT.netY + (team === 0 ? 40 : -40) };
+      }
+      return { x: COURT.x + COURT.w - 45, y: backY(team) + 12 };
+    }
+    if (p.role === 'middle') {
+      if (state === 'receive') {
+        return isFrontRow(team, index)
+          ? { x: COURT.x + COURT.w / 2, y: COURT.netY + (team === 0 ? 50 : -50) }
+          : { x: x, y: backY(team) };
+      }
+      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+    }
+    if (state === 'receive') {
+      return isFrontRow(team, index)
+        ? { x: x, y: COURT.netY + (team === 0 ? 106 : -106) }
+        : { x: x, y: COURT.netY + (team === 0 ? 134 : -134) };
+    }
+    return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
   }
 
   function setOffenseFormation(team, setZone) {
-    var roles = ['setter', 'outside', 'middle', 'opposite', 'middle', 'libero'];
     for (var i = 0; i < teams[team].length; i++) {
-      var p = teams[team][i];
-      var spot = roleSpot(team, p.role, 'offense');
-      moveTo(team, i, spot);
+      moveTo(team, i, formationSpot(team, i, 'offense'));
     }
     var attacker = playerByRole(team, roleForZone(setZone));
-    moveTo(team, playerIndex(team, attacker), attackSpot(team, setZone));
+    var aidx = playerIndex(team, attacker);
+    moveTo(team, aidx, isFrontRow(team, aidx) ? attackSpot(team, setZone) : backAttackSpot(team, setZone));
   }
 
   function setDefenseFormation(team, hitZone) {
+    var hx = zoneBasePos(team, hitZone).x;
     for (var i = 0; i < teams[team].length; i++) {
       var p = teams[team][i];
-      var spot = roleSpot(team, p.role, 'defense');
+      var spot = formationSpot(team, i, 'defense');
+      if (isFrontRow(team, i)) {
+        spot.x = spot.x + (hx - spot.x) * 0.4;
+        if (p.role === 'middle') setJump(team, i);
+      } else if (p.role === 'middle') {
+        spot = { x: hx, y: backY(team) };
+      }
       moveTo(team, i, spot);
-      if (p.role === 'middle') setJump(team, i);
     }
-    var libero = playerByRole(team, 'libero');
-    moveTo(team, playerIndex(team, libero), zoneBasePos(team, hitZone));
-    setJump(team, playerIndex(team, libero));
+  }
+
+  function backAttackSpot(team, zone) {
+    return { x: zoneBasePos(team, zone).x, y: threeM(team) + (team === 0 ? 14 : -14) };
   }
 
   function playerInZone(team, zone) {
@@ -386,16 +403,32 @@
     ctx.strokeStyle = '#3d4657';
     ctx.lineWidth = 2;
     ctx.strokeRect(COURT.x, COURT.y, COURT.w, COURT.h);
+    ctx.setLineDash([10, 8]);
     ctx.beginPath();
-    ctx.moveTo(COURT.x, COURT.netY);
-    ctx.lineTo(COURT.x + COURT.w, COURT.netY);
+    ctx.moveTo(COURT.x, threeM(0));
+    ctx.lineTo(COURT.x + COURT.w, threeM(0));
+    ctx.moveTo(COURT.x, threeM(1));
+    ctx.lineTo(COURT.x + COURT.w, threeM(1));
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(COURT.x + COURT.w / 2, COURT.y);
     ctx.lineTo(COURT.x + COURT.w / 2, COURT.netY);
     ctx.moveTo(COURT.x + COURT.w / 2, COURT.netY);
     ctx.lineTo(COURT.x + COURT.w / 2, COURT.y + COURT.h);
     ctx.stroke();
+    ctx.strokeStyle = '#f2f4f8';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(242,244,248,0.55)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(COURT.x - 8, COURT.netY);
+    ctx.lineTo(COURT.x + COURT.w + 8, COURT.netY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#f2f4f8';
+    ctx.fillRect(COURT.x - 13, COURT.netY - 4, 9, 8);
+    ctx.fillRect(COURT.x + COURT.w + 4, COURT.netY - 4, 9, 8);
 
     drawTeam(1, '#4a8fe0', false);
     drawTeam(0, '#e0c34a', true);
@@ -1067,7 +1100,7 @@
     }
     var attacker = playerByRole(attacking, roleForZone(setZone));
     var aidx = playerIndex(attacking, attacker);
-    var target = attackSpot(attacking, setZone);
+    var target = isFrontRow(attacking, aidx) ? attackSpot(attacking, setZone) : backAttackSpot(attacking, setZone);
     setOffenseFormation(attacking, setZone);
     setDefenseReady(defender);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
@@ -1132,16 +1165,14 @@
       target = { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 24 : -24) };
     }
     setOffenseFormation(attacking, setZone);
-    setDefenseReady(defender);
+    setDefenseFormation(defender, hitZone);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
-    setJump(attacking, isMy ? 0 : aidx);
-    for (var bi = 0; bi < teams[defender].length; bi++) {
-      var bp = teams[defender][bi];
-      if (bp.role === 'middle') {
-        moveTo(defender, bi, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 40 : -40) });
-      }
+    if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
+      setJump(attacking, isMy ? 0 : aidx);
+    } else {
+      playerJump[attacking][isMy ? 0 : aidx] = 0;
     }
-    var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : playerIndex(defender, playerInZone(defender, 6));
+    var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : -1;
     if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 16 : -16) });
     await playSegment({
       from: ballNow,
@@ -1608,7 +1639,6 @@
       '<div class="field"><button id="pos-armador" class="btn ' + (setupData.position === 'armador' ? 'active' : 'ghost') + '" type="button">' + t('positionArmador') + '</button><p class="subtitle">' + t('positionArmadorDesc') + '</p></div>' +
       '<div class="field"><button id="pos-opuesto" class="btn ' + (setupData.position === 'opuesto' ? 'active' : 'ghost') + '" type="button">' + t('positionOpuesto') + '</button><p class="subtitle">' + t('positionOpuestoDesc') + '</p></div>' +
       '<div class="field"><button id="pos-central" class="btn ' + (setupData.position === 'central' ? 'active' : 'ghost') + '" type="button">' + t('positionCentral') + '</button><p class="subtitle">' + t('positionCentralDesc') + '</p></div>' +
-      '<div class="field"><button id="pos-libero" class="btn ' + (setupData.position === 'libero' ? 'active' : 'ghost') + '" type="button">' + t('positionLibero') + '</button><p class="subtitle">' + t('positionLiberoDesc') + '</p></div>' +
       '</div>' +
       '<button id="btn-start" class="btn" type="button" disabled>' + t('start') + '</button>' +
       '</div></div>';
@@ -1648,14 +1678,9 @@
       setActivePos('central');
       checkStart();
     };
-    byId('pos-libero').onclick = function () {
-      setupData.position = 'libero';
-      setActivePos('libero');
-      checkStart();
-    };
 
     function setActivePos(pos) {
-      ['punta', 'armador', 'opuesto', 'central', 'libero'].forEach(function (p) {
+      ['punta', 'armador', 'opuesto', 'central'].forEach(function (p) {
         byId('pos-' + p).className = p === pos ? 'btn active' : 'btn ghost';
       });
     }

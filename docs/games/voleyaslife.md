@@ -28,6 +28,9 @@ carrera).
   al ganar el saque. Nada de movimientos solo verticales ni estáticos.
 - **Cada jugador muestra su número de camiseta** en la cancha (el jugador del
   usuario lleva su número elegido; los demás tienen números propios).
+- **Cancha legible:** la **red** se dibuja blanca y gruesa (con brillo y
+  postes) y cada campo tiene su **línea de 3 metros** punteada (límite de
+  ataque de los zagueros).
 - **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
   va comentando el partido con **precisión de jugada por jugada**:
   quién hace cada acción y el desenlace. Ejemplos: "#2 recibe", "#4 levanta
@@ -133,9 +136,11 @@ Cada jugador tiene un comportamiento simple según la situación (IA
 guionada por rol, no física):
 
 - **Recepción:** el equipo se acomoda en **formación de recepción
-  realista (sistema 5-1)**: el armador se retira de la zona de recepción y
-  los receptores se distribuyen en la zona trasera (disposición tipo "W");
-  los que no reciben protegen sus zonas.
+  realista (sistema 5-1)**: el armador se retira (el "1", no recibe) y la W
+  la forman las **puntas y el opuesto** (receptores): los delanteros se
+  bajan de la red (~netY±106, brazos de la W) y los zagueros reciben en sus
+  columnas (~netY±134); los **centrales** no reciben (el delantero protege la
+  red ~netY±50 y el zaguero cubre su columna trasera).
 - **Acomodo antes del saque:** al prepararse el saque, **ambos equipos deben
   estar ya en posición**: el equipo que saca en formación defensiva (a
   cubrir) y el equipo receptor en su **formación de recepción 5-1 W**
@@ -170,9 +175,29 @@ guionada por rol, no física):
   ve con aro dorado).
 - **Transición:** el armador corre hacia la pelota (segunda pelota) y los
   atacantes hacen su aproximación a las zonas 2/4/6 según el armado.
-- **Ataque:** el atacante salta/remata hacia la zona elegida.
-- **Bloqueo/defensa:** los bloqueadores se alinean en la red hacia la zona
-  probable del remate; los de atrás se mueven hacia esa zona.
+- **Posicionamiento por rol y por fila (delantera/zaguera):**
+  `formationSpot(team, index, state)` toma la **zona actual** (columna +
+  delantera 2/3/4 o zaguera 5/6/1) como base y el **rol** define la función
+  de cada jugador en la jugada. Sin líbero: la alineación es **2 puntas, 1
+  armador, 2 centrales, 1 opuesto**; el **central zaguero** hace la cobertura
+  profunda que antes hacía el líbero.
+  - **Armador:** ofensiva → red-derecha (a armar); defensa/recepción/saque →
+    retirado a la derecha-atrás (el "1"), no recibe.
+  - **Puntas y opuesto:** son los receptores/atacantes — delanteros a la red
+    en su columna, zagueros al fondo en su columna.
+  - **Centrales:** delantero protege la red (centro, ~netY±50); zaguero
+    protege su columna trasera (~netY±148).
+- **Ataque según fila:** el atacante se elige por rol (4 → punta, 2 → opuesto,
+  6 → opuesto/pipe) pero su posición y salto dependen de su fila:
+  - **Delantero** → remata en la red con salto.
+  - **Zaguero** → el armado va al **último cuarto** (detrás de la línea de
+    3 m, `backAttackSpot`) y remata con salto desde ahí (remate de zaguero);
+    si el balón se juega corto cerca de la red, el zaguero la toca **sin
+    salto** (`jump = isFrontRow(atacante) || balón profundo`).
+- **Bloqueo/defensa:** los delanteros se alinean hacia la zona del remate
+  (bloqueo que sigue, ~40% del desplazamiento hacia la X del `hitZone`) y
+  solo los **centrales delanteros saltan**; los zagueros cubren sus columnas
+  y el **central zaguero** se desplaza a la zona del remate.
 - **Mejoras de IA (revisión):**
   - **Bloqueo en la red visible:** los jugadores de primera línea se alinean
     en la red hacia la zona del remate rival y saltan a bloquear (no solo un
@@ -181,19 +206,6 @@ guionada por rol, no física):
     aterrizaje probable **antes** de que llegue la pelota (no después).
   - **Transición deliberada:** el armador y los atacantes se reposicionan con
     intención tras cada toque (no solo "cerca de la pelota").
-  - **Variedad de formaciones de recepción:** alternar W / 2 receptores según
-    la situación del saque.
-  - **Posicionamiento con y sin pelota (reglas reales):** los jugadores sin
-    pelota se posicionan según su **rol** (la rotación solo define la
-    formación inicial; cuando la pelota entra en juego cada rol va a su
-    posición):
-    - **Ataque propio:** el armador va a su zona de armado; el **punta
-      ataca siempre por la zona 4** (aunque la rotación lo arranque en
-      otra), el **opuesto por la 2** (y pipe por la 6), el central por la
-      3; los demás cubren el centro/atrás.
-  - **Defensa (rival ataca):** el **punta cubre la zona 5**, el opuesto la
-    **1**, el **líbero la 6** (profundo), los **centrales bloquean en la
-    red** y el armador va a su zona de armado.
 - **Bloqueo visible en la red:** el remate debe llegar **visiblemente hasta
   la red** (la zona donde bloquea la primera fila) y ser bloqueado ahí — la
   pelota no debe pasar directo al fondo del campo rival sin pasar por la red.
@@ -392,8 +404,8 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   stat entre partidos).
 - **Más adversidades:** lesión leve (jugar con stats reducidas o descansar)
   y rumores de salida (negarlos o aprovechar la atención).
-- **Más posiciones:** opuesto (atacante de zona 2), central (remate y
-  bloqueo) y líbero (recepción).
+- **Más posiciones:** opuesto (atacante de zona 2) y central (remate y
+  bloqueo). El líbero se deja para más adelante (rol de recambio).
 
 **Futuro (ideas):**
 
@@ -447,8 +459,9 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 - **Redimensionado por altura (§2):** la pelota se ve más chica en el punto
   más alto del arco.
 - **Verificación:** `node --check`, `npm run build`, chrome headless sin
-  errores, y simulaciones `/tmp/opencode/vav-sim.js` (punta) y
-  `vav-sim-armador.js` (armador) con resultado OK.
+  errores, y simulaciones `/tmp/opencode/vav-sim*.js` (punta, armador,
+  opuesto, central) y `/tmp/opencode/vav-sim-watch.js` (modo destacados) con
+  resultado OK.
 - **Carrera en liga (Fase 1, §4/§8/§9/§10):** liga round-robin de 8 clubs
   (14 fechas) con tabla y campeón (perder no elimina), opción
   **Jugar/Simular** por partido, edad inicial con mejora/declive, salario,
@@ -457,14 +470,19 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   (banco con suplente), premios individuales (MVP y máximo anotador),
   divisiones A/B con ascenso/descenso, ligas por país (Argentina/España/
   Italia con progresión), uso del dinero (entrenamiento personal), más
-  adversidades (lesión y rumores) y más posiciones (opuesto, central,
-  líbero).
+  adversidades (lesión y rumores) y más posiciones (opuesto, central).
 - **Pulido de la simulación (§2/§5.2/§5.3):** sombra y estela de la pelota,
   giro, salto en remate/bloqueo, sacador visiblemente fuera de la cancha,
   fallos con razón específica (red, fuera, pie de línea, bloqueo, doble
   toque, más de 3 toques, invasión), bloqueo en la red visible,
   anticipación defensiva, transición deliberada y variedad de formaciones
   de recepción.
+- **Posicionamiento por rol × fila (§5.2):** `formationSpot` respeta la
+  **delantera/zaguera** real de cada jugador (un zaguero no juega en la red),
+  sin líbero (2 puntas, 1 armador, 2 centrales, 1 opuesto; el central
+  zaguero cubre el fondo), recepción 5-1 con las puntas/opuesto de
+  receptores, remate de zaguero desde el último cuarto (o sin salto cerca de
+  la red) y línea de 3 metros + red visible en la cancha.
 
 **Pendiente (Fase 2 de la carrera — futuro):**
 
