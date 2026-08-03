@@ -248,12 +248,17 @@
       var clone = Object.assign({}, teamLibero[team], { zoneIndex: p.zoneIndex });
       teamStash[team] = { index: i, player: p };
       t[i] = clone;
-      playerPos[team][i] = Object.assign({}, playerPos[team][i]);
-      playerTarget[team][i] = Object.assign({}, playerTarget[team][i]);
+      var bench = benchPos(team);
+      playerPos[team][i] = { x: bench.x, y: bench.y };
+      playerTarget[team][i] = { x: bench.x, y: bench.y };
       playerJump[team][i] = 0;
       playerPhase[team][i] = Math.random() * Math.PI * 2;
       return;
     }
+  }
+
+  function benchPos(team) {
+    return { x: team === 0 ? COURT.x + COURT.w - 28 : COURT.x + 28, y: team === 0 ? COURT.y + COURT.h + 38 : COURT.y - 38 };
   }
 
   function undoLibero(team) {
@@ -690,12 +695,12 @@
   }
 
   function ballSpeed(stat) {
-    return 130 + stat * 30;
+    return 175 + stat * 20;
   }
 
   function moveSpeed(team, index) {
     if (!teams[team] || !teams[team][index]) return 200;
-    return 150 + playerStat(team, teams[team][index], 'D') * 20;
+    return 165 + playerStat(team, teams[team][index], 'D') * 15;
   }
 
   function dist2(a, b) {
@@ -1386,7 +1391,7 @@
     var server = serverPlayer(attacking);
     var sidx = playerIndex(attacking, server);
     var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
-    var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 26 : COURT.y - 26 };
+    var from = { x: base.x, y: attacking === 0 ? COURT.y + COURT.h + 46 : COURT.y - 46 };
     moveTo(attacking, sidx, from);
     pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
     serveRing = { team: attacking, index: sidx, life: 1 };
@@ -1417,7 +1422,7 @@
     var received = ok ? raceReaches(defender, ridxA, to, svTime) : false;
     var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
     if (ridxA >= 0) moveTo(defender, ridxA, to);
-    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : segSeconds(svDist, ballSpeed(sStat)), overNet: !reason || reason === 'out' });
+    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, ballSpeed(sStat))), overNet: !reason || reason === 'out' });
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
@@ -1522,7 +1527,7 @@
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     var setterR = playerStat(attacking, setter, 'R');
-    var setSpeed = 80 + (setterR + quality) * 14;
+    var setSpeed = 105 + (setterR + quality) * 12;
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
@@ -1714,6 +1719,7 @@
     match.rallyTouches = [0, 0];
     match.k2 = server;
     var receiveTeam = 1 - server;
+    await sleep(0.5);
     applyLibero(0, false);
     applyLibero(1, false);
     setReceiveFormation(receiveTeam);

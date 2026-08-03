@@ -298,17 +298,18 @@ guionada por rol, no física):
   contra las stats del atacante.
 - **Física pelota–jugador (la pelota encuentra al jugador):** la pelota vuela
   a una **velocidad según la stat del que le pega** (`ballSpeed(stat)` =
-  130 + stat×30 px/s) y el jugador que debe tocarla corre a **su velocidad**
-  (`moveSpeed` = 150 + D×20 px/s). Hay una **carrera** en cada fase de
-  persecución (`raceReaches`): si el jugador llega antes que la pelota al
-  punto de contacto, **la toca** y el rally sigue; si la pelota llega primero
-  (jugador lento o golpe muy bueno), **la pelota toca el suelo** (ace en el
-  saque, set malo si el atacante no llega, o remate que entra si el defensor
-  no llega). La **calidad** del toque sale del margen de la carrera (llegó
-  con ventaja → pase perfecto) + la stat, y alimenta la cadena
-  recepción→armado→remate. El pase/remate sale de la **posición real del
-  jugador** (no del punto vacío) y se ve el **impacto en el suelo** cuando la
-  pelota vence al jugador.
+  175 + stat×20 px/s; el armado es más controlado: `setSpeed` = 105 + (R+calidad)×12)
+  y el jugador que debe tocarla corre a **su velocidad** (`moveSpeed` = 165 +
+  D×15 px/s). Hay una **carrera** en cada fase de persecución (`raceReaches`):
+  si el jugador llega antes que la pelota al punto de contacto, **la toca** y
+  el rally sigue; si la pelota llega primero (jugador lento o golpe muy
+  bueno), **la pelota toca el suelo** (ace en el saque, set malo si el
+  atacante no llega, o remate que entra si el defensor no llega). El saque
+  tiene un **vuelo mínimo** (~0.45s) para que el profundo no "zumba". La
+  **calidad** del toque sale del margen de la carrera + la stat y alimenta la
+  cadena recepción→armado→remate. El pase/remate sale de la **posición real
+  del jugador** y cada toque muestra un **anillo blanco** en el jugador (la
+  **X** solo cuando la pelota toca el suelo).
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
@@ -664,9 +665,11 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 - **Líbero (§5.4):** entra automáticamente por el **central zaguero** (zona
   5 o 6; si el central está en zona 1, saca primero y el líbero ingresa
-  después). Solo juega de zaguero, base **zona 5**, stats de especialista
-  (R=6/D=6), **no saca, no bloquea ni ataca por encima de la red**, es el
-  **receptor principal** (`closestReceiver`). Swap aplicado al inicio del
-  rally y deshecho antes de rotar (`applyLibero`/`undoLibero`). **Banco
-  visible** en la cancha (el que sale —central o líbero— + el nombre del
-  **DT** al costado) y **DT** con nombre en la pantalla entre-partido.
+  después). **El swap se ve antes del saque**: el central aparece en cancha,
+  el líbero arranca en el **banco** y corre a zona 5 durante el aviso,
+  mientras el central pasa al banco. Solo juega de zaguero, base **zona 5**,
+  stats de especialista (R=6/D=6), **no saca, no bloquea ni ataca por encima
+  de la red**, es el **receptor principal** (`closestReceiver`). Swap aplicado
+  durante el aviso de saque y deshecho antes de rotar (`applyLibero`/
+  `undoLibero`). **Banco visible** en la cancha + **DT** con nombre al costado
+  y en la pantalla entre-partido.
