@@ -39,7 +39,7 @@
     ],
     receive: [
       { key: 'recepcionSegura', threshold: 1, directOnPerfect: false, diff: -0.06 },
-      { key: 'recepcionAgresiva', threshold: 2, directOnPerfect: true, diff: 0.08 },
+      { key: 'recepcionAgresiva', threshold: 2, directOnPerfect: false, diff: 0.08 },
     ],
     set: [
       { key: 'armarA2', threshold: 2, directOnPerfect: false, zone: 2, diff: 0.05, setBoost: 1 },
@@ -708,7 +708,7 @@
 
   function raceReaches(team, index, contact, ballTime) {
     var pt = raceTime(team, index, contact);
-    pt *= 0.92 + Math.random() * 0.16;
+    pt *= 1.0 + Math.random() * 0.16;
     return pt <= ballTime;
   }
 
@@ -758,7 +758,11 @@
   }
 
   function addImpact(x, y) {
-    impacts.push({ x: x, y: y, life: 1 });
+    impacts.push({ x: x, y: y, life: 1, kind: 'x' });
+  }
+
+  function addTouch(x, y) {
+    impacts.push({ x: x, y: y, life: 0.6, kind: 'ring' });
   }
 
   function stepImpacts() {
@@ -810,19 +814,27 @@
   function drawImpacts() {
     for (var i = 0; i < impacts.length; i++) {
       var imp = impacts[i];
-      ctx.globalAlpha = imp.life;
-      ctx.strokeStyle = '#ffd166';
-      ctx.lineWidth = 3;
-      var s = 16;
-      ctx.beginPath();
-      ctx.moveTo(imp.x - s, imp.y - s);
-      ctx.lineTo(imp.x + s, imp.y + s);
-      ctx.moveTo(imp.x + s, imp.y - s);
-      ctx.lineTo(imp.x - s, imp.y + s);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 40, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.globalAlpha = Math.max(0, Math.min(1, imp.life));
+      if (imp.kind === 'ring') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 26, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 3;
+        var s = 16;
+        ctx.beginPath();
+        ctx.moveTo(imp.x - s, imp.y - s);
+        ctx.lineTo(imp.x + s, imp.y + s);
+        ctx.moveTo(imp.x + s, imp.y - s);
+        ctx.lineTo(imp.x - s, imp.y + s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 40, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.globalAlpha = 1;
     }
   }
@@ -1468,7 +1480,7 @@
       seconds: segSeconds(dist2(contact, to), ballSpeed(playerStat(attacking, teams[attacking][ridx], 'R'))),
     });
     label = null;
-    addImpact(contact.x, contact.y);
+    addTouch(contact.x, contact.y);
     var receiver = teams[attacking][ridx];
     if (isMy) {
       comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
@@ -1514,12 +1526,14 @@
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
+    var setTouch = { x: ballNow.x, y: ballNow.y };
     await playSegment({
       from: ballNow,
       to: target,
       seconds: segSeconds(stDist, setSpeed),
     });
     label = null;
+    addTouch(setTouch.x, setTouch.y);
     var ok = isMy ? quality >= decision.threshold : arrived;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
@@ -1598,6 +1612,7 @@
     var digIdx = closestDefender(defender, target);
     var reached = ok ? (digIdx >= 0 && raceReaches(defender, digIdx, target, skTime)) : false;
     var defenseMargin = ok ? skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0) : 0;
+    var atkTouch = { x: ballNow.x, y: ballNow.y };
     await playSegment({
       from: ballNow,
       to: target,
@@ -1606,7 +1621,7 @@
       arc: 52,
     });
     label = null;
-    addImpact(target.x, target.y);
+    addTouch(atkTouch.x, atkTouch.y);
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
@@ -1670,7 +1685,7 @@
       seconds: segSeconds(dist2(from, to), ballSpeed(3 + digQuality)),
     });
     label = null;
-    addImpact(contact.x, contact.y);
+    addTouch(contact.x, contact.y);
     return { ok: true, quality: digQuality };
   }
 
@@ -1749,7 +1764,7 @@
         return;
       }
       if (attack.direct) {
-        await showDirectPoint();
+        await showDirectPoint(t('directPointTip'));
         await scorePoint(attacking);
         return;
       }
@@ -1774,8 +1789,9 @@
     }
     await scorePoint(defending);
   }
-  async function showDirectPoint() {
+  async function showDirectPoint(commentText) {
     pointBanner = { text: t('directPoint'), color: '#ffd166', life: 1 };
+    if (commentText) comment(commentText);
     await sleep(0.7);
   }
 
