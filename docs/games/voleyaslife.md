@@ -46,6 +46,12 @@ carrera).
 - **Cambio de lado entre sets:** al terminar un set, los equipos **cambian
   de cancha** (`match.sidesFlipped`, la alineación de tu equipo pasa arriba)
   con el aviso "Cambio de lado".
+- **Momentos forzados realistas (§5.3):** el remate **bloqueado** ahora llega
+  hasta la red en dos tramos (atacante → bloqueo en la red → rebote al lado
+  atacante), con los **bloqueadores saltando visiblemente** (salto de bloqueo
+  dedicado ~1.6). La **invasión** se ve como la pelota que cruza y sale
+  fuera. Los toques de **red** (saque y remate) muestran un contacto visible
+  en la red.
 - **Comentario de los sucesos**: una línea de texto (tipo Football Manager)
   va comentando el partido con **precisión de jugada por jugada**:
   quién hace cada acción y el desenlace. Ejemplos: "#2 recibe", "#4 levanta

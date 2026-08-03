@@ -539,7 +539,7 @@
       if (j === setterIdx || !isFrontRow(team, j)) continue;
       var fspot = formationSpot(team, j, 'defense');
       fspot.x = fspot.x + (blockX - fspot.x) * 0.5;
-      if (fp.role === 'middle') setJump(team, j);
+      if (fp.role === 'middle') setBlockJump(team, j);
       moveTo(team, j, fspot);
     }
   }
@@ -902,6 +902,16 @@
 
   function setJump(team, index) {
     if (playerJump[team]) playerJump[team][index] = 1;
+  }
+
+  function setBlockJump(team, index) {
+    if (playerJump[team]) playerJump[team][index] = 1.6;
+  }
+
+  function jumpBlockers(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === 'middle' && isFrontRow(team, i)) setBlockJump(team, i);
+    }
   }
 
   function addImpact(x, y) {
@@ -1593,6 +1603,7 @@
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
+      if (reason === 'net') addTouch(to.x, to.y);
       comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
       pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
       await sleep(0.6);
@@ -1761,6 +1772,8 @@
     var target;
     if (!ok && aReason === 'out') {
       target = { x: zoneBasePos(defender, hitZone).x, y: isBottom(defender) ? COURT.y + COURT.h + 30 : COURT.y - 30 };
+    } else if (!ok && aReason === 'invade') {
+      target = { x: zoneBasePos(defender, hitZone).x + (Math.random() * 60 - 30), y: isBottom(defender) ? COURT.y + COURT.h + 30 : COURT.y - 30 };
     } else if (!ok && aReason === 'net') {
       target = { x: ballNow.x, y: COURT.netY + 6 };
     } else if (!ok && aReason === 'blocked') {
@@ -1782,24 +1795,50 @@
     var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : -1;
     if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (isBottom(defender) ? 16 : -16) });
     var atkStat2 = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
-    var spikeSpeed = ballSpeed(atkStat2 + setQuality);
-    var skDist = dist2(ballNow, target);
-    var skTime = skDist / spikeSpeed;
-    var digIdx = closestDefender(defender, target);
-    var reached = ok ? (digIdx >= 0 && raceReaches(defender, digIdx, target, skTime)) : false;
-    var defenseMargin = ok ? skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0) : 0;
+    var reached = false;
+    var defenseMargin = 0;
+    var digIdx = -1;
     var atkTouch = { x: ballNow.x, y: ballNow.y };
-    await playSegment({
-      from: ballNow,
-      to: target,
-      seconds: segSeconds(skDist, spikeSpeed),
-      overNet: !aReason || aReason === 'invade',
-      arc: 52,
-    });
+    if (!ok && aReason === 'blocked') {
+      var blockX = zoneBasePos(defender, blockG).x;
+      var netPoint = { x: blockX, y: COURT.netY + (isBottom(defender) ? 6 : -6) };
+      await playSegment({
+        from: ballNow,
+        to: netPoint,
+        seconds: segSeconds(dist2(ballNow, netPoint), ballSpeed(atkStat2 + setQuality) * 0.8),
+        arc: 18,
+      });
+      jumpBlockers(defender);
+      addTouch(netPoint.x, netPoint.y);
+      cameraShake = Math.max(cameraShake, 1);
+      crowdPulse = Math.max(crowdPulse, 0.5);
+      var rebound = { x: ballNow.x + (Math.random() * 70 - 35), y: ballNow.y + (isBottom(attacking) ? 75 : -75) };
+      await playSegment({
+        from: netPoint,
+        to: rebound,
+        seconds: segSeconds(dist2(netPoint, rebound), 130),
+        arc: 22,
+      });
+    } else {
+      var spikeSpeed = ballSpeed(atkStat2 + setQuality);
+      var skDist = dist2(ballNow, target);
+      var skTime = skDist / spikeSpeed;
+      if (ok) {
+        digIdx = closestDefender(defender, target);
+        reached = digIdx >= 0 && raceReaches(defender, digIdx, target, skTime);
+        defenseMargin = skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0);
+      }
+      await playSegment({
+        from: ballNow,
+        to: target,
+        seconds: segSeconds(skDist, spikeSpeed),
+        overNet: !aReason || aReason === 'invade',
+        arc: 52,
+      });
+      if (!ok && aReason === 'net') addTouch(target.x, target.y);
+    }
     label = null;
     addTouch(atkTouch.x, atkTouch.y);
-    cameraShake = Math.max(cameraShake, 1);
-    crowdPulse = Math.max(crowdPulse, 0.5);
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
