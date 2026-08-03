@@ -182,10 +182,13 @@ guionada por rol, no física):
   de cada jugador en la jugada. Sin líbero: la alineación es **2 puntas, 1
   armador, 2 centrales, 1 opuesto**; el **central zaguero** hace la cobertura
   profunda que antes hacía el líbero.
-  - **Armador:** ofensiva → red-derecha (a armar); defensa/recepción/saque →
-    retirado a la derecha-atrás (el "1"), no recibe. El spot del armador está
-    **espejado por equipo** (su "derecha" es la derecha de pantalla para el
-    equipo de abajo y la izquierda para el de arriba).
+  - **Armador:** su "hogar" es la **red-derecha entre zona 2 y 3** (`setterSpot`)
+    para armar — NUNCA retirado al fondo. En ofensiva y defensa se para en
+    `setterSpot` (la pelota recibida va hacia ahí). Al **recibir saque** se
+    mueve según su rotación (posición legal del 5-1: zaguero detrás de la 3 m,
+    delantero en su fila) y **ni bien el rival saca corre a `setterSpot`**.
+    En rotación 1 es el sacador (sale de cancha). El spot está **espejado por
+    equipo** (su "derecha" es la derecha de pantalla abajo, izquierda arriba).
   - **Puntas y opuesto:** son los receptores/atacantes — delanteros a la red
     en su columna, zagueros al fondo en su columna.
   - **Centrales:** delantero protege la red (centro, ~netY±50); zaguero

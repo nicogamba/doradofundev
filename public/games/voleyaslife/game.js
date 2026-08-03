@@ -283,6 +283,7 @@
 
   function setReceiveFormation(team) {
     for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === 'setter') continue;
       moveTo(team, i, formationSpot(team, i, 'receive'));
     }
   }
@@ -300,6 +301,10 @@
       : [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45][col];
   }
 
+  function setterSpot(team) {
+    return { x: team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (team === 0 ? 40 : -40) };
+  }
+
   function formationSpot(team, index, state) {
     var p = teams[team][index];
     var zone = ROTATION_ORDER[p.zoneIndex];
@@ -308,10 +313,10 @@
       x = COURT.x + COURT.w / 2 + 50;
     }
     if (p.role === 'setter') {
-      if (state === 'offense') {
-        return { x: team === 0 ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (team === 0 ? 40 : -40) };
+      if (state === 'offense' || state === 'defense') {
+        return setterSpot(team);
       }
-      return { x: team === 0 ? COURT.x + COURT.w - 45 : COURT.x + 45, y: backY(team) + 12 };
+      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
     }
     if (p.role === 'middle') {
       if (state === 'receive') {
@@ -341,8 +346,13 @@
   function setDefenseFormation(team, hitZone, blockZone) {
     var coverX = zoneBasePos(team, hitZone).x;
     var blockX = zoneBasePos(team, blockZone || hitZone).x;
+    var setterIdx = playerIndex(team, setterPlayer(team));
     var backs = [];
     for (var i = 0; i < teams[team].length; i++) {
+      if (i === setterIdx) {
+        moveTo(team, i, setterSpot(team));
+        continue;
+      }
       if (!isFrontRow(team, i)) {
         backs.push({
           i: i,
@@ -370,7 +380,7 @@
     }
     for (var j = 0; j < teams[team].length; j++) {
       var fp = teams[team][j];
-      if (!isFrontRow(team, j)) continue;
+      if (j === setterIdx || !isFrontRow(team, j)) continue;
       var fspot = formationSpot(team, j, 'defense');
       fspot.x = fspot.x + (blockX - fspot.x) * 0.5;
       if (fp.role === 'middle') setJump(team, j);
@@ -1186,7 +1196,10 @@
     }
     var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
     if (ridxA >= 0) moveTo(defender, ridxA, to);
+    var sIdxA = playerIndex(defender, setterPlayer(defender));
+    if (sIdxA >= 0) moveTo(defender, sIdxA, setterSpot(defender));
     await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : 0.7, overNet: !reason || reason === 'out' });
+    if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
       comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
@@ -1204,7 +1217,7 @@
     var ridx = isMy ? 0 : closestReceiver(attacking, ballNow);
     if (ridx < 0) ridx = playerIndex(attacking, playerInZone(attacking, 6));
     var from = ballNow;
-    var sp = playerPos[attacking][sidx];
+    var sp = playerTarget[attacking][sidx];
     var decision = null;
     var quality = 0;
     var ok;
