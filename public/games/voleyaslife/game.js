@@ -1125,7 +1125,7 @@
       target = { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 24 : -24) };
     }
     setOffenseFormation(attacking, setZone);
-    setDefenseReady(defending);
+    setDefenseReady(defender);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     setJump(attacking, isMy ? 0 : aidx);
     await playSegment({
