@@ -153,6 +153,21 @@ guionada por rol, no física):
   ataque** (`setOffenseFormation`) y el rival en **formación defensiva**
   (`setDefenseReady`/`setDefenseFormation`). Solo al empezar cada rally
   (`resetPlayerPositions`) se vuelve a la posición de rotación (alineación).
+- **Anticipación (el jugador corre Mientras viene la pelota):** quien va a
+  tocar la pelota empieza a correr **durante el vuelo**, no después de que
+  cae: el receptor arranca cuando se pega el saque (`doServe` le da el target
+  del aterrizaje antes de `playSegment`), el atacante durante el armado, y el
+  bloqueo/defensa se desplaza hacia la zona del remate en cuanto se decide la
+  zona. La decisión del jugador se pide **en el momento del contacto** (no
+  tras caminar hasta el balón).
+- **Sin pausas muertas:** el resultado de cada toque se muestra **mientras la
+  pelota vuela** (no 0.8 s parados) y los avisos de fallo duran ~0.6 s. El
+  flujo es continuo, tipo partido real.
+- **Modo destacados (FM):** botón en el HUD que alterna entre "Jugar" (elegís
+  cada jugada con modal + minigame) y "Destacados" (el partido se simula solo
+  con `autoPhase` para tus toques — sin modales ni minigame, igual que ver
+  highlights). Tu jugador sigue siendo el protagonista (usa sus stats y se lo
+  ve con aro dorado).
 - **Transición:** el armador corre hacia la pelota (segunda pelota) y los
   atacantes hacen su aproximación a las zonas 2/4/6 según el armado.
 - **Ataque:** el atacante salta/remata hacia la zona elegida.

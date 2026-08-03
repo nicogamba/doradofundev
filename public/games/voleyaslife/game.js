@@ -61,6 +61,7 @@
   var hudSet = document.getElementById('hud-set');
   var hudScore = document.getElementById('hud-score');
   var speedBtn = document.getElementById('speed-btn');
+  var watchBtn = document.getElementById('watch-btn');
   var screen = document.getElementById('screen');
   var modal = document.getElementById('modal');
   var modalTitle = document.getElementById('modal-title');
@@ -105,6 +106,7 @@
   var pointBanner = null;
   var screenFlash = null;
   var serveRing = null;
+  var watchMode = false;
 
   function t(key) {
     return window.VAV.t(lang, key);
@@ -222,19 +224,6 @@
 
   function moveTo(team, index, pos) {
     playerTarget[team][index] = { x: pos.x, y: pos.y };
-  }
-
-  async function approach(team, index, target, maxTime) {
-    moveTo(team, index, target);
-    var t0 = await raf();
-    var dur = (maxTime || 1.2) * 1000 * SPEED_BASE;
-    while (true) {
-      var t = await raf();
-      draw();
-      var p = playerPos[team][index];
-      if (Math.abs(p.x - target.x) < 5 && Math.abs(p.y - target.y) < 5) break;
-      if (t - t0 >= dur) break;
-    }
   }
 
   function setReceiveFormation(team) {
@@ -989,12 +978,14 @@
         to = { x: from.x, y: from.y + (attacking === 0 ? 20 : -20) };
       }
     }
+    var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : playerIndex(defender, playerInZone(defender, 6));
+    if (ridxA >= 0) moveTo(defender, ridxA, to);
     await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : 0.7, overNet: !reason || reason === 'out' });
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
       comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
       pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
-      await sleep(1.0);
+      await sleep(0.6);
     }
     return { ok: ok, quality: sStat };
   }
@@ -1013,17 +1004,22 @@
     var decision = null;
     var quality = 0;
     if (isMy) {
-      await approach(attacking, isMy ? 0 : ridx, from, 2);
-      await showLabel(t('decisionPhase'), '#ffd166', 0.6);
-      decision = await askDecision('receive');
-      quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
-      await showLabel(resultLabel(quality), resultColor(quality), 0.8);
+      if (watchMode) {
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'receive', zone: 6 };
+        quality = autoPhase(playerStat(attacking, thePlayer(), 'R'), incoming) ? 2 : 0;
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('receive');
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
+      }
+      setLabel(resultLabel(quality), resultColor(quality));
     }
     await playSegment({
       from: from,
       to: to,
       seconds: 0.5,
     });
+    label = null;
     var ok;
     var direct = false;
     if (isMy) {
@@ -1038,7 +1034,7 @@
         var rReason = pickReason(['out', 'floor', 'net']);
         comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{reason}', t(reasonKey(rReason))).replace('{team}', teamName(defender)));
         pointBanner = { text: reasonBannerText(rReason), color: '#e0503f', life: 1 };
-        await sleep(1.0);
+        await sleep(0.6);
       }
     }
     return { ok: ok, direct: direct, quality: quality };
@@ -1053,12 +1049,17 @@
     var quality = 0;
     var setZone = 4;
     if (isMy) {
-      await approach(attacking, isMy ? 0 : sidx, ballNow, 2);
-      await showLabel(t('decisionPhase'), '#ffd166', 0.6);
-      decision = await askDecision('set');
-      quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
-      setZone = decision.zone;
-      await showLabel(resultLabel(quality), resultColor(quality), 0.8);
+      if (watchMode) {
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'set', zone: [2, 4, 6][Math.floor(Math.random() * 3)] };
+        setZone = decision.zone;
+        quality = Math.random() < 0.85 ? 2 : 1;
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('set');
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
+        setZone = decision.zone;
+      }
+      setLabel(resultLabel(quality), resultColor(quality));
     } else {
       var zones = [2, 4, 6];
       setZone = zones[Math.floor(Math.random() * 3)];
@@ -1076,6 +1077,7 @@
       to: target,
       seconds: 0.45,
     });
+    label = null;
     var ok = isMy ? quality >= decision.threshold : true;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
@@ -1085,7 +1087,7 @@
       var sReason = pickReason(['net', 'double']);
       comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey(sReason))).replace('{team}', teamName(defender)));
       pointBanner = { text: reasonBannerText(sReason), color: '#e0503f', life: 1 };
-      await sleep(1.0);
+      await sleep(0.6);
     }
     return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker };
   }
@@ -1099,12 +1101,17 @@
     var quality = 0;
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
-      await approach(attacking, 0, attackSpot(attacking, setZone), 2);
-      await showLabel(t('decisionPhase'), '#ffd166', 0.6);
-      decision = await askDecision('attack');
-      quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
-      hitZone = decision.zone;
-      await showLabel(resultLabel(quality), resultColor(quality), 0.8);
+      if (watchMode) {
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'attack', zone: [1, 5, 6][Math.floor(Math.random() * 3)] };
+        hitZone = decision.zone;
+        quality = autoPhase(playerStat(attacking, thePlayer(), 'A') + setQuality, teamPhaseStat(defender, 'B')) ? 2 : 0;
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('attack');
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
+        hitZone = decision.zone;
+      }
+      setLabel(resultLabel(quality), resultColor(quality));
     } else {
       var zones = [1, 5, 6];
       hitZone = zones[Math.floor(Math.random() * 3)];
@@ -1128,18 +1135,27 @@
     setDefenseReady(defender);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     setJump(attacking, isMy ? 0 : aidx);
+    for (var bi = 0; bi < teams[defender].length; bi++) {
+      var bp = teams[defender][bi];
+      if (bp.role === 'middle') {
+        moveTo(defender, bi, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 40 : -40) });
+      }
+    }
+    var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : playerIndex(defender, playerInZone(defender, 6));
+    if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (defender === 0 ? 16 : -16) });
     await playSegment({
       from: ballNow,
       to: target,
       seconds: 0.5,
       overNet: !aReason || aReason === 'invade',
     });
+    label = null;
     var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
     var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     if (!ok) {
       comment(t('attackFail').replace('{name}', attackerName).replace('{reason}', t(reasonKey(aReason))).replace('{team}', teamName(defender)));
       pointBanner = { text: reasonBannerText(aReason), color: '#e0503f', life: 1 };
-      await sleep(1.0);
+      await sleep(0.6);
     } else if (isMy && decision.key === 'suelta') {
       comment(t('tipBy').replace('{name}', attackerName));
     } else {
@@ -1175,11 +1191,15 @@
     var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
     var ok;
     if (isMyTurn(defending, 'defend')) {
-      await approach(defending, 0, { x: zoneBasePos(defending, hitZone).x, y: COURT.netY + (defending === 0 ? 16 : -16) }, 2);
-      await showLabel(t('decisionPhase'), '#ffd166', 0.6);
-      var decision = await askDecision('block');
-      var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
-      await showLabel(resultLabel(bq), resultColor(bq), 0.8);
+      var bq;
+      if (watchMode) {
+        bq = autoPhase(playerStat(defending, thePlayer(), 'B'), atkPower) ? 2 : 0;
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        var decision = await askDecision('block');
+        bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
+      }
+      setLabel(resultLabel(bq), resultColor(bq));
       ok = autoPhase(blockPower(defending, bq), atkPower);
     } else {
       ok = autoPhase(blockPower(defending), atkPower);
@@ -1192,17 +1212,19 @@
         to: playerPos[defending][sidx],
         seconds: 0.5,
       });
+      label = null;
     } else {
       var dReason = pickReason(['out', 'floor', 'three']);
       comment(t('defendFail').replace('{name}', pName(defending, dig)).replace('{reason}', t(reasonKey(dReason))).replace('{team}', teamName(attacking)));
       pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
-      await sleep(1.0);
+      await sleep(0.6);
       setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
         to: zoneBasePos(defending, hitZone),
         seconds: 0.4,
       });
+      label = null;
     }
     return { ok: ok };
   }
@@ -1217,7 +1239,7 @@
 
   async function threeTouches(winnerTeam) {
     pointBanner = { text: reasonBannerText('three'), color: '#e0503f', life: 1 };
-    await sleep(1.0);
+    await sleep(0.6);
     await scorePoint(winnerTeam);
   }
 
@@ -1294,7 +1316,7 @@
   }
   async function showDirectPoint() {
     pointBanner = { text: t('directPoint'), color: '#ffd166', life: 1 };
-    await sleep(1.0);
+    await sleep(0.7);
   }
 
   async function scorePoint(team) {
@@ -2119,6 +2141,20 @@
     thisSpeed = thisSpeed === 1 ? 2 : 1;
     speedBtn.textContent = '×' + thisSpeed;
   };
+
+  function updateWatchBtn() {
+    watchBtn.textContent = watchMode ? t('watchOn') : t('watchOff');
+    if (watchMode) {
+      watchBtn.classList.add('active');
+    } else {
+      watchBtn.classList.remove('active');
+    }
+  }
+  watchBtn.onclick = function () {
+    watchMode = !watchMode;
+    updateWatchBtn();
+  };
+  updateWatchBtn();
 
   window.addEventListener('resize', resize);
   window.addEventListener('storage', function (e) {

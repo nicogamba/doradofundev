@@ -51,6 +51,12 @@ canvas {
   cursor: pointer;
 }
 
+.speed-btn.active {
+  background: #4a5568;
+  border-color: #ffd166;
+  color: #ffd166;
+}
+
 .hud-score-pulse {
   animation: scorePulse 0.5s ease;
   display: inline-block;
