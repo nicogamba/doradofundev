@@ -1068,7 +1068,7 @@
     var aidx = playerIndex(attacking, attacker);
     var target = attackSpot(attacking, setZone);
     setOffenseFormation(attacking, setZone);
-    setDefenseReady(defending);
+    setDefenseReady(defender);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     await playSegment({
