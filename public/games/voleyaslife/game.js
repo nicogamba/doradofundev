@@ -223,6 +223,19 @@
     playerTarget[team][index] = { x: pos.x, y: pos.y };
   }
 
+  async function approach(team, index, target, maxTime) {
+    moveTo(team, index, target);
+    var t0 = await raf();
+    var dur = (maxTime || 1.2) * 1000 * SPEED_BASE;
+    while (true) {
+      var t = await raf();
+      draw();
+      var p = playerPos[team][index];
+      if (Math.abs(p.x - target.x) < 5 && Math.abs(p.y - target.y) < 5) break;
+      if (t - t0 >= dur) break;
+    }
+  }
+
   function setReceiveFormation(team) {
     var variant = Math.random() < 0.5 ? 'W' : 'two';
     for (var i = 0; i < teams[team].length; i++) {
@@ -264,6 +277,38 @@
       var spread = i === 2 ? 26 : i === 4 ? -26 : 0;
       moveTo(team, idx, { x: targetX + spread, y: COURT.netY + netOffset });
       setJump(team, idx);
+    }
+  }
+
+  function setDefenseFormation(team, hitZone) {
+    setBlockFormation(team, hitZone);
+    var centerX = zoneBasePos(team, 6).x;
+    for (var i = 5; i <= 6; i++) {
+      var p = playerInZone(team, i);
+      if (!p) continue;
+      var idx = playerIndex(team, p);
+      if (i === 6) {
+        moveTo(team, idx, zoneBasePos(team, hitZone));
+        setJump(team, idx);
+      } else {
+        var base = zoneBasePos(team, i);
+        var tx = base.x + (i === 5 ? -12 : 12);
+        if (hitZone === 6) tx = centerX + (i === 5 ? -34 : 34);
+        moveTo(team, idx, { x: tx, y: base.y + (team === 0 ? 12 : -12) });
+      }
+    }
+  }
+
+  function setCover(team) {
+    var centerX = zoneBasePos(team, 6).x;
+    for (var i = 5; i <= 6; i++) {
+      var p = playerInZone(team, i);
+      if (!p) continue;
+      var idx = playerIndex(team, p);
+      var base = zoneBasePos(team, i);
+      var tx = base.x;
+      if (i === 6) tx = centerX;
+      moveTo(team, idx, { x: tx, y: base.y + (team === 0 ? 18 : -18) });
     }
   }
 
@@ -918,7 +963,7 @@
     var decision = null;
     var quality = 0;
     if (isMy) {
-      await sleep(0.5);
+      await approach(attacking, isMy ? 0 : ridx, from, 1.2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('receive');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -957,7 +1002,7 @@
     var quality = 0;
     var setZone = 4;
     if (isMy) {
-      await sleep(0.5);
+      await approach(attacking, isMy ? 0 : sidx, ballNow, 1.2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('set');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
@@ -973,6 +1018,7 @@
     var target = { x: playerPos[attacking][aidx].x, y: playerPos[attacking][aidx].y + (attacking === 0 ? -32 : 32) };
     setFormationTargets();
     setTransition(attacking);
+    setCover(attacking);
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     await playSegment({
@@ -1002,7 +1048,7 @@
     var quality = 0;
     var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
     if (isMy) {
-      await sleep(0.5);
+      await approach(attacking, isMy ? 0 : aidx, ballNow, 1.2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       decision = await askDecision('attack');
       quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
@@ -1076,7 +1122,7 @@
     var atkPower = (attackerStat || playerStat(attacking, playerInZone(attacking, hitZone === 6 ? 3 : 4), 'A')) + attackQuality + defZoneMod(hitZone);
     var ok;
     if (isMyTurn(defending, 'defend')) {
-      await sleep(0.5);
+      await approach(defending, 0, { x: zoneBasePos(defending, hitZone).x, y: COURT.netY + (defending === 0 ? 16 : -16) }, 1.2);
       await showLabel(t('decisionPhase'), '#ffd166', 0.6);
       var decision = await askDecision('block');
       var bq = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
@@ -1088,9 +1134,7 @@
     if (ok) {
       comment(t('defendOk').replace('{name}', pName(defending, dig)));
       setFormationTargets();
-      setBlockFormation(defending, hitZone);
-      moveTo(defending, didx, zoneBasePos(defending, hitZone));
-      setJump(defending, didx);
+      setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
         to: playerPos[defending][sidx],
@@ -1102,9 +1146,7 @@
       pointBanner = { text: reasonBannerText(dReason), color: '#e0503f', life: 1 };
       await sleep(0.7);
       setFormationTargets();
-      setBlockFormation(defending, hitZone);
-      moveTo(defending, didx, zoneBasePos(defending, hitZone));
-      setJump(defending, didx);
+      setDefenseFormation(defending, hitZone);
       await playSegment({
         from: from,
         to: { x: from.x, y: from.y + 40 },
