@@ -1593,12 +1593,12 @@
     var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
     if (ridxA < 0) ridxA = playerIndex(defender, playerInZone(defender, 6));
     var sIdxA = playerIndex(defender, setterPlayer(defender));
-    if (sIdxA >= 0) moveTo(defender, sIdxA, setterSpot(defender));
     var svDist = dist2(from, to);
     var svTime = svDist / ballSpeed(sStat);
     var received = ok ? raceReaches(defender, ridxA, to, svTime) : false;
     var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
-    if (ridxA >= 0) moveTo(defender, ridxA, to);
+    if (ridxA >= 0 && ok) moveTo(defender, ridxA, to);
+    if (sIdxA >= 0 && ok) moveTo(defender, sIdxA, setterSpot(defender));
     await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, ballSpeed(sStat))), overNet: !reason || reason === 'out' });
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
@@ -1655,6 +1655,7 @@
       x: sp.x + (Math.random() - 0.5) * 2 * spray * 46,
       y: sp.y + (Math.random() - 0.5) * 2 * spray * 32,
     };
+    moveTo(attacking, sidx, to);
     var contact = { x: playerPos[attacking][ridx].x, y: playerPos[attacking][ridx].y };
     if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     var passDist = dist2(contact, to);
@@ -1711,7 +1712,7 @@
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
-    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.35);
+    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.12);
     var setTouch = { x: playerPos[attacking][isMy ? 0 : sidx].x, y: playerPos[attacking][isMy ? 0 : sidx].y };
     await playSegment({
       from: ballNow,
