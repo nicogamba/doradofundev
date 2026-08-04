@@ -858,7 +858,7 @@
   }
 
   function segSeconds(dist, speed) {
-    return (dist / speed) * thisSpeed / SPEED_BASE;
+    return (dist / speed) / SPEED_BASE;
   }
 
   function qualityFromMargin(margin, stat) {
@@ -871,7 +871,7 @@
     simTime++;
     for (var key = 0; key < 2; key++) {
       for (var i = 0; i < playerPos[key].length; i++) {
-        var step = moveSpeed(key, i) / 60;
+        var step = (moveSpeed(key, i) / 60) * thisSpeed;
         var cur = playerPos[key][i];
         var tgt = playerTarget[key][i];
         var dx = tgt.x - cur.x;
@@ -1086,7 +1086,7 @@
 
   async function sleep(seconds) {
     var t0 = await raf();
-    var dur = (seconds * SPEED_BASE) * 1000;
+    var dur = ((seconds * SPEED_BASE) / thisSpeed) * 1000;
     while (true) {
       var t = await raf();
       draw();
@@ -1096,7 +1096,7 @@
 
   async function ensureContact(team, idx, spot, maxWait) {
     var t0 = await raf();
-    var dur = (maxWait || 0.4) * 1000 * SPEED_BASE;
+    var dur = (((maxWait || 0.4) * SPEED_BASE) / thisSpeed) * 1000;
     while (Math.hypot(playerPos[team][idx].x - spot.x, playerPos[team][idx].y - spot.y) > 16) {
       var t = await raf();
       draw();
@@ -1662,7 +1662,7 @@
     await playSegment({
       from: contact,
       to: to,
-      seconds: segSeconds(passDist, 90 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
+      seconds: segSeconds(passDist, 115 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
       arc: 50,
     });
     label = null;
@@ -1708,7 +1708,7 @@
     moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
     moveTo(attacking, aidx, target);
     var setterR = playerStat(attacking, setter, 'R');
-    var setSpeed = 95 + (setterR + quality) * 12;
+    var setSpeed = 115 + (setterR + quality) * 12;
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
@@ -1902,7 +1902,7 @@
     await playSegment({
       from: digFrom,
       to: to,
-      seconds: segSeconds(digDist, 70 + digQuality * 18),
+      seconds: segSeconds(digDist, 95 + digQuality * 18),
       arc: 28,
     });
     label = null;
@@ -1937,13 +1937,11 @@
     match.k2 = server;
     var receiveTeam = 1 - server;
     await sleep(0.5);
-    applyLibero(0, false);
-    applyLibero(1, false);
+    applyLibero(server, false);
+    applyLibero(receiveTeam, true);
     setReceiveFormation(receiveTeam);
     setDefenseReady(server);
     var serve = await doServe(server, receiveTeam);
-    applyLibero(0, true);
-    applyLibero(1, true);
     if (!serve.ok) {
       await scorePoint(receiveTeam);
       return;

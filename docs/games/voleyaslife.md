@@ -332,7 +332,10 @@ guionada por rol, no física):
   sale del margen de la carrera + la stat y alimenta la cadena
   recepción→armado→remate. El pase/remate sale de la **posición real del
   jugador** y cada toque muestra un **anillo blanco** en el jugador (la **X**
-  solo cuando la pelota toca el suelo).
+  solo cuando la pelota toca el suelo). **Velocidad consistente:** los pases
+  van a ~115-190 px/s (controlados) y el saque/remate a ~275-395 px/s; el
+  modo **×2** acelera todo por igual (pelota, jugadores y pausas) para que no
+  se vea la pelota "volar" mientras los jugadores caminan.
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
@@ -686,13 +689,14 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 **Hecho:**
 
-- **Líbero (§5.4):** entra automáticamente por el **central zaguero** (zona
-  5 o 6; si el central está en zona 1, saca primero y el líbero ingresa
-  después). **El swap se ve antes del saque**: el central aparece en cancha,
-  el líbero arranca en el **banco** y corre a zona 5 durante el aviso,
-  mientras el central pasa al banco. Solo juega de zaguero, base **zona 5**,
-  stats de especialista (R=6/D=6), **no saca, no bloquea ni ataca por encima
-  de la red**, es el **receptor principal** (`closestReceiver`). Swap aplicado
-  durante el aviso de saque y deshecho antes de rotar (`applyLibero`/
-  `undoLibero`). **Banco visible** en la cancha + **DT** con nombre al costado
-  y en la pantalla entre-partido.
+- **Líbero (§5.4):** entra automáticamente por el **central zaguero**
+  **solo con la pelota fuera de juego** (acomodo previo al saque): el equipo
+  que saca lo hace en zonas 5/6 (si el central está en zona 1, saca él
+  primero y el líbero entra cuando su equipo recibe); el equipo que recibe lo
+  hace en zonas 5/6/1. **El swap se ve antes del saque**: el central aparece
+  en cancha, el líbero arranca en el **banco** y corre a zona 5 durante el
+  aviso, mientras el central pasa al banco. Solo juega de zaguero, base
+  **zona 5**, stats de especialista (R=6/D=6), **no saca, no bloquea ni
+  ataca por encima de la red**, es el **receptor principal**
+  (`closestReceiver`). **Banco visible** en la cancha + **DT** con nombre al
+  costado y en la pantalla entre-partido.
