@@ -254,14 +254,19 @@ guionada por rol, no física):
   - **Nivel 1 — Decisiones situacionales:** el armador elige zona por
     ponderación (calidad de recepción, atacante disponible delantero/zaguero,
     sus stats, tendencia y lectura aleatoria acotada — `setZoneChoice`); el
-    atacante elige zona de remate leyendo el bloqueo (rematar lejos de la
-    columna del set) y su tendencia/agresividad (`hitZoneChoice`); el bloqueo
-    lee al atacante (`blockGuess`): si acierta la zona, el remate es más
-    difícil (-2.2); si no, más fácil (+0.6).
+    atacante elige zona de remate leyendo el **bloqueo** (rematar lejos de la
+    columna del set), la **defensa rival** (un rival con mejor D atrae menos
+    remates a los rincones — `defCover`) y su tendencia/agresividad
+    (`hitZoneChoice`); el bloqueo lee al atacante y su **habilidad de bloqueo**
+    (un equipo con mejor B lee mejor — `blockGuess`): si acierta la zona, el
+    remate es más difícil (-2.2); si no, más fácil (+0.6).
   - **Nivel 2 — Movimiento con propósito:** el **receptor más cercano** al
     saque sale a recibirlo (no siempre el de zona 6); el deslizamiento de
-    zona cubre el hueco cuando un zaguero sale; la lectura reactiva dibuja a
-    cada jugador inclinándose hacia la pelota (offset acotado, zagueros más).
+    zona cubre el hueco cuando un zaguero sale; la **cobertura defensiva se
+    pre-posiciona según la tendencia del atacante** (`tendencyCover`: los
+    zagueros se inclinan hacia el lado preferido del rematador); la lectura
+    reactiva dibuja a cada jugador inclinándose hacia la pelota (offset
+    acotado, zagueros más).
   - **Nivel 3 — Identidad por jugador:** cada jugador tiene un **perfil de
     tendencias** (`tend`: zona favorita de armado/remate, agresividad,
     inteligencia) generado de sus stats + azar, que sesga las decisiones. El
@@ -319,9 +324,12 @@ guionada por rol, no física):
 - **Física pelota–jugador (la pelota encuentra al jugador):** la pelota vuela
   a una **velocidad según la stat del que le pega** (`ballSpeed(stat)` =
   175 + stat×20 px/s para saque/remate; los **pases** son controlados: la
-  **recepción** va a `90 + R×12` px/s con arco 50, el **armado** a `95 +
-  (R+calidad)×12` con arco 35 y el **dig** a `70 + calidad×18` con arco 28 —
-  nada de curvas ni velocidad de golpe duro en los pases). El jugador que
+  **recepción** va a `90 + R×12` px/s, el **armado** a `95 + (R+calidad)×12`
+  y el **dig** a `70 + calidad×18` — nada de curvas ni velocidad de golpe duro
+  en los pases). El **efecto por golpe** se ve en el **arco**: la recepción
+  sube más alto cuanto peor es (`72 − calidad×11` — una recepción mala "se
+  popa" y el armador la persigue) y el **dig** también (`34 − calidad×4`);
+  el armado es plano (~35) y el remate cae con arco 52. El jugador que
   debe tocarla corre a **su velocidad** (`moveSpeed` = 165 + D×15 px/s). Hay
   una **carrera** en cada fase de persecución (`raceReaches`): si el jugador
   llega antes que la pelota al punto de contacto, **la toca** y el rally
@@ -339,7 +347,12 @@ guionada por rol, no física):
 - La **decisión del jugador define la zona y la jugada**, y el resultado
   **cascada**: calidad del armado → calidad del remate del atacante de esa
   zona (stat) → defensa rival (bloqueo + posicionamiento).
-- El saque es **automático** (resuelto por la stat Saque).
+- El saque es **automático** (resuelto por la stat Saque) pero con
+  **variedad**: **corto** (cae tras la línea de 3m), **profundo** (fondo),
+  **normal** (al azar en el campo) y **saltado** (solo sacadores fuertes,
+  ~35% de sus saques: más rápido con +1 stat y más profundo). Todos apuntan
+  al **receptor más débil** del rival (menor Recepción). En **clutch** (su
+  equipo va perdiendo) el sacador arriesga más (más saltados).
 - Cuando el rally llega al momento de **tu posición**, se pausa y aparece:
   1. **Decisión de jugada** atada a la jugada de vóley (§7).
   2. **Minijuego de timing bar** (§6) para ejecutar.

@@ -1144,6 +1144,21 @@
     };
   }
 
+  function weakestReceiver(team) {
+    var best = null;
+    var bestStat = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === 'setter' || p.role === 'middle' || p.role === 'opposite') continue;
+      var r = playerStat(team, p, 'R');
+      if (r < bestStat) {
+        bestStat = r;
+        best = { x: playerPos[team][i].x, y: playerPos[team][i].y };
+      }
+    }
+    return best;
+  }
+
   function clubPowerOfPlayer() {
     return career && career.clubs ? career.clubs[career.clubIdx].power : 4;
   }
@@ -1445,6 +1460,13 @@
 
   // ---------- IA: decisiones situacionales (Nivel 1) ----------
 
+  function scoreGap(team) {
+    if (!match) return 0;
+    var diff = match.scores[team] - match.scores[1 - team];
+    var atSet = (match.scores[0] >= SET_TARGET - 1 || match.scores[1] >= SET_TARGET - 1);
+    return Math.max(-1.5, Math.min(1.5, diff * 0.1 + (atSet ? (diff >= 0 ? -0.3 : 0.3) : 0)));
+  }
+
   function setZoneChoice(attacking, defender, receiveQuality) {
     var rq = typeof receiveQuality === 'number' ? receiveQuality : 2;
     var zones = [];
@@ -1484,12 +1506,13 @@
     var attacker = attackerForZone(attacking, setZone);
     var tend = tendOf(attacking, playerIndex(attacking, attacker));
     var stat = typeof aStat === 'number' ? aStat : 5;
+    var defCover = (teamPhaseStat(defender, 'D') - 5) * 0.1;
     var weights = zones.map(function (z) {
       var w = 1;
       if (z === 6) {
         w += 0.5 + (1 - tend.aggr) * 0.7;
       } else {
-        w += tend.aggr * 0.9 + Math.max(0, stat - 5) * 0.15;
+        w += tend.aggr * 0.9 + Math.max(0, stat - 5) * 0.15 + defCover;
       }
       if (setZone === 2 && z === 5) w += 0.8 + tend.smart * 0.5;
       if (setZone === 4 && z === 1) w += 0.8 + tend.smart * 0.5;
@@ -1506,6 +1529,7 @@
     var attacker = attackerForZone(attacking, setZone);
     var tend = tendOf(attacking, playerIndex(attacking, attacker));
     var smart = tend.smart * 0.45 + 0.1;
+    smart = Math.max(0.15, Math.min(0.85, smart + (teamPhaseStat(defending, 'B') - 5) * 0.08));
     var weights = zones.map(function (z) {
       var w = 0.5 + Math.random() * 1.4;
       if (z === tend.hitPref) w += smart * 1.0;
@@ -1578,8 +1602,29 @@
     var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
     var reason = null;
     var to;
+    var jumpServe = false;
     if (ok) {
-      to = zoneSpot(defender);
+      jumpServe = sStat >= 7 && Math.random() < 0.35 + (scoreGap(attacking) < 0 ? 0.2 : 0);
+      if (jumpServe) {
+        to = {
+          x: COURT.x + 55 + Math.random() * (COURT.w - 110),
+          y: isBottom(defender) ? COURT.netY + 150 + Math.random() * 40 : COURT.netY - 150 - Math.random() * 40,
+        };
+      } else if (Math.random() < 0.4) {
+        to = {
+          x: COURT.x + 55 + Math.random() * (COURT.w - 110),
+          y: isBottom(defender) ? COURT.netY + 85 + Math.random() * 30 : COURT.netY - 85 - Math.random() * 30,
+        };
+      } else {
+        to = zoneSpot(defender);
+      }
+      var weak = weakestReceiver(defender);
+      if (weak) {
+        to = {
+          x: weak.x + (Math.random() * 60 - 30),
+          y: weak.y + (Math.random() * 50 - 25),
+        };
+      }
     } else {
       reason = pickReason(['net', 'out', 'foot']);
       if (reason === 'net') {
@@ -1593,13 +1638,14 @@
     var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
     if (ridxA < 0) ridxA = playerIndex(defender, playerInZone(defender, 6));
     var sIdxA = playerIndex(defender, setterPlayer(defender));
+    var svSpeed = ballSpeed(sStat + (jumpServe ? 1 : 0));
     var svDist = dist2(from, to);
-    var svTime = svDist / ballSpeed(sStat);
+    var svTime = svDist / svSpeed;
     var received = ok ? raceReaches(defender, ridxA, to, svTime) : false;
     var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
     if (ridxA >= 0 && ok) moveTo(defender, ridxA, to);
     if (sIdxA >= 0 && ok) moveTo(defender, sIdxA, setterSpot(defender));
-    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, ballSpeed(sStat))), overNet: !reason || reason === 'out' });
+    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, svSpeed)), overNet: !reason || reason === 'out' });
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
@@ -1663,7 +1709,7 @@
       from: contact,
       to: to,
       seconds: segSeconds(passDist, 115 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
-      arc: 50,
+      arc: 72 - quality * 11,
     });
     label = null;
     addTouch(contact.x, contact.y);
@@ -1787,6 +1833,7 @@
     }
     setOffenseFormation(attacking, setZone);
     setDefenseFormation(defender, hitZone, blockG);
+    tendencyCover(defender, attacking, setZone);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
     if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
       setJump(attacking, isMy ? 0 : aidx);
@@ -1868,6 +1915,17 @@
     return best;
   }
 
+  function tendencyCover(defender, attacking, setZone) {
+    var attacker = attackerForZone(attacking, setZone);
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var coverX = zoneBasePos(defender, tend.hitPref).x;
+    for (var i = 0; i < teams[defender].length; i++) {
+      if (isFrontRow(defender, i)) continue;
+      var spot = playerTarget[defender][i];
+      moveTo(defender, i, { x: spot.x + (coverX - spot.x) * 0.25, y: spot.y });
+    }
+  }
+
   async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat, defenseMargin, digIdx) {
     match.rallyTouches[defending]++;
     var setter = setterPlayer(defending);
@@ -1903,7 +1961,7 @@
       from: digFrom,
       to: to,
       seconds: segSeconds(digDist, 95 + digQuality * 18),
-      arc: 28,
+      arc: 34 - digQuality * 4,
     });
     label = null;
     addTouch(digFrom.x, digFrom.y);
