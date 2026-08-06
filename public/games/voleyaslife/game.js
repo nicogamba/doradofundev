@@ -1016,14 +1016,15 @@
       var react = ballReact(team, i);
       var drawX = p.x + swayX + react.x;
       var drawY = p.y + swayY - jump * 22 + slump * 8 + react.y;
-      ctx.fillStyle = p.isLibero ? LIBERO_COLOR : color;
+      var isLiberoPlayer = !!(teams[team][i] && teams[team][i].isLibero);
+      ctx.fillStyle = isLiberoPlayer ? LIBERO_COLOR : color;
       ctx.beginPath();
       ctx.arc(drawX, drawY, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
-      if (p.isLibero) {
+      if (isLiberoPlayer) {
         ctx.fillStyle = '#fff';
         ctx.font = '700 10px system-ui, sans-serif';
         ctx.textAlign = 'center';
@@ -1126,7 +1127,7 @@
     }
   }
 
-  async function playSegment(script) {
+  async function playSegment(script, contact) {
     var from = script.from;
     var to = script.to;
     var seconds = script.seconds || 0.5;
@@ -1148,11 +1149,23 @@
       ballTrail.push({ x: ball.x, y: ball.y, a: 1 });
       if (ballTrail.length > 8) ballTrail.shift();
       draw();
+      if (contact && p > 0.04) {
+        var px = playerPos[contact.team] && playerPos[contact.team][contact.idx];
+        if (px && Math.hypot(ball.x - px.x, ball.y - px.y) < 24) {
+          ball.h = 0;
+          ballTrail.length = 0;
+          ballNow = { x: ball.x, y: ball.y };
+          if (contact.onContact) contact.onContact(ballNow);
+          return true;
+        }
+      }
       if (p >= 1) break;
     }
     ball.h = 0;
     ballTrail.length = 0;
     ballNow = { x: to.x, y: to.y };
+    if (contact && contact.onMiss) contact.onMiss(ballNow);
+    return false;
   }
 
   function resetPlayerPositions() {
@@ -1663,11 +1676,25 @@
     var svSpeed = ballSpeed(sStat + (jumpServe ? 1 : 0));
     var svDist = dist2(from, to);
     var svTime = svDist / svSpeed;
-    var received = ok ? raceReaches(defender, ridxA, to, svTime) : false;
+    var received = false;
     var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
     if (ridxA >= 0 && ok) moveTo(defender, ridxA, to);
     if (sIdxA >= 0 && ok) moveTo(defender, sIdxA, setterSpot(defender));
-    await playSegment({ from: from, to: to, seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, svSpeed)), overNet: !reason || reason === 'out' });
+    var serveSeg = {
+      from: from,
+      to: to,
+      seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, svSpeed)),
+      overNet: !reason || reason === 'out',
+    };
+    if (ok && ridxA >= 0) {
+      received = await playSegment(serveSeg, {
+        team: defender,
+        idx: ridxA,
+        onMiss: function () {},
+      });
+    } else {
+      await playSegment(serveSeg);
+    }
     if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
     comment(t('serveBy').replace('{name}', pName(attacking, server)));
     if (!ok) {
@@ -1717,7 +1744,6 @@
     }
     setReceiveFormation(attacking);
     moveTo(attacking, ridx, { x: landing.x, y: landing.y });
-    await ensureContact(attacking, ridx, ballNow, 0.18);
     var sp = playerTarget[attacking][sidx];
     var spray = 1 - Math.max(0, Math.min(3, quality)) / 3;
     var to = {
@@ -1728,15 +1754,30 @@
     var contact = { x: ballNow.x, y: ballNow.y };
     if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     var passDist = dist2(contact, to);
+    var passMiss = false;
     await playSegment({
       from: contact,
       to: to,
       seconds: segSeconds(passDist, 115 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
       arc: 72 - quality * 11,
+    }, {
+      team: attacking,
+      idx: sidx,
+      onMiss: function () {
+        passMiss = true;
+      },
     });
+    var receiver = teams[attacking][ridx];
+    if (passMiss) {
+      label = null;
+      addImpact(ballNow.x, ballNow.y);
+      comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{team}', teamName(defender)));
+      pointBanner = { text: t('reasonFloor'), color: '#e0503f', life: 1 };
+      await sleep(0.6);
+      return { ok: false, direct: false, quality: quality };
+    }
     label = null;
     addTouch(contact.x, contact.y);
-    var receiver = teams[attacking][ridx];
     if (isMy) {
       comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
     } else {
@@ -1780,16 +1821,19 @@
     var setSpeed = 115 + (setterR + quality) * 12;
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
-    var arrived = raceReaches(attacking, aidx, target, stTime);
-    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.22);
-    await playSegment({
+    var setTouch = { x: ballNow.x, y: ballNow.y };
+    var arrived = await playSegment({
       from: ballNow,
       to: target,
       seconds: segSeconds(stDist, setSpeed),
       arc: 35,
+    }, {
+      team: attacking,
+      idx: aidx,
+      onMiss: function () {},
     });
     label = null;
-    addTouch(ballNow.x, ballNow.y);
+    addTouch(setTouch.x, setTouch.y);
     var ok = isMy ? quality >= decision.threshold : arrived;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
@@ -1857,13 +1901,13 @@
     setDefenseFormation(defender, hitZone, blockG);
     tendencyCover(defender, attacking, setZone);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
-    await ensureContact(attacking, isMy ? 0 : aidx, ballNow, 0.18);
     if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
       setJump(attacking, isMy ? 0 : aidx);
     } else {
       playerJump[attacking][isMy ? 0 : aidx] = 0;
     }
-    var didxA = (defender === 0 && isPlayerTurn('defend')) ? 0 : -1;
+    var isMyDefend = (defender === 0 && isPlayerTurn('defend'));
+    var didxA = isMyDefend ? 0 : -1;
     if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (isBottom(defender) ? 16 : -16) });
     var atkStat2 = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
     var reached = false;
@@ -1894,10 +1938,25 @@
       var spikeSpeed = ballSpeed(atkStat2 + setQuality);
       var skDist = dist2(ballNow, target);
       var skTime = skDist / spikeSpeed;
+      var spikeContact = null;
       if (ok) {
         digIdx = closestDefender(defender, target);
-        reached = digIdx >= 0 && raceReaches(defender, digIdx, target, skTime);
         defenseMargin = skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0);
+        if (digIdx >= 0 && !isMyDefend) {
+          moveTo(defender, digIdx, target);
+          spikeContact = {
+            team: defender,
+            idx: digIdx,
+            onContact: function () {
+              reached = true;
+            },
+            onMiss: function () {
+              addImpact(ballNow.x, ballNow.y);
+            },
+          };
+        } else if (digIdx >= 0) {
+          reached = raceReaches(defender, digIdx, target, skTime);
+        }
       }
       await playSegment({
         from: ballNow,
@@ -1905,7 +1964,7 @@
         seconds: segSeconds(skDist, spikeSpeed),
         overNet: !aReason || aReason === 'invade',
         arc: 52,
-      });
+      }, spikeContact);
       if (!ok && aReason === 'net') addTouch(target.x, target.y);
     }
     label = null;

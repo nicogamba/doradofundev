@@ -186,6 +186,15 @@ guionada por rol, no física):
   bloqueo/defensa se desplaza hacia la zona del remate en cuanto se decide la
   zona. La decisión del jugador se pide **en el momento del contacto** (no
   tras caminar hasta el balón).
+- **Toque por intercepción (fluidez real):** cada tramo de la pelota
+  (`playSegment`) admite un **contacto**: el tramo termina cuando la pelota
+  queda a <24 px del jugador que la va a jugar — la pelota **se juega en el
+  aire**, sin aterrizar ni esperar a nadie (el anillo de toque queda sobre la
+  pelota, no en el piso). Si **nadie llega**, el tramo completa su vuelo y la
+  pelota **toca el suelo** (impacto + punto): saque no recibido = ace,
+  pase/armado no alcanzado = error del receptor, remate no alcanzado = punto.
+  Los `ensureContact` (esperar al jugador con la pelota detenida) se eliminaron
+  de saque/recepción/armado/remate.
 - **Sin pausas muertas:** el resultado de cada toque se muestra **mientras la
   pelota vuela** (no 0.8 s parados) y los avisos de fallo duran ~0.6 s. El
   flujo es continuo, tipo partido real.
