@@ -257,6 +257,44 @@ select {
   line-height: 1.5;
 }
 
+.modal--tap {
+  position: absolute;
+  inset: auto 0 0 0;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem 1rem;
+  background: linear-gradient(transparent, rgba(9, 11, 16, 0.86) 45%);
+  backdrop-filter: none;
+  pointer-events: none;
+  text-align: center;
+}
+
+.modal--tap #modal-title {
+  font-size: 1rem;
+}
+
+.modal--tap #modal-text {
+  margin-bottom: 0.2rem;
+  font-size: 0.82rem;
+  color: #ffd166;
+}
+
+.modal--tap .modal-buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+
+.modal--tap .btn {
+  font-size: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .modal-buttons {
   display: flex;
   flex-direction: column;

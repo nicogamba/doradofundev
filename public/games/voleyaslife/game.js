@@ -145,6 +145,7 @@
   var serveRing = null;
   var watchMode = false;
   var paused = false;
+  var tapMode = false;
 
   function t(key) {
     return window.VAV.t(lang, key);
@@ -826,6 +827,7 @@
 
     drawImpacts();
     drawFeedback();
+    drawTapZones();
 
     if (label) {
       ctx.globalAlpha = Math.min(1, label.life * 2);
@@ -2187,6 +2189,7 @@
   }
 
   function hideModal() {
+    modal.classList.remove('modal--tap');
     modal.classList.add('hidden');
   }
 
@@ -2245,7 +2248,13 @@
     });
   }
 
+  var awaitingTap = false;
+  var tapPhase = null;
+  var tapResolve = null;
+  var tapReceiveRq = 0;
+
   function askDecision(phase, extra) {
+    if (tapMode && phase !== 'block') return askTapDecision(phase, extra);
     paused = true;
     return new Promise(function (resolve) {
       showModal(t('choosePlay'), t('decisionPhase'));
@@ -2258,6 +2267,104 @@
       hideModal();
       paused = false;
       return d;
+    });
+  }
+
+  function askTapDecision(phase, extra) {
+    paused = true;
+    awaitingTap = true;
+    tapPhase = phase;
+    tapReceiveRq = typeof extra === 'number' ? extra : 0;
+    return new Promise(function (resolve) {
+      tapResolve = resolve;
+      showModal(t('choosePlay'), t('tapHint'));
+      modal.classList.add('modal--tap');
+      var opts = decisionConfig(phase, extra);
+      var config = opts.slice(0, 4).map(function (o) {
+        return { label: o.label, fn: function () { resolveTap(o); } };
+      });
+      modalButtons(config);
+    });
+  }
+
+  function resolveTap(d) {
+    if (!awaitingTap) return;
+    awaitingTap = false;
+    paused = false;
+    modal.classList.remove('modal--tap');
+    hideModal();
+    var r = tapResolve;
+    tapResolve = null;
+    if (r) r(d);
+  }
+
+  function tapToDecision(phase, wx, wy) {
+    if (phase === 'set') {
+      var opts = decisionConfig('set', tapReceiveRq);
+      var best = null;
+      var bestD = Infinity;
+      opts.forEach(function (o) {
+        var c = attackSpot(0, o.zone);
+        var d = Math.hypot(wx - c.x, wy - c.y);
+        if (d < bestD) {
+          bestD = d;
+          best = o;
+        }
+      });
+      return best;
+    }
+    if (phase === 'attack') {
+      var azones = [1, 5, 6];
+      var abest = 5;
+      var abd = Infinity;
+      azones.forEach(function (z) {
+        var c = zoneBasePos(1, z);
+        var d = Math.hypot(wx - c.x, wy - c.y);
+        if (d < abd) {
+          abd = d;
+          abest = z;
+        }
+      });
+      for (var i = 0; i < DECISIONS.attack.length; i++) {
+        if (DECISIONS.attack[i].zone === abest) return DECISIONS.attack[i];
+      }
+      return DECISIONS.attack[0];
+    }
+    if (phase === 'receive') {
+      var s = setterSpot(0);
+      return Math.hypot(wx - s.x, wy - s.y) < 95 ? DECISIONS.receive[0] : DECISIONS.receive[1];
+    }
+    return DECISIONS.block[1];
+  }
+
+  function tapZoneSet() {
+    if (tapPhase === 'set') {
+      return decisionConfig('set', tapReceiveRq).map(function (o) { return { zone: o.zone, team: 0 }; });
+    }
+    if (tapPhase === 'attack') {
+      return [1, 5, 6].map(function (z) { return { zone: z, team: 1 }; });
+    }
+    return [];
+  }
+
+  function drawTapZones() {
+    if (!awaitingTap) return;
+    var zones = tapZoneSet();
+    ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
+    ctx.strokeStyle = 'rgba(255, 209, 102, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    zones.forEach(function (z) {
+      var c = z.team === 0 ? attackSpot(0, z.zone) : zoneBasePos(1, z.zone);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 30 + Math.sin(simTime * 0.12) * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText(String(z.zone), c.x, c.y);
+      ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
     });
   }
 
@@ -2347,7 +2454,7 @@
 
   var career = null;
   var currentScreen = 'setup';
-  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null, pointsPerSet: 15 };
+  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null, pointsPerSet: 15, control: 'buttons' };
 
   function defaultStats(position) {
     return Object.assign({}, POSITIONS[position]);
@@ -2419,6 +2526,10 @@
       '<div class="field"><label>' + t('countryLabel') + '</label><select id="sel-country">' + countryOpts + '</select></div>' +
       '<div class="field"><label>' + t('pointsLabel') + '</label><select id="sel-points">' + pointsOpts + '</select>' +
       '<p class="subtitle">' + t('pointsDesc') + '</p></div>' +
+      '<div class="field"><label>' + t('controlLabel') + '</label><div class="choice-row">' +
+      '<button id="ctl-buttons" class="btn ' + (setupData.control !== 'tap' ? 'active' : 'ghost') + '" type="button">' + t('controlButtons') + '</button>' +
+      '<button id="ctl-tap" class="btn ' + (setupData.control === 'tap' ? 'active' : 'ghost') + '" type="button">' + t('controlTap') + '</button>' +
+      '</div><p class="subtitle">' + t('controlDesc') + '</p></div>' +
       '<div class="field"><label>' + t('clubLabel') + '</label><select id="sel-club">' + clubsOpts + '</select>' +
       '<button id="btn-random-club" class="btn ghost" type="button">' + t('clubRandom') + '</button></div>' +
       '</div>' +
@@ -2440,6 +2551,16 @@
       setupData.sex = 'M';
       byId('sex-m').className = 'btn active';
       byId('sex-f').className = 'btn ghost';
+    };
+    byId('ctl-buttons').onclick = function () {
+      setupData.control = 'buttons';
+      byId('ctl-buttons').className = 'btn active';
+      byId('ctl-tap').className = 'btn ghost';
+    };
+    byId('ctl-tap').onclick = function () {
+      setupData.control = 'tap';
+      byId('ctl-tap').className = 'btn active';
+      byId('ctl-buttons').className = 'btn ghost';
     };
     byId('btn-random-club').onclick = function () {
       var idx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
@@ -2485,7 +2606,7 @@
       var pps = parseInt(byId('sel-points').value, 10);
       if (!isNaN(pps) && POINTS_OPTIONS.indexOf(pps) !== -1) setupData.pointsPerSet = pps;
       var name = setupData.name || t('namePlaceholder');
-      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country, setupData.pointsPerSet);
+      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country, setupData.pointsPerSet, setupData.control);
     };
 
     function checkStart() {
@@ -2500,7 +2621,7 @@
     return DT_NAMES[Math.floor(Math.random() * DT_NAMES.length)];
   }
 
-  function startCareer(position, name, sex, number, clubIdx, age, country, pointsPerSet) {
+  function startCareer(position, name, sex, number, clubIdx, age, country, pointsPerSet, control) {
     career = {
       name: name,
       sex: sex,
@@ -2511,7 +2632,7 @@
       stats: defaultStats(position),
       age: age || 20,
       country: country || 'argentina',
-      settings: { pointsPerSet: pointsPerSet || 15 },
+      settings: { pointsPerSet: pointsPerSet || 15, control: control || 'buttons' },
       dt: randomDT(),
       salary: 1000,
       money: 1000,
@@ -2527,6 +2648,7 @@
     initClubs();
     initLeague();
     SET_TARGET = career.settings.pointsPerSet || 15;
+    tapMode = career.settings.control === 'tap';
     saveCareer();
     showBetween();
   }
@@ -2983,6 +3105,16 @@
   updateWatchBtn();
 
   window.addEventListener('resize', resize);
+  if (court.addEventListener) {
+    court.addEventListener('pointerdown', function (e) {
+      if (!awaitingTap || !tapMode) return;
+      var rect = court.getBoundingClientRect();
+      var wx = (e.clientX - rect.left - offsetX) / scale;
+      var wy = (e.clientY - rect.top - offsetY) / scale;
+      var d = tapToDecision(tapPhase, wx, wy);
+      if (d) resolveTap(d);
+    });
+  }
   window.addEventListener('storage', function (e) {
     if (e.key === window.VAV.LANG_KEY) {
       lang = window.VAV.currentLang();
@@ -3020,6 +3152,7 @@
     if (!career.injured) career.injured = false;
     if (!career.settings) career.settings = { pointsPerSet: 15 };
     SET_TARGET = career.settings.pointsPerSet || 15;
+    tapMode = career.settings.control === 'tap';
     showBetween();
   } else {
     // carreras en formato viejo (liga única) no son compatibles: se descartan

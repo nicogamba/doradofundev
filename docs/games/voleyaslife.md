@@ -509,6 +509,22 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   stats de los implicados (atacante de la zona, bloqueo/defensa rival) deciden
   el desenlace del rally.
 
+### 7.4 Modo de control (configurable al crear la carrera)
+
+- **Botones** (por defecto): las decisiones se eligen del listado de botones
+  (§7.1/§7.2).
+- **Táctil**: en vez de listado, **tocás la cancha** para elegir la zona y
+  después jugás el timing:
+  - **Armado:** tocás el atacante/zona (2/3/4/6/1) → esa es la zona del set.
+  - **Remate:** tocás el campo rival → la zona de defensa más cercana (1/5/6).
+  - **Recepción:** tocar cerca del armador = pase seguro; lejos = agresivo.
+  - **Bloqueo:** sigue con botones (seguro/agresivo).
+  - Las **jugadas especiales** (soltar/tocar, etc.) siguen disponibles como
+    botones chicos en la barra inferior. Las zonas tocables se **resaltan en
+    la cancha** (anillos pulsantes con el número de zona) mientras esperás el
+    toque; el partido queda **congelado** (§5.3) hasta que resolvés.
+  - Guardado en `career.settings.control`; se cambia creando una carrera nueva.
+
 ## 8. Stats, mejoras y edad
 
 - Stats: **Saque, Ataque, Recepción, Bloqueo, Defensa** (0–10).
