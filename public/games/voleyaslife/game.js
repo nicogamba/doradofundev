@@ -7,6 +7,7 @@
   var H = 800;
   var SET_TARGET = 15;
   var SETS_TO_WIN = 2;
+  var POINTS_OPTIONS = [10, 15, 21, 25];
   var STORAGE_KEY = 'doradofundev.voleyaslife.career';
   var ADVERSITY_CHANCE = 0.3;
   var thisSpeed = 1;
@@ -76,9 +77,10 @@
   var mgZoneOk = document.getElementById('mg-zone-ok');
   var mgZoneGood = document.getElementById('mg-zone-good');
   var mgZonePerfect = document.getElementById('mg-zone-perfect');
-  var lgPerfect = document.getElementById('lg-perfect');
-  var lgGood = document.getElementById('lg-good');
-  var lgOk = document.getElementById('lg-ok');
+  var mgGuide = document.getElementById('mg-guide');
+  var mgLabelOk = document.getElementById('mg-label-ok');
+  var mgLabelGood = document.getElementById('mg-label-good');
+  var mgLabelPerfect = document.getElementById('mg-label-perfect');
   var mgMarker = document.getElementById('mg-marker');
   var mgTap = document.getElementById('mg-tap');
   var commentLines = [0, 1, 2, 3].map(function (i) {
@@ -142,6 +144,7 @@
   var screenFlash = null;
   var serveRing = null;
   var watchMode = false;
+  var paused = false;
 
   function t(key) {
     return window.VAV.t(lang, key);
@@ -712,7 +715,7 @@
   }
 
   function draw() {
-    stepPlayerMovement();
+    if (!paused) stepPlayerMovement();
     stepImpacts();
     crowdPulse = Math.max(0, crowdPulse - 0.03);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -999,7 +1002,7 @@
 
   function drawTeam(team, color, highlightPlayer) {
     var players = playerPos[team];
-    var LIBERO_COLOR = '#e6762d';
+    var LIBERO_COLOR = '#ff6d00';
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
       var jump = playerJump[team][i] || 0;
@@ -1018,6 +1021,14 @@
       ctx.strokeStyle = 'rgba(0,0,0,0.4)';
       ctx.lineWidth = 2;
       ctx.stroke();
+      if (p.isLibero) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 10px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('L', drawX, drawY - 1);
+        ctx.textBaseline = 'alphabetic';
+      }
       if (arms > 0.05) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
@@ -1058,7 +1069,7 @@
     if (!out) return;
     var bx = isBottom(team) ? COURT.x + COURT.w - 28 : COURT.x + 28;
     var by = isBottom(team) ? COURT.y + COURT.h + 38 : COURT.y - 38;
-    ctx.fillStyle = out.isLibero ? '#e6762d' : (team === 0 ? '#e0c34a' : '#4a8fe0');
+    ctx.fillStyle = out.isLibero ? '#ff6d00' : (team === 0 ? '#e0c34a' : '#4a8fe0');
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
     ctx.arc(bx, by, 11, 0, Math.PI * 2);
@@ -1066,10 +1077,19 @@
     ctx.globalAlpha = 1;
     ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.font = '700 8px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(String(out.number), bx, by + 1);
+    if (out.isLibero) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 8px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('L', bx, by);
+      ctx.textBaseline = 'alphabetic';
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.font = '700 8px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(out.number), bx, by + 1);
+    }
     ctx.fillStyle = '#8a93a6';
     ctx.font = '700 8px system-ui, sans-serif';
     ctx.fillText(out.isLibero ? t('libero') : t('suplente'), bx, by + 22);
@@ -1695,6 +1715,7 @@
     }
     setReceiveFormation(attacking);
     moveTo(attacking, ridx, { x: landing.x, y: landing.y });
+    await ensureContact(attacking, ridx, ballNow, 0.18);
     var sp = playerTarget[attacking][sidx];
     var spray = 1 - Math.max(0, Math.min(3, quality)) / 3;
     var to = {
@@ -1702,7 +1723,7 @@
       y: sp.y + (Math.random() - 0.5) * 2 * spray * 32,
     };
     moveTo(attacking, sidx, to);
-    var contact = { x: playerPos[attacking][ridx].x, y: playerPos[attacking][ridx].y };
+    var contact = { x: ballNow.x, y: ballNow.y };
     if (isMy) setLabel(resultLabel(quality), resultColor(quality));
     var passDist = dist2(contact, to);
     await playSegment({
@@ -1758,8 +1779,7 @@
     var stDist = dist2(ballNow, target);
     var stTime = stDist / setSpeed;
     var arrived = raceReaches(attacking, aidx, target, stTime);
-    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.12);
-    var setTouch = { x: playerPos[attacking][isMy ? 0 : sidx].x, y: playerPos[attacking][isMy ? 0 : sidx].y };
+    await ensureContact(attacking, isMy ? 0 : sidx, ballNow, 0.22);
     await playSegment({
       from: ballNow,
       to: target,
@@ -1767,7 +1787,7 @@
       arc: 35,
     });
     label = null;
-    addTouch(setTouch.x, setTouch.y);
+    addTouch(ballNow.x, ballNow.y);
     var ok = isMy ? quality >= decision.threshold : arrived;
     var direct = isMy && decision.directOnPerfect && quality === 3;
     var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
@@ -1835,6 +1855,7 @@
     setDefenseFormation(defender, hitZone, blockG);
     tendencyCover(defender, attacking, setZone);
     moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
+    await ensureContact(attacking, isMy ? 0 : aidx, ballNow, 0.18);
     if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
       setJump(attacking, isMy ? 0 : aidx);
     } else {
@@ -1955,7 +1976,8 @@
       x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
       y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
     };
-    var digFrom = { x: playerPos[defending][didx].x, y: playerPos[defending][didx].y };
+    var digFrom = { x: ballNow.x, y: ballNow.y };
+    await ensureContact(defending, didx, ballNow, 0.16);
     var digDist = dist2(digFrom, to);
     await playSegment({
       from: digFrom,
@@ -2224,6 +2246,7 @@
   }
 
   function askDecision(phase, extra) {
+    paused = true;
     return new Promise(function (resolve) {
       showModal(t('choosePlay'), t('decisionPhase'));
       var opts = decisionConfig(phase, extra);
@@ -2233,6 +2256,7 @@
       modalButtons(config);
     }).then(function (d) {
       hideModal();
+      paused = false;
       return d;
     });
   }
@@ -2250,11 +2274,13 @@
   function runMinigame(stat, diff) {
     return new Promise(function (resolve) {
       var zw = zoneWidth(stat, diff);
+      var zc = 0.25 + Math.random() * 0.5;
       mg = {
         pos: 0.1,
         dir: 1,
         speed: markerSpeed(stat, diff),
         zw: zw,
+        zc: zc,
         resolved: false,
         resolve: resolve,
       };
@@ -2262,17 +2288,22 @@
       mgTap.textContent = t('tapNow');
       var okW = zw + 0.18;
       var perfW = zw / 3;
-      mgZoneOk.style.left = (50 - okW / 2) + '%';
-      mgZoneOk.style.width = okW + '%';
-      mgZoneGood.style.left = (50 - zw / 2) + '%';
-      mgZoneGood.style.width = zw + '%';
-      mgZonePerfect.style.left = (50 - perfW / 2) + '%';
-      mgZonePerfect.style.width = perfW + '%';
-      lgPerfect.textContent = t('perfect');
-      lgGood.textContent = t('good');
-      lgOk.textContent = t('ok');
+      mgZoneOk.style.left = (zc * 100 - okW / 2 * 100) + '%';
+      mgZoneOk.style.width = okW * 100 + '%';
+      mgZoneGood.style.left = (zc * 100 - zw / 2 * 100) + '%';
+      mgZoneGood.style.width = zw * 100 + '%';
+      mgZonePerfect.style.left = (zc * 100 - perfW / 2 * 100) + '%';
+      mgZonePerfect.style.width = perfW * 100 + '%';
+      mgGuide.style.left = zc * 100 + '%';
+      mgLabelPerfect.textContent = t('perfect');
+      mgLabelGood.textContent = t('good');
+      mgLabelOk.textContent = t('ok');
+      mgLabelOk.style.left = (zc * 100 - okW / 2 * 100) + '%';
+      mgLabelGood.style.left = (zc * 100 - zw / 2 * 100) + '%';
+      mgLabelPerfect.style.left = zc * 100 + '%';
       mgMarker.style.left = '50%';
       minigame.classList.remove('hidden');
+      paused = true;
       mgTap.onclick = function () {
         tapMinigame();
       };
@@ -2292,7 +2323,7 @@
   async function tapMinigame() {
     if (!mg || mg.resolved) return;
     mg.resolved = true;
-    var delta = Math.abs(mg.pos - 0.5);
+    var delta = Math.abs(mg.pos - mg.zc);
     var q;
     if (delta < mg.zw / 6) q = 3;
     else if (delta < mg.zw / 2) q = 2;
@@ -2304,6 +2335,7 @@
     mgBar.style.borderColor = resultColor(q);
     await sleep(0.8);
     minigame.classList.add('hidden');
+    paused = false;
     mgTitle.style.color = '';
     mgMarker.style.background = '#fff';
     mgBar.style.borderColor = '';
@@ -2315,7 +2347,7 @@
 
   var career = null;
   var currentScreen = 'setup';
-  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null };
+  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null, pointsPerSet: 15 };
 
   function defaultStats(position) {
     return Object.assign({}, POSITIONS[position]);
@@ -2368,6 +2400,9 @@
     var countryOpts = ['argentina', 'espana', 'italia'].map(function (c) {
       return '<option value="' + c + '"' + (c === setupData.country ? ' selected' : '') + '>' + t(c) + '</option>';
     }).join('');
+    var pointsOpts = POINTS_OPTIONS.map(function (p) {
+      return '<option value="' + p + '"' + (p === setupData.pointsPerSet ? ' selected' : '') + '>' + p + '</option>';
+    }).join('');
 
     screen.innerHTML =
       '<div class="screen-scroll"><div class="screen">' +
@@ -2382,6 +2417,8 @@
       '<div class="field"><label>' + t('numberLabel') + '</label><input type="number" id="in-number" value="' + setupData.number + '" min="1" max="99"/></div>' +
       '<div class="field"><label>' + t('ageLabel') + '</label><select id="sel-age">' + ageOpts + '</select></div>' +
       '<div class="field"><label>' + t('countryLabel') + '</label><select id="sel-country">' + countryOpts + '</select></div>' +
+      '<div class="field"><label>' + t('pointsLabel') + '</label><select id="sel-points">' + pointsOpts + '</select>' +
+      '<p class="subtitle">' + t('pointsDesc') + '</p></div>' +
       '<div class="field"><label>' + t('clubLabel') + '</label><select id="sel-club">' + clubsOpts + '</select>' +
       '<button id="btn-random-club" class="btn ghost" type="button">' + t('clubRandom') + '</button></div>' +
       '</div>' +
@@ -2445,8 +2482,10 @@
       if (isNaN(setupData.clubIdx)) setupData.clubIdx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
       setupData.age = parseInt(byId('sel-age').value, 10) || 20;
       setupData.country = byId('sel-country').value || 'argentina';
+      var pps = parseInt(byId('sel-points').value, 10);
+      if (!isNaN(pps) && POINTS_OPTIONS.indexOf(pps) !== -1) setupData.pointsPerSet = pps;
       var name = setupData.name || t('namePlaceholder');
-      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country);
+      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country, setupData.pointsPerSet);
     };
 
     function checkStart() {
@@ -2461,7 +2500,7 @@
     return DT_NAMES[Math.floor(Math.random() * DT_NAMES.length)];
   }
 
-  function startCareer(position, name, sex, number, clubIdx, age, country) {
+  function startCareer(position, name, sex, number, clubIdx, age, country, pointsPerSet) {
     career = {
       name: name,
       sex: sex,
@@ -2472,6 +2511,7 @@
       stats: defaultStats(position),
       age: age || 20,
       country: country || 'argentina',
+      settings: { pointsPerSet: pointsPerSet || 15 },
       dt: randomDT(),
       salary: 1000,
       money: 1000,
@@ -2486,6 +2526,7 @@
     };
     initClubs();
     initLeague();
+    SET_TARGET = career.settings.pointsPerSet || 15;
     saveCareer();
     showBetween();
   }
@@ -2977,6 +3018,8 @@
     if (!career.benched) career.benched = false;
     if (typeof career.benchedWeek !== 'number') career.benchedWeek = -1;
     if (!career.injured) career.injured = false;
+    if (!career.settings) career.settings = { pointsPerSet: 15 };
+    SET_TARGET = career.settings.pointsPerSet || 15;
     showBetween();
   } else {
     // carreras en formato viejo (liga única) no son compatibles: se descartan
