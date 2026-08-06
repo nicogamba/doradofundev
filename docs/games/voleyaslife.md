@@ -353,6 +353,15 @@ guionada por rol, no física):
   ~35% de sus saques: más rápido con +1 stat y más profundo). Todos apuntan
   al **receptor más débil** del rival (menor Recepción). En **clutch** (su
   equipo va perdiendo) el sacador arriesga más (más saltados).
+- **Continuidad de la pelota:** cada tramo de vuelo arranca **siempre desde
+  la posición actual de la pelota** (`ballNow`), nunca desde la posición de un
+  jugador — así la pelota no "salta". Antes de cada toque, el jugador se
+  anima hasta la pelota (`ensureContact`, unos px invisibles) y el **anillo
+  blanco de contacto** se dibuja sobre la pelota, no sobre el jugador (sin
+  toques fantasma).
+- **El partido se congela en tus decisiones:** mientras la decisión o el
+  minijuego están abiertos, los jugadores **se quedan quietos** (flag
+  `paused`; se reanuda al resolver el minijuego).
 - Cuando el rally llega al momento de **tu posición**, se pausa y aparece:
   1. **Decisión de jugada** atada a la jugada de vóley (§7).
   2. **Minijuego de timing bar** (§6) para ejecutar.
@@ -450,22 +459,20 @@ El armador arma según la **calidad de la recepción** y la rotación:
 ## 6. Minijuego (timing bar)
 
 - Una barra oscila de un lado a otro; tocas cuando el marcador esté en la
-  **zona verde**.
-- Las stats influyen: a más stat, **zona verde más ancha** y/o barra más
-  lenta.
+  **zona de éxito**.
+- **La zona de éxito aparece en un lugar aleatorio** (centro entre 25% y
+  75% del ancho, cambia en cada intento): el marcador mide contra ese centro.
+  Cerca del borde el "perfecto" es más difícil (el marcador da la vuelta
+  antes) — variedad natural de dificultad.
+- Las stats influyen: a más stat, **zona más ancha** y/o barra más lenta.
+- **Visual**: pista redondeada con gradiente y brillo interior, las **tres
+  zonas** como bandas con su color (Perfecto = verde brillante con halo,
+  Bien = verde, Regular = ámbar) con bordes definidos y **etiquetas**
+  (PERFECTO/BUENO/REGULAR) sobre cada banda en la posición aleatoria, y el
+  marcador como una **pelota con estela** (no una línea fina). Una guía
+  vertical marca el centro de la zona.
 - **La dificultad también la define la decisión/zona elegida** (§7): rematar
   a una esquina (zonas 1/5) da un minijuego más difícil que a la zona 6.
-- **El marcador debe ser claramente visible** (ancho, brillante, con
-  puntero), no una línea fina difícil de seguir.
-- **Visualización del rango de éxito**: la barra debe mostrar claramente las
-  **tres zonas** y sus límites visibles, para que el jugador sepa dónde
-  detenerse según el resultado que busca:
-  - zona central (la más chica, color más brillante) → **Perfecto**;
-  - zona verde → **Bien**;
-  - zona ámbar (la más ancha) → **Regular**;
-  - fuera de las zonas → **Fallaste**.
-  Las zonas no deben superponerse ni quedar ambiguas: cada una con su color
-  y límite definido.
 - **Feedback explícito del resultado**: al tocar, el minijuego muestra de
   forma clara si fue éxito o fallo (texto y color: Perfecto/Bien/Regular/
   Fallaste) antes de continuar con el rally. El jugador siempre sabe si ganó
@@ -554,7 +561,10 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
 
 ## 13. Balance (constantes ajustables)
 
-- Puntos del set (15), sets (3).
+- **Puntos por set configurables** (10 / 15 / 21 / 25, por defecto 15) desde
+  la pantalla de creación; guardados en `career.settings.pointsPerSet` y
+  usados por `setOver`/`scorePoint`. El set se gana con ventaja de 2. Sets al
+  mejor de 3.
 - **Ritmo del partido**: la velocidad base de las animaciones debe ser
   más lenta que la actual (factor de escala base ~1.35 sobre las
   duraciones), con el botón ×1/×2 que siga acelerando a partir de ahí.
@@ -711,5 +721,6 @@ Al armador le toca generalmente en la **segunda pelota**. Opciones:
   aviso, mientras el central pasa al banco. Solo juega de zaguero, base
   **zona 5**, stats de especialista (R=6/D=6), **no saca, no bloquea ni
   ataca por encima de la red**, es el **receptor principal**
-  (`closestReceiver`). **Banco visible** en la cancha + **DT** con nombre al
-  costado y en la pantalla entre-partido.
+  (`closestReceiver`). **Se identifica con naranja vivo (`#ff6d00`) y la
+  letra "L"** dentro del círculo, en cancha y en el banco. **Banco visible**
+  en la cancha + **DT** con nombre al costado y en la pantalla entre-partido.
