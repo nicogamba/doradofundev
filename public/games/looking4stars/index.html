@@ -9,18 +9,26 @@
   <body>
     <canvas id="game"></canvas>
 
-    <div id="hud" class="hud">
+    <div id="hud" class="hud hidden">
       <span id="hud-level"></span>
       <span id="hud-score"></span>
       <span id="hud-balls"></span>
       <span id="hud-aliens"></span>
+      <span id="hud-coins" class="hud-coin"></span>
+      <span id="hud-time" class="hud-time hidden"></span>
+      <button id="hud-power" class="btn-mini hidden" type="button"></button>
+      <button id="hud-map" class="btn-mini" type="button"></button>
     </div>
 
     <div id="overlay" class="overlay hidden">
       <h1 id="ov-title"></h1>
       <p id="ov-text"></p>
+      <div id="ov-powers" class="powers hidden"></div>
       <div id="ov-legend" class="legend"></div>
-      <button id="ov-btn" class="btn" type="button"></button>
+      <div class="overlay-btns">
+        <button id="ov-btn" class="btn" type="button"></button>
+        <button id="ov-btn2" class="btn btn2 hidden" type="button"></button>
+      </div>
     </div>
 
     <script src="./i18n.js"></script>

@@ -25,7 +25,9 @@ elige uno y lo juega a pantalla completa.
 3. **Selector de idioma:** ES (completo) y EN (por ahora incompleto, se
    traduce después). El idioma elegido se guarda en `localStorage`.
 4. **Juego principal — Looking4Stars:** juego de habilidad 2D, original
-   (ver sección 5.2). Primera versión con 3 niveles.
+   (ver sección 5.2). **Mapa de 10 niveles** con estrellas y desbloqueo
+   progresivo, **poderes** (multibola, explosión, tabla) que se compran con
+   **monedas**. Ver `docs/games/looking4stars.md`.
 5. **Juego 2 — Cuadritos:** juego de recolección simple (se mueve con
    flechas). Se mantiene como juego propio del catálogo con: pantalla
    ajustada al marco (formato horizontal sin barras de desplazamiento),
@@ -36,8 +38,8 @@ elige uno y lo juega a pantalla completa.
    El partido se simula solo desde arriba; cuando le toca a tu jugador,
    elegís la jugada y ejecutás un minijuego de timing. Mejoras de stats
    entre partidos y adversidades. Ver `docs/games/voleyaslife.md`.
-7. *(futuro)* Power-ups, moneda de gemas, mapa de niveles, miniaturas
-   automáticas, buscador, ordenación, página "acerca de".
+7. *(futuro)* Más poderes y niveles para Looking4Stars (ver su spec),
+   miniaturas automáticas, buscador, ordenación, página "acerca de".
 
 ## 4. Decisiones técnicas y por qué
 

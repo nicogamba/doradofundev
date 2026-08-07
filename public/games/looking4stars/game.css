@@ -40,6 +40,37 @@ canvas {
   color: #ffd166;
 }
 
+.hud-coin {
+  color: #ffd166 !important;
+}
+
+.hud-time {
+  color: #f0ad4e !important;
+}
+
+.btn-mini {
+  background: #2a303d;
+  color: #e8eaf0;
+  border: 1px solid #4a5363;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.btn-mini:hover {
+  background: #39404f;
+}
+
+.btn-mini.armed {
+  background: #ffd166;
+  color: #1b1e27;
+  border-color: #ffd166;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -98,4 +129,82 @@ canvas {
 .btn:hover {
   background: #ffe08a;
   transform: translateY(-1px);
+}
+
+.btn2 {
+  background: transparent;
+  color: #e8eaf0;
+  border: 1px solid #4a5363;
+}
+
+.btn2:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: none;
+}
+
+.overlay-btns {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.overlay-btns .btn {
+  margin-top: 0;
+}
+
+.powers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(92vw, 340px);
+}
+
+.power-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #39404f;
+  color: #e8eaf0;
+  font: inherit;
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.power-btn:hover {
+  background: rgba(255, 209, 102, 0.1);
+  border-color: #ffd166;
+}
+
+.power-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.power-btn.equipped {
+  background: rgba(255, 209, 102, 0.16);
+  border-color: #ffd166;
+}
+
+.power-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 96px;
+}
+
+.power-desc {
+  flex: 1;
+  font-size: 0.8rem;
+  color: #9aa2b1;
+  line-height: 1.3;
+}
+
+.power-price {
+  font-weight: 700;
+  color: #ffd166;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
