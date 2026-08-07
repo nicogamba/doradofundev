@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>VoleyAsLife</title>
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <canvas id="court"></canvas>
+
+    <div id="hud" class="hud hidden">
+      <span id="hud-set"></span>
+      <span id="hud-score"></span>
+      <button id="watch-btn" class="speed-btn" type="button"></button>
+      <button id="speed-btn" class="speed-btn" type="button">×1</button>
+    </div>
+
+    <div id="commentary" class="commentary">
+      <div id="c0" class="comment-line"></div>
+      <div id="c1" class="comment-line"></div>
+      <div id="c2" class="comment-line"></div>
+      <div id="c3" class="comment-line"></div>
+    </div>
+
+    <div id="screen"></div>
+
+    <div id="modal" class="modal hidden">
+      <h2 id="modal-title"></h2>
+      <p id="modal-text"></p>
+      <div id="modal-buttons" class="modal-buttons">
+        <button id="btn0" class="btn" type="button"></button>
+        <button id="btn1" class="btn" type="button"></button>
+        <button id="btn2" class="btn hidden" type="button"></button>
+        <button id="btn3" class="btn hidden" type="button"></button>
+      </div>
+    </div>
+
+    <div id="minigame" class="modal hidden">
+      <h2 id="mg-title"></h2>
+      <div class="bar-wrap">
+        <div id="mg-bar" class="bar">
+          <div id="mg-guide" class="mg-guide"></div>
+          <div id="mg-zone-ok" class="zone zone-ok"></div>
+          <div id="mg-zone-good" class="zone zone-good"></div>
+          <div id="mg-zone-perfect" class="zone zone-perfect"></div>
+          <span id="mg-label-ok" class="mg-label label-ok"></span>
+          <span id="mg-label-good" class="mg-label label-good"></span>
+          <span id="mg-label-perfect" class="mg-label label-perfect"></span>
+          <div id="mg-marker" class="marker"></div>
+        </div>
+      </div>
+      <button id="mg-tap" class="btn" type="button"></button>
+    </div>
+
+    <script src="./i18n.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>

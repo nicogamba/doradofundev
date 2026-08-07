@@ -1,0 +1,3221 @@
+(function () {
+  'use strict';
+
+  // ---------- Config ----------
+
+  var W = 480;
+  var H = 800;
+  var SET_TARGET = 15;
+  var SETS_TO_WIN = 2;
+  var POINTS_OPTIONS = [10, 15, 21, 25];
+  var STORAGE_KEY = 'doradofundev.voleyaslife.career';
+  var ADVERSITY_CHANCE = 0.3;
+  var thisSpeed = 1;
+  var SPEED_BASE = 1.35;
+  var LEAGUE_SIZE = 8;
+  var SEASON_MATCHES = (LEAGUE_SIZE - 1) * 2;
+  var PLAYER_MOVE_SPEED = 200;
+
+  var STATS = ['S', 'A', 'R', 'B', 'D'];
+  var STAT_LABEL = { S: 'saque', A: 'ataque', R: 'recepcion', B: 'bloqueo', D: 'defensa' };
+
+  var POSITIONS = {
+    punta: { S: 3, A: 5, R: 5, B: 3, D: 3 },
+    armador: { S: 3, A: 3, R: 5, B: 3, D: 4 },
+    opuesto: { S: 3, A: 5, R: 3, B: 4, D: 3 },
+    central: { S: 2, A: 4, R: 3, B: 5, D: 4 },
+    libero: { S: 1, A: 1, R: 6, B: 1, D: 6 },
+  };
+
+  var LIBERO_STATS = { S: 1, A: 1, R: 6, B: 1, D: 6 };
+
+  var ROTATION_ORDER = [1, 6, 5, 4, 3, 2];
+
+  var DECISIONS = {
+    attack: [
+      { key: 'remateZona5', threshold: 2, directOnPerfect: false, zone: 5, diff: 0.09, defMod: -1 },
+      { key: 'remateZona1', threshold: 2, directOnPerfect: false, zone: 1, diff: 0.09, defMod: -1 },
+      { key: 'remateZona6', threshold: 1, directOnPerfect: false, zone: 6, diff: -0.07, defMod: 0 },
+      { key: 'suelta', threshold: 3, directOnPerfect: true, zone: 6, diff: 0.05, defMod: -0.5 },
+    ],
+    receive: [
+      { key: 'recepcionSegura', threshold: 1, directOnPerfect: false, diff: -0.06 },
+      { key: 'recepcionAgresiva', threshold: 2, directOnPerfect: false, diff: 0.08 },
+    ],
+    set: [
+      { key: 'armarA2', threshold: 2, directOnPerfect: false, zone: 2, diff: 0.05, setBoost: 1 },
+      { key: 'armarA4', threshold: 2, directOnPerfect: false, zone: 4, diff: 0.05, setBoost: 1 },
+      { key: 'armarA6', threshold: 2, directOnPerfect: false, zone: 6, diff: 0.1, setBoost: 2 },
+      { key: 'armarA3', threshold: 2, directOnPerfect: false, zone: 3, diff: 0.05, setBoost: 0 },
+    ],
+    block: [
+      { key: 'bloqueoSeguro', threshold: 1, directOnPerfect: false, diff: -0.05 },
+      { key: 'bloqueoAgresivo', threshold: 2, directOnPerfect: false, diff: 0.06 },
+    ],
+  };
+
+  // ---------- DOM ----------
+
+  var court = document.getElementById('court');
+  var ctx = court.getContext('2d');
+  var hud = document.getElementById('hud');
+  var hudSet = document.getElementById('hud-set');
+  var hudScore = document.getElementById('hud-score');
+  var speedBtn = document.getElementById('speed-btn');
+  var watchBtn = document.getElementById('watch-btn');
+  var screen = document.getElementById('screen');
+  var modal = document.getElementById('modal');
+  var modalTitle = document.getElementById('modal-title');
+  var modalText = document.getElementById('modal-text');
+  var btn0 = document.getElementById('btn0');
+  var btn1 = document.getElementById('btn1');
+  var btn2 = document.getElementById('btn2');
+  var btn3 = document.getElementById('btn3');
+  var minigame = document.getElementById('minigame');
+  var mgTitle = document.getElementById('mg-title');
+  var mgBar = document.getElementById('mg-bar');
+  var mgZoneOk = document.getElementById('mg-zone-ok');
+  var mgZoneGood = document.getElementById('mg-zone-good');
+  var mgZonePerfect = document.getElementById('mg-zone-perfect');
+  var mgGuide = document.getElementById('mg-guide');
+  var mgLabelOk = document.getElementById('mg-label-ok');
+  var mgLabelGood = document.getElementById('mg-label-good');
+  var mgLabelPerfect = document.getElementById('mg-label-perfect');
+  var mgMarker = document.getElementById('mg-marker');
+  var mgTap = document.getElementById('mg-tap');
+  var commentLines = [0, 1, 2, 3].map(function (i) {
+    return document.getElementById('c' + i);
+  });
+
+  var lang = window.VAV.currentLang();
+  var dpr = 1;
+  var scale = 1;
+  var offsetX = 0;
+  var offsetY = 0;
+
+  var ball = { x: W / 2, y: H / 2, h: 0, maxH: 1, rot: 0 };
+  var ballTrail = [];
+  var label = null;
+  var mg = null;
+  var impacts = [];
+  var simTime = 0;
+  var teams = { 0: null, 1: null };
+  var playerPos = { 0: [], 1: [] };
+  var playerTarget = { 0: [], 1: [] };
+  var playerPhase = { 0: [], 1: [] };
+  var playerJump = { 0: [], 1: [] };
+  var playerSlump = { 0: [], 1: [] };
+  var playerArms = { 0: [], 1: [] };
+  var teamLibero = { 0: null, 1: null };
+  var teamStash = { 0: null, 1: null };
+  var crowdPulse = 0;
+  var ballSquish = 0;
+  var cameraShake = 0;
+  var crowdDots = [];
+
+  (function () {
+    var palette = ['#3a4360', '#485475', '#2f3850', '#5a6478', '#a08b3a', '#3a5a8c', '#6b6b4e'];
+    function dot(x, y) {
+      crowdDots.push({
+        x: x + (Math.random() * 3 - 1.5),
+        y: y + (Math.random() * 2 - 1),
+        r: 1.3 + Math.random() * 1.1,
+        c: palette[Math.floor(Math.random() * palette.length)],
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
+    for (var r = 0; r < 5; r++) {
+      var yt = 22 + r * 27;
+      for (var x = 8; x < W - 8; x += 7) dot(x, yt);
+    }
+    for (var r2 = 0; r2 < 4; r2++) {
+      var yb = 751 + r2 * 14;
+      for (var x2 = 8; x2 < W - 8; x2 += 7) dot(x2, yb);
+    }
+    for (var yy = 200; yy < 690; yy += 9) {
+      dot(12, yy);
+      dot(34, yy);
+      dot(436, yy);
+      dot(458, yy);
+    }
+  })();
+  var ballNow = { x: W / 2, y: H / 2 };
+  var pointBanner = null;
+  var screenFlash = null;
+  var serveRing = null;
+  var watchMode = false;
+  var paused = false;
+  var tapMode = false;
+
+  function t(key) {
+    return window.VAV.t(lang, key);
+  }
+
+  function escHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function comment(text) {
+    for (var i = 3; i > 0; i--) {
+      commentLines[i].textContent = commentLines[i - 1].textContent;
+    }
+    commentLines[0].textContent = text;
+  }
+
+  function clearCommentary() {
+    commentLines.forEach(function (el) {
+      el.textContent = '';
+    });
+  }
+
+  function pName(team, player) {
+    return player.isPlayer ? career.name : '#' + player.number;
+  }
+
+  function teamName(team) {
+    return team === 0 ? t('yourTeam') : match.rival.club;
+  }
+
+  function positionNameKey() {
+    return 'position' + career.position.charAt(0).toUpperCase() + career.position.slice(1);
+  }
+
+  // ---------- Court ----------
+
+  var COURT = { x: 110, y: 160, w: 260, h: 560, netY: 440 };
+
+  function isBottom(team) {
+    return team === (match && match.sidesFlipped ? 1 : 0);
+  }
+
+  function zoneBasePos(team, zone) {
+    var front = zone === 2 || zone === 3 || zone === 4;
+    var col = zone === 1 || zone === 2 ? 2 : zone === 4 || zone === 5 ? 0 : 1;
+    var xs0 = [COURT.x + 45, COURT.x + COURT.w / 2, COURT.x + COURT.w - 45];
+    var xs1 = [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45];
+    var x = isBottom(team) ? xs0[col] : xs1[col];
+    var y = isBottom(team)
+      ? (front ? COURT.netY + 65 : COURT.netY + 150)
+      : (front ? COURT.netY - 65 : COURT.netY - 150);
+    return { x: x, y: y };
+  }
+
+  function makeLineup(isPlayerTeam, scout) {
+    var roles = isPlayerTeam
+      ? (career.position === 'punta'
+          ? ['outside', 'setter', 'middle', 'opposite', 'middle', 'outside']
+          : ['setter', 'outside', 'middle', 'opposite', 'middle', 'outside'])
+      : ['setter', 'outside', 'middle', 'opposite', 'middle', 'outside'];
+    var pool = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12].filter(function (n) {
+      return !isPlayerTeam || n !== career.number;
+    });
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i];
+      pool[i] = pool[j];
+      pool[j] = tmp;
+    }
+    var numbers = pool.slice(0, 6);
+    if (isPlayerTeam) numbers[0] = career.number;
+    return roles.map(function (role, i) {
+      var tend = makeTend(role, isPlayerTeam && i === 0);
+      if (scout) {
+        if (role === 'setter') tend.setPref = scout.setPref;
+        if (role === 'outside' || role === 'opposite') tend.hitPref = scout.hitPref;
+        tend.aggr = Math.max(0.15, Math.min(0.9, scout.aggr + (Math.random() * 0.2 - 0.1)));
+        tend.smart = Math.max(0.25, Math.min(0.9, scout.smart + (Math.random() * 0.2 - 0.1)));
+      }
+      return { role: role, zoneIndex: i, isPlayer: isPlayerTeam && i === 0, number: numbers[i], tend: tend };
+    });
+  }
+
+  function makeTend(role, isPlayer) {
+    var tend = { setPref: 4, hitPref: 6, aggr: 0.4, smart: 0.5 };
+    if (role === 'setter') {
+      tend.setPref = [2, 3, 4, 6][Math.floor(Math.random() * 4)];
+    } else if (role === 'middle') {
+      tend.hitPref = [1, 5, 6][Math.floor(Math.random() * 3)];
+    } else if (role === 'outside' || role === 'opposite') {
+      tend.hitPref = [1, 5, 6][Math.floor(Math.random() * 3)];
+    }
+    tend.aggr = Math.max(0.15, Math.min(0.9, 0.35 + Math.random() * 0.55));
+    tend.smart = Math.max(0.25, Math.min(0.9, 0.4 + Math.random() * 0.5));
+    if (isPlayer) tend.smart = Math.max(tend.smart, 0.65);
+    return tend;
+  }
+
+  function weightedPick(items, weights) {
+    var total = 0;
+    for (var i = 0; i < weights.length; i++) total += Math.max(0, weights[i]);
+    var r = Math.random() * total;
+    for (var j = 0; j < items.length; j++) {
+      r -= Math.max(0, weights[j]);
+      if (r <= 0) return items[j];
+    }
+    return items[items.length - 1];
+  }
+
+  function tendOf(team, index) {
+    var p = teams[team][index];
+    return (p && p.tend) || makeTend('outside', false);
+  }
+
+  function makeLibero(team) {
+    return {
+      role: 'libero',
+      isLibero: true,
+      isPlayer: false,
+      zoneIndex: -1,
+      number: 13 + Math.floor(Math.random() * 6),
+      tend: makeTend('libero'),
+    };
+  }
+
+  function applyLibero(team, includeZone1) {
+    if (teamStash[team]) return;
+    var t = teams[team];
+    for (var i = 0; i < t.length; i++) {
+      var p = t[i];
+      if (p.role !== 'middle' || p.isPlayer) continue;
+      if (isFrontRow(team, i)) continue;
+      var z = ROTATION_ORDER[p.zoneIndex];
+      if (z === 1 && !includeZone1) continue;
+      var clone = Object.assign({}, teamLibero[team], { zoneIndex: p.zoneIndex });
+      teamStash[team] = { index: i, player: p };
+      t[i] = clone;
+      var bench = benchPos(team);
+      playerPos[team][i] = { x: bench.x, y: bench.y };
+      playerTarget[team][i] = { x: bench.x, y: bench.y };
+      playerJump[team][i] = 0;
+      playerPhase[team][i] = Math.random() * Math.PI * 2;
+      return;
+    }
+  }
+
+  function benchPos(team) {
+    return { x: isBottom(team) ? COURT.x + COURT.w - 28 : COURT.x + 28, y: isBottom(team) ? COURT.y + COURT.h + 38 : COURT.y - 38 };
+  }
+
+  function undoLibero(team) {
+    var st = teamStash[team];
+    if (st) {
+      teams[team][st.index] = st.player;
+      teamStash[team] = null;
+    }
+  }
+
+  function initTeams() {
+    teams[0] = makeLineup(true);
+    teams[1] = makeLineup(false, match && match.rival ? match.rival.scout : null);
+    teamLibero[0] = makeLibero(0);
+    teamLibero[1] = makeLibero(1);
+    teamStash[0] = null;
+    teamStash[1] = null;
+    for (var key = 0; key < 2; key++) {
+      playerPos[key] = teams[key].map(function (p) {
+        return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
+      });
+      playerTarget[key] = playerPos[key].map(function (p) {
+        return { x: p.x, y: p.y };
+      });
+      playerPhase[key] = playerPos[key].map(function () {
+        return Math.random() * Math.PI * 2;
+      });
+      playerJump[key] = playerPos[key].map(function () {
+        return 0;
+      });
+      playerSlump[key] = playerPos[key].map(function () {
+        return 0;
+      });
+      playerArms[key] = playerPos[key].map(function () {
+        return 0;
+      });
+    }
+    ballNow = { x: W / 2, y: COURT.netY };
+  }
+
+  function rotateTeam(team) {
+    teams[team].forEach(function (p) {
+      p.zoneIndex = (p.zoneIndex + 1) % 6;
+    });
+    playerTarget[team] = teams[team].map(function (p) {
+      return zoneBasePos(team, ROTATION_ORDER[p.zoneIndex]);
+    });
+  }
+
+  function setFormationTargets() {
+    for (var key = 0; key < 2; key++) {
+      playerTarget[key] = teams[key].map(function (p) {
+        return zoneBasePos(key, ROTATION_ORDER[p.zoneIndex]);
+      });
+    }
+  }
+
+  function moveTo(team, index, pos) {
+    playerTarget[team][index] = { x: pos.x, y: pos.y };
+  }
+
+  function isFrontRow(team, index) {
+    var z = ROTATION_ORDER[teams[team][index].zoneIndex];
+    return z === 2 || z === 3 || z === 4;
+  }
+
+  function frontY(team) {
+    return COURT.netY + (isBottom(team) ? 62 : -62);
+  }
+
+  function backY(team) {
+    return COURT.netY + (isBottom(team) ? 148 : -148);
+  }
+
+  function threeM(team) {
+    return COURT.netY + (isBottom(team) ? 93 : -93);
+  }
+
+  function isDeep(team, y) {
+    return isBottom(team) ? y > threeM(team) : y < threeM(team);
+  }
+
+  function setReceiveFormation(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === 'setter') continue;
+      moveTo(team, i, formationSpot(team, i, 'receive'));
+    }
+  }
+
+  function setDefenseReady(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      moveTo(team, i, formationSpot(team, i, 'defense'));
+    }
+  }
+
+  function columnX(team, zone) {
+    var col = zone === 1 || zone === 2 ? 2 : zone === 4 || zone === 5 ? 0 : 1;
+    return isBottom(team)
+      ? [COURT.x + 45, COURT.x + COURT.w / 2, COURT.x + COURT.w - 45][col]
+      : [COURT.x + COURT.w - 45, COURT.x + COURT.w / 2, COURT.x + 45][col];
+  }
+
+  function setterSpot(team) {
+    return { x: isBottom(team) ? COURT.x + COURT.w - 95 : COURT.x + 95, y: COURT.netY + (isBottom(team) ? 40 : -40) };
+  }
+
+  function setterDefenseSpot(team) {
+    if (match && match.k2 === team) {
+      var si = playerIndex(team, setterPlayer(team));
+      if (si >= 0 && isFrontRow(team, si)) {
+        return { x: columnX(team, 2), y: frontY(team) };
+      }
+      return { x: columnX(team, 1), y: backY(team) };
+    }
+    return setterSpot(team);
+  }
+
+  function frontBlockZone(team, index) {
+    var t = teams[team];
+    var firstMid = -1;
+    var firstOut = -1;
+    for (var i = 0; i < t.length; i++) {
+      if (!isFrontRow(team, i)) continue;
+      if (t[i].role === 'middle' && firstMid < 0) firstMid = i;
+      if (t[i].role === 'outside' && firstOut < 0) firstOut = i;
+    }
+    if (index === firstMid) return 3;
+    if (index === firstOut) return 4;
+    var role = t[index].role;
+    if (role === 'opposite') return 2;
+    if (role === 'outside') return 2;
+    if (role === 'middle') return 4;
+    return 2;
+  }
+
+  function formationSpot(team, index, state) {
+    var p = teams[team][index];
+    var zone = ROTATION_ORDER[p.zoneIndex];
+    var x = columnX(team, zone);
+    if (p.role !== 'setter' && zone === 1 && state === 'receive') {
+      x = COURT.x + COURT.w / 2 + 50;
+    }
+    if (p.role === 'setter') {
+      if (state === 'offense') {
+        return setterSpot(team);
+      }
+      if (state === 'defense') {
+        return setterDefenseSpot(team);
+      }
+      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+    }
+    if (p.role === 'libero') {
+      return { x: columnX(team, 5), y: backY(team) };
+    }
+    if (p.role === 'middle') {
+      if (state === 'receive') {
+        return isFrontRow(team, index)
+          ? { x: COURT.x + COURT.w / 2, y: COURT.netY + (isBottom(team) ? 50 : -50) }
+          : { x: columnX(team, 5), y: backY(team) };
+      }
+      if (isFrontRow(team, index)) {
+        if (state === 'defense') {
+          return { x: columnX(team, frontBlockZone(team, index)), y: frontY(team) };
+        }
+        return { x: x, y: frontY(team) };
+      }
+      return { x: columnX(team, 5), y: backY(team) };
+    }
+    if (p.role === 'opposite') {
+      if (state === 'receive') {
+        var ob = isFrontRow(team, index) ? columnX(team, 2) : columnX(team, 1);
+        return { x: ob, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+      }
+      if (state === 'defense' && !isFrontRow(team, index)) {
+        return { x: columnX(team, 1), y: backY(team) };
+      }
+    }
+    if (state === 'receive') {
+      if (p.role === 'outside') {
+        return isFrontRow(team, index)
+          ? { x: x, y: COURT.netY + (isBottom(team) ? 106 : -106) }
+          : { x: x, y: COURT.netY + (isBottom(team) ? 134 : -134) };
+      }
+      return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+    }
+    if (state === 'defense' && !isFrontRow(team, index) && p.role === 'outside') {
+      return { x: columnX(team, 6), y: backY(team) };
+    }
+    if (state === 'defense' && isFrontRow(team, index)) {
+      return { x: columnX(team, frontBlockZone(team, index)), y: frontY(team) };
+    }
+    return { x: x, y: isFrontRow(team, index) ? frontY(team) : backY(team) };
+  }
+
+  function setOffenseFormation(team, setZone) {
+    for (var i = 0; i < teams[team].length; i++) {
+      moveTo(team, i, formationSpot(team, i, 'offense'));
+    }
+    var attacker = attackerForZone(team, setZone);
+    var aidx = playerIndex(team, attacker);
+    moveTo(team, aidx, isFrontRow(team, aidx) ? attackSpot(team, setZone) : backAttackSpot(team, setZone));
+  }
+
+  function setDefenseFormation(team, hitZone, blockZone) {
+    var coverX = zoneBasePos(team, hitZone).x;
+    var blockX = zoneBasePos(team, blockZone || hitZone).x;
+    var setterIdx = playerIndex(team, setterPlayer(team));
+    var backs = [];
+    for (var i = 0; i < teams[team].length; i++) {
+      if (i === setterIdx) {
+        moveTo(team, i, setterDefenseSpot(team));
+        continue;
+      }
+      if (!isFrontRow(team, i)) {
+        backs.push({
+          i: i,
+          p: teams[team][i],
+          x: columnX(team, ROTATION_ORDER[teams[team][i].zoneIndex]),
+        });
+      }
+    }
+    backs.sort(function (a, b) {
+      return Math.abs(a.x - coverX) - Math.abs(b.x - coverX);
+    });
+    for (var k = 0; k < backs.length; k++) {
+      var bk = backs[k];
+      var spot = formationSpot(team, bk.i, 'defense');
+      if (bk.p.role === 'middle') {
+        spot = { x: coverX, y: backY(team) };
+      } else if (k === 0) {
+        spot.x += (coverX - bk.x) * 0.5;
+      } else if (k === backs.length - 1) {
+        spot.x -= (bk.x - coverX) * 0.25;
+      } else {
+        spot.x += (coverX - bk.x) * 0.15;
+      }
+      moveTo(team, bk.i, spot);
+    }
+    for (var j = 0; j < teams[team].length; j++) {
+      var fp = teams[team][j];
+      if (j === setterIdx || !isFrontRow(team, j)) continue;
+      var fspot = formationSpot(team, j, 'defense');
+      fspot.x = fspot.x + (blockX - fspot.x) * 0.5;
+      if (fp.role === 'middle') setBlockJump(team, j);
+      moveTo(team, j, fspot);
+    }
+  }
+
+  function backAttackSpot(team, zone) {
+    return { x: zoneBasePos(team, zone).x, y: threeM(team) + (isBottom(team) ? 14 : -14) };
+  }
+
+  function playerInZone(team, zone) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (ROTATION_ORDER[teams[team][i].zoneIndex] === zone) return teams[team][i];
+    }
+    return null;
+  }
+
+  function setterPlayer(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === 'setter') return teams[team][i];
+    }
+    return teams[team][0];
+  }
+
+  function playerByRole(team, role) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === role) return teams[team][i];
+    }
+    return teams[team][0];
+  }
+
+  function playerRole() {
+    if (career.position === 'punta') return 'outside';
+    if (career.position === 'opuesto') return 'opposite';
+    if (career.position === 'central') return 'middle';
+    if (career.position === 'libero') return 'libero';
+    return 'setter';
+  }
+
+  function roleForZone(zone) {
+    return zone === 3 ? 'middle' : (zone === 4 || zone === 6) ? 'outside' : 'opposite';
+  }
+
+  function attackerRow(zone) {
+    return (zone === 2 || zone === 3 || zone === 4) ? 'front' : 'back';
+  }
+
+  function playerByRoleRow(team, role, row) {
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === role && (row === 'front' ? isFrontRow(team, i) : !isFrontRow(team, i))) return p;
+    }
+    return null;
+  }
+
+  function attackerForZone(team, setZone) {
+    var role = roleForZone(setZone);
+    var row = attackerRow(setZone);
+    if (team === 0 && career && role === playerRole()) {
+      var pFront = isFrontRow(team, 0);
+      if ((row === 'front' && pFront) || (row === 'back' && !pFront)) return thePlayer();
+    }
+    var rp = playerByRoleRow(team, role, row);
+    if (rp) return rp;
+    return playerByRole(team, role);
+  }
+
+  function isMyAttack(attacking, setZone) {
+    if (attacking !== 0 || career.suspended || career.benched) return false;
+    if (career.position !== 'punta' && career.position !== 'opuesto' && career.position !== 'central') return false;
+    if (roleForZone(setZone) !== playerRole()) return false;
+    var front = isFrontRow(attacking, 0);
+    return attackerRow(setZone) === 'front' ? front : !front;
+  }
+
+  function attackSpot(team, zone) {
+    if (zone === 6) {
+      return { x: zoneBasePos(team, 6).x, y: isBottom(team) ? COURT.netY + 130 : COURT.netY - 130 };
+    }
+    return { x: zoneBasePos(team, zone).x, y: zoneBasePos(team, zone).y + (isBottom(team) ? -34 : 34) };
+  }
+
+  function serverPlayer(team) {
+    return playerInZone(team, 1);
+  }
+
+  function playerIndex(team, player) {
+    return teams[team].indexOf(player);
+  }
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    var cw = court.clientWidth;
+    var ch = court.clientHeight;
+    court.width = Math.max(1, Math.round(cw * dpr));
+    court.height = Math.max(1, Math.round(ch * dpr));
+    scale = Math.min(cw / W, ch / H);
+    offsetX = (cw - W * scale) / 2;
+    offsetY = (ch - H * scale) / 2;
+  }
+
+  function drawArena() {
+    var pulse = crowdPulse;
+    var tiers = ['#0a0e17', '#0e1320', '#121828', '#161d30', '#1b2338'];
+    for (var ti = 0; ti < tiers.length; ti++) {
+      ctx.fillStyle = tiers[ti];
+      ctx.fillRect(0, 8 + ti * 27, W, 27);
+    }
+    for (var bi = 0; bi < 4; bi++) {
+      ctx.fillStyle = tiers[bi];
+      ctx.fillRect(0, 744 + bi * 14, W, 14);
+    }
+    ctx.fillStyle = '#0d121c';
+    ctx.fillRect(0, 160, 108, 582);
+    ctx.fillRect(372, 160, W - 372, 582);
+    ctx.globalAlpha = Math.min(1, 0.25 + pulse * 0.5);
+    ctx.fillStyle = '#f2f4f8';
+    for (var x = 14; x < W - 14; x += 22) {
+      ctx.fillRect(x, 12 + pulse * 2, 2, 4);
+    }
+    ctx.globalAlpha = 1;
+    for (var i = 0; i < crowdDots.length; i++) {
+      var d = crowdDots[i];
+      var a = Math.sin(simTime * 0.04 + d.ph) * 1;
+      ctx.globalAlpha = Math.min(1, 0.55 + pulse * 0.45);
+      ctx.fillStyle = d.c;
+      ctx.beginPath();
+      ctx.arc(d.x + a, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#2a3446';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(COURT.x - 16, COURT.y - 16, COURT.w + 32, COURT.h + 32);
+    ctx.fillStyle = '#1d2431';
+    ctx.fillRect(COURT.x - 44, COURT.y + 26, 20, COURT.h - 52);
+    ctx.fillRect(COURT.x + COURT.w + 24, COURT.y + 26, 20, COURT.h - 52);
+    ctx.fillStyle = '#5a6478';
+    ctx.font = '700 7px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(COURT.x - 34, COURT.y + COURT.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(t('title'), 0, 0);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(COURT.x + COURT.w + 34, COURT.y + COURT.h / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(t('title'), 0, 0);
+    ctx.restore();
+    ctx.fillStyle = '#141a26';
+    ctx.fillRect(W / 2 - 96, 10, 192, 38);
+    ctx.strokeStyle = '#3d4657';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - 96, 10, 192, 38);
+    if (match) {
+      ctx.font = '700 9px system-ui, sans-serif';
+      ctx.fillStyle = '#8a93a6';
+      ctx.fillText(t('arenaBoard'), W / 2, 24);
+      ctx.font = '700 18px system-ui, sans-serif';
+      ctx.fillStyle = '#e0c34a';
+      ctx.fillText(String(match.scores[0]), W / 2 - 46, 42);
+      ctx.fillStyle = '#4a8fe0';
+      ctx.fillText(String(match.scores[1]), W / 2 + 46, 42);
+      ctx.fillStyle = pulse > 0 ? '#ffd166' : '#f2f4f8';
+      ctx.fillText(':', W / 2, 41);
+    } else {
+      ctx.font = '700 13px system-ui, sans-serif';
+      ctx.fillStyle = '#8a93a6';
+      ctx.fillText(t('title'), W / 2, 37);
+    }
+  }
+
+  function draw() {
+    if (!paused) stepPlayerMovement();
+    stepImpacts();
+    crowdPulse = Math.max(0, crowdPulse - 0.03);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var grad = null;
+    try {
+      grad = ctx.createLinearGradient ? ctx.createLinearGradient(0, 0, 0, court.clientHeight) : null;
+    } catch (e) {
+      grad = null;
+    }
+    if (grad && grad.addColorStop) {
+      grad.addColorStop(0, '#151b29');
+      grad.addColorStop(0.5, '#0d1119');
+      grad.addColorStop(1, '#080b11');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#0d1119';
+    }
+    ctx.fillRect(0, 0, court.clientWidth, court.clientHeight);
+    ballSquish = Math.max(0, ballSquish - 0.15);
+    cameraShake = Math.max(0, cameraShake - 0.08);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, offsetX * dpr, offsetY * dpr);
+    if (cameraShake > 0) {
+      ctx.translate((Math.random() - 0.5) * cameraShake * 5, (Math.random() - 0.5) * cameraShake * 5);
+    }
+    drawArena();
+
+    ctx.fillStyle = '#17202e';
+    ctx.fillRect(COURT.x, COURT.y, COURT.w, COURT.h);
+    ctx.strokeStyle = '#3d4657';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(COURT.x, COURT.y, COURT.w, COURT.h);
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(COURT.x, threeM(0));
+    ctx.lineTo(COURT.x + COURT.w, threeM(0));
+    ctx.moveTo(COURT.x, threeM(1));
+    ctx.lineTo(COURT.x + COURT.w, threeM(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(COURT.x + COURT.w / 2, COURT.y);
+    ctx.lineTo(COURT.x + COURT.w / 2, COURT.netY);
+    ctx.moveTo(COURT.x + COURT.w / 2, COURT.netY);
+    ctx.lineTo(COURT.x + COURT.w / 2, COURT.y + COURT.h);
+    ctx.stroke();
+    ctx.strokeStyle = '#f2f4f8';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(242,244,248,0.55)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(COURT.x - 8, COURT.netY);
+    ctx.lineTo(COURT.x + COURT.w + 8, COURT.netY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#f2f4f8';
+    ctx.fillRect(COURT.x - 13, COURT.netY - 4, 9, 8);
+    ctx.fillRect(COURT.x + COURT.w + 4, COURT.netY - 4, 9, 8);
+
+    drawTeam(1, '#4a8fe0', false);
+    drawTeam(0, '#e0c34a', true);
+    drawBench(1);
+    drawBench(0);
+
+    var ballScale = 1 + 0.4 * ((ball.h || 0) / (ball.maxH || 1));
+
+    // sombra en el suelo (se achica con la altura)
+    var shadowScale = 1 - 0.6 * ((ball.h || 0) / (ball.maxH || 1));
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(ball.x, ball.y + (ball.h || 0), 10 * shadowScale, 4.5 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // estela
+    for (var tr = 0; tr < ballTrail.length; tr++) {
+      var tp = ballTrail[tr];
+      var f = tr / ballTrail.length;
+      ctx.globalAlpha = f * 0.35;
+      ctx.fillStyle = '#f2f4f8';
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 6 * f, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    var br = Math.max(5, 9 * ballScale);
+    var sq = ballSquish;
+    ctx.fillStyle = '#f2f4f8';
+    ctx.shadowColor = '#f2f4f8';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    if (sq > 0.05) {
+      ctx.ellipse(ball.x, ball.y, br * (1 + sq * 0.3), br * (1 - sq * 0.25), 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(ball.x, ball.y, br, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // giro: una marca que rota
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(ball.rot);
+    ctx.fillStyle = 'rgba(255,209,102,0.85)';
+    ctx.beginPath();
+    ctx.arc(0, 0, br * 0.42, 0.6, 2.2);
+    ctx.lineTo(0, 0);
+    ctx.fill();
+    ctx.restore();
+
+    drawImpacts();
+    drawFeedback();
+    drawTapZones();
+
+    if (label) {
+      ctx.globalAlpha = Math.min(1, label.life * 2);
+      ctx.font = '700 20px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = label.color;
+      ctx.fillText(label.text, W / 2, COURT.y - 40);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function ballSpeed(stat) {
+    return 175 + stat * 20;
+  }
+
+  function moveSpeed(team, index) {
+    if (!teams[team] || !teams[team][index]) return 200;
+    return 165 + playerStat(team, teams[team][index], 'D') * 15;
+  }
+
+  function dist2(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function raceTime(team, index, contact) {
+    return dist2(playerPos[team][index], contact) / moveSpeed(team, index);
+  }
+
+  function raceReaches(team, index, contact, ballTime) {
+    var pt = raceTime(team, index, contact);
+    pt *= 1.0 + Math.random() * 0.16;
+    return pt <= ballTime;
+  }
+
+  function segSeconds(dist, speed) {
+    return (dist / speed) / SPEED_BASE;
+  }
+
+  function qualityFromMargin(margin, stat) {
+    var q = 1 + Math.round(margin * 3);
+    q += Math.round((stat - 4) * 0.4);
+    return Math.max(1, Math.min(3, q));
+  }
+
+  function stepPlayerMovement() {
+    simTime++;
+    for (var key = 0; key < 2; key++) {
+      for (var i = 0; i < playerPos[key].length; i++) {
+        var step = (moveSpeed(key, i) / 60) * thisSpeed;
+        var cur = playerPos[key][i];
+        var tgt = playerTarget[key][i];
+        var dx = tgt.x - cur.x;
+        var dy = tgt.y - cur.y;
+        var dist = Math.hypot(dx, dy);
+        if (dist > 2) {
+          cur.x += (dx / dist) * Math.min(step, dist);
+          cur.y += (dy / dist) * Math.min(step, dist);
+        }
+        if (playerJump[key][i] > 0) playerJump[key][i] = Math.max(0, playerJump[key][i] - 0.07);
+        if (playerSlump[key][i] > 0) playerSlump[key][i] = Math.max(0, playerSlump[key][i] - 0.04);
+        if (playerArms[key][i] > 0) playerArms[key][i] = Math.max(0, playerArms[key][i] - 0.05);
+      }
+    }
+  }
+
+  function ballReact(team, index) {
+    if (!match || !ball || !teams[team]) return { x: 0, y: 0 };
+    var p = playerPos[team][index];
+    var z = ROTATION_ORDER[teams[team][index].zoneIndex];
+    var isBack = z === 5 || z === 6 || z === 1;
+    var xl = isBack ? 26 : 14;
+    var yl = isBack ? 14 : 8;
+    var bx = Math.max(-xl, Math.min(xl, (ball.x - p.x) * 0.07));
+    var by = Math.max(-yl, Math.min(yl, (ball.y - p.y) * 0.03));
+    return { x: bx, y: by };
+  }
+
+  function setJump(team, index) {
+    if (playerJump[team]) playerJump[team][index] = 1;
+  }
+
+  function setBlockJump(team, index) {
+    if (playerJump[team]) playerJump[team][index] = 1.6;
+  }
+
+  function jumpBlockers(team) {
+    for (var i = 0; i < teams[team].length; i++) {
+      if (teams[team][i].role === 'middle' && isFrontRow(team, i)) setBlockJump(team, i);
+    }
+  }
+
+  function addImpact(x, y) {
+    impacts.push({ x: x, y: y, life: 1, kind: 'x' });
+  }
+
+  function addTouch(x, y) {
+    impacts.push({ x: x, y: y, life: 0.6, kind: 'ring' });
+    ballSquish = 1;
+  }
+
+  function stepImpacts() {
+    for (var i = impacts.length - 1; i >= 0; i--) {
+      impacts[i].life -= 0.025;
+      if (impacts[i].life <= 0) impacts.splice(i, 1);
+    }
+    if (pointBanner) {
+      pointBanner.life -= 0.02;
+      if (pointBanner.life <= 0) pointBanner = null;
+    }
+    if (screenFlash) {
+      screenFlash.life -= 0.05;
+      if (screenFlash.life <= 0) screenFlash = null;
+    }
+    if (serveRing) {
+      serveRing.life -= 0.03;
+      if (serveRing.life <= 0) serveRing = null;
+    }
+  }
+
+  function drawFeedback() {
+    if (screenFlash) {
+      ctx.globalAlpha = screenFlash.life * 0.22;
+      ctx.fillStyle = screenFlash.color;
+      ctx.fillRect(COURT.x, COURT.y, COURT.w, COURT.h);
+      ctx.globalAlpha = 1;
+    }
+    if (serveRing) {
+      var sp = playerPos[serveRing.team][serveRing.index];
+      ctx.globalAlpha = serveRing.life;
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y - 10, 18 + (1 - serveRing.life) * 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (pointBanner) {
+      ctx.globalAlpha = Math.min(1, pointBanner.life * 1.6);
+      ctx.font = '800 38px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = pointBanner.color;
+      ctx.fillText(pointBanner.text, W / 2, COURT.y + COURT.h / 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawImpacts() {
+    for (var i = 0; i < impacts.length; i++) {
+      var imp = impacts[i];
+      ctx.globalAlpha = Math.max(0, Math.min(1, imp.life));
+      if (imp.kind === 'ring') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 26, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 3;
+        var s = 16;
+        ctx.beginPath();
+        ctx.moveTo(imp.x - s, imp.y - s);
+        ctx.lineTo(imp.x + s, imp.y + s);
+        ctx.moveTo(imp.x + s, imp.y - s);
+        ctx.lineTo(imp.x - s, imp.y + s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(imp.x, imp.y, 6 + (1 - imp.life) * 40, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawTeam(team, color, highlightPlayer) {
+    var players = playerPos[team];
+    var LIBERO_COLOR = '#ff6d00';
+    for (var i = 0; i < players.length; i++) {
+      var p = players[i];
+      var jump = playerJump[team][i] || 0;
+      var slump = playerSlump[team][i] || 0;
+      var arms = playerArms[team][i] || 0;
+      var ph = playerPhase[team][i];
+      var swayX = Math.sin(simTime * 0.05 + ph) * 1.2;
+      var swayY = Math.cos(simTime * 0.04 + ph * 1.3) * 1.2;
+      var react = ballReact(team, i);
+      var drawX = p.x + swayX + react.x;
+      var drawY = p.y + swayY - jump * 22 + slump * 8 + react.y;
+      var isLiberoPlayer = !!(teams[team][i] && teams[team][i].isLibero);
+      ctx.fillStyle = isLiberoPlayer ? LIBERO_COLOR : color;
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (isLiberoPlayer) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 10px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('L', drawX, drawY - 1);
+        ctx.textBaseline = 'alphabetic';
+      }
+      if (arms > 0.05) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(drawX - 9, drawY - 9);
+        ctx.lineTo(drawX - 9, drawY - 9 - 16 * arms);
+        ctx.moveTo(drawX + 9, drawY - 9);
+        ctx.lineTo(drawX + 9, drawY - 9 - 16 * arms);
+        ctx.stroke();
+      }
+      if (jump > 0.1) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.beginPath();
+        ctx.arc(drawX, p.y + swayY, 13, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.font = '700 10px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(teams[team][i].number), drawX, drawY + 1);
+      ctx.textBaseline = 'alphabetic';
+      if (highlightPlayer && i === 0) {
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, 17, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawBench(team) {
+    if (!match) return;
+    var out = null;
+    if (teamStash[team]) out = teamStash[team].player;
+    else if (teamLibero[team]) out = teamLibero[team];
+    if (!out) return;
+    var bx = isBottom(team) ? COURT.x + COURT.w - 28 : COURT.x + 28;
+    var by = isBottom(team) ? COURT.y + COURT.h + 38 : COURT.y - 38;
+    ctx.fillStyle = out.isLibero ? '#ff6d00' : (team === 0 ? '#e0c34a' : '#4a8fe0');
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(bx, by, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.stroke();
+    if (out.isLibero) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 8px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('L', bx, by);
+      ctx.textBaseline = 'alphabetic';
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.font = '700 8px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(out.number), bx, by + 1);
+    }
+    ctx.fillStyle = '#8a93a6';
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.fillText(out.isLibero ? t('libero') : t('suplente'), bx, by + 22);
+    ctx.fillText(t('coach') + ': ' + (career.dt || '—'), bx, by + 34);
+  }
+
+  // ---------- rAF helpers ----------
+
+  function raf() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(resolve);
+    });
+  }
+
+  async function sleep(seconds) {
+    var t0 = await raf();
+    var dur = ((seconds * SPEED_BASE) / thisSpeed) * 1000;
+    while (true) {
+      var t = await raf();
+      draw();
+      if (t - t0 >= dur) break;
+    }
+  }
+
+  async function ensureContact(team, idx, spot, maxWait) {
+    var t0 = await raf();
+    var dur = (((maxWait || 0.4) * SPEED_BASE) / thisSpeed) * 1000;
+    while (Math.hypot(playerPos[team][idx].x - spot.x, playerPos[team][idx].y - spot.y) > 16) {
+      var t = await raf();
+      draw();
+      if (t - t0 >= dur) break;
+    }
+  }
+
+  async function playSegment(script, contact) {
+    var from = script.from;
+    var to = script.to;
+    var seconds = script.seconds || 0.5;
+    var overNet = script.overNet;
+    var arc = script.arc !== undefined
+      ? script.arc
+      : (overNet ? 130 : Math.abs(to.y - from.y) > 120 ? 90 : 30);
+    var t0 = await raf();
+    var dur = ((seconds * SPEED_BASE) / thisSpeed) * 1000;
+    while (true) {
+      var t = await raf();
+      var p = Math.min(1, (t - t0) / dur);
+      var arcOffset = Math.sin(Math.PI * p) * arc;
+      ball.x = from.x + (to.x - from.x) * p;
+      ball.y = from.y + (to.y - from.y) * p - arcOffset;
+      ball.h = arcOffset;
+      ball.maxH = arc;
+      ball.rot += 0.08 + Math.hypot(to.x - from.x, to.y - from.y) / 8000;
+      ballTrail.push({ x: ball.x, y: ball.y, a: 1 });
+      if (ballTrail.length > 8) ballTrail.shift();
+      draw();
+      if (contact && p > 0.04) {
+        var px = playerPos[contact.team] && playerPos[contact.team][contact.idx];
+        if (px && Math.hypot(ball.x - px.x, ball.y - px.y) < 24) {
+          ball.h = 0;
+          ballTrail.length = 0;
+          ballNow = { x: ball.x, y: ball.y };
+          if (contact.onContact) contact.onContact(ballNow);
+          return true;
+        }
+      }
+      if (p >= 1) break;
+    }
+    ball.h = 0;
+    ballTrail.length = 0;
+    ballNow = { x: to.x, y: to.y };
+    if (contact && contact.onMiss) contact.onMiss(ballNow);
+    return false;
+  }
+
+  function resetPlayerPositions() {
+    setFormationTargets();
+  }
+
+  function zoneSpot(team) {
+    return {
+      x: COURT.x + 50 + Math.random() * (COURT.w - 100),
+      y: isBottom(team) ? COURT.netY + 70 + Math.random() * 150 : COURT.netY - 70 - Math.random() * 150,
+    };
+  }
+
+  function weakestReceiver(team) {
+    var best = null;
+    var bestStat = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === 'setter' || p.role === 'middle' || p.role === 'opposite') continue;
+      var r = playerStat(team, p, 'R');
+      if (r < bestStat) {
+        bestStat = r;
+        best = { x: playerPos[team][i].x, y: playerPos[team][i].y };
+      }
+    }
+    return best;
+  }
+
+  function clubPowerOfPlayer() {
+    return career && career.clubs ? career.clubs[career.clubIdx].power : 4;
+  }
+
+  function teammateStat(stat) {
+    return clubStats(clubPowerOfPlayer())[stat];
+  }
+
+  function playerStat(team, player, stat) {
+    if (player && player.isLibero) return LIBERO_STATS[stat];
+    if (team === 0) {
+      if (player.isPlayer) {
+        return career.suspended ? suspendedStat(stat) : career.stats[stat];
+      }
+      return teammateStat(stat);
+    }
+    return match.rival.stats[stat];
+  }
+
+  function thePlayer() {
+    return teams[0][0];
+  }
+
+  function defZoneMod(zone) {
+    return zone === 1 || zone === 5 ? -1 : zone === 3 ? -0.5 : 0;
+  }
+
+  function setLabel(text, color) {
+    label = { text: text, color: color, life: 1 };
+  }
+
+  async function showLabel(text, color, seconds) {
+    setLabel(text, color);
+    await sleep(seconds);
+    label = null;
+  }
+
+  // ---------- Match state ----------
+
+  var match = null;
+
+  function newMatch(rival) {
+    if (rival && !rival.scout) rival.scout = oppScout(rival);
+    match = {
+      rival: rival,
+      scores: [0, 0],
+      totalPoints: [0, 0],
+      setsWon: [0, 0],
+      setIndex: 0,
+      server: Math.random() < 0.5 ? 0 : 1,
+      over: false,
+      rallyTouches: [0, 0],
+      sidesFlipped: false,
+    };
+    initTeams();
+    return match;
+  }
+
+  // ---------- League ----------
+
+  function leagueClubs() {
+    return window.VAV.clubs.slice(LEAGUE_SIZE, LEAGUE_SIZE * 2);
+  }
+
+  function myDivision() {
+    return career.clubs[career.clubIdx].division;
+  }
+
+  function countryLevel(c) {
+    return c === 'espana' ? 2 : c === 'italia' ? 3 : 1;
+  }
+
+  function nextCountry(c) {
+    return c === 'argentina' ? 'espana' : c === 'espana' ? 'italia' : null;
+  }
+
+  function initClubs() {
+    var lvl = countryLevel(career.country);
+    career.clubs = window.VAV.clubs.map(function (name, i) {
+      var a = i < LEAGUE_SIZE;
+      return {
+        name: name,
+        power: (a ? 4 + Math.random() * 3 : 2.5 + Math.random() * 2.5) + (lvl - 1) * 1.5,
+        division: a ? 'A' : 'B',
+      };
+    });
+  }
+
+  function moveToCountry(next) {
+    career.country = next;
+    initClubs();
+    career.clubs[career.clubIdx].division = 'B';
+    var aCount = 0;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division === 'A') aCount++;
+    }
+    if (aCount > LEAGUE_SIZE) {
+      var weakest = -1;
+      for (var j = 0; j < career.clubs.length; j++) {
+        if (career.clubs[j].division !== 'A') continue;
+        if (weakest === -1 || career.clubs[j].power < career.clubs[weakest].power) weakest = j;
+      }
+      career.clubs[weakest].division = 'B';
+    } else if (aCount < LEAGUE_SIZE) {
+      var strongest = -1;
+      for (var k = 0; k < career.clubs.length; k++) {
+        if (career.clubs[k].division !== 'B') continue;
+        if (strongest === -1 || career.clubs[k].power > career.clubs[strongest].power) strongest = k;
+      }
+      career.clubs[strongest].division = 'A';
+    }
+  }
+
+  function myLocalIdx() {
+    if (!career.divisionIndices) return 0;
+    var idx = career.divisionIndices.indexOf(career.clubIdx);
+    return idx === -1 ? 0 : idx;
+  }
+
+  function initClubs() {
+    career.clubs = window.VAV.clubs.map(function (name, i) {
+      var a = i < LEAGUE_SIZE;
+      return {
+        name: name,
+        power: a ? 4 + Math.random() * 3 : 2.5 + Math.random() * 2.5,
+        division: a ? 'A' : 'B',
+      };
+    });
+  }
+
+  function clubStats(power) {
+    return { S: power, A: power + 1, R: power, B: power, D: power };
+  }
+
+  function powerWinP(a, b) {
+    return Math.max(0.12, Math.min(0.88, 0.5 + (a - b) * 0.09));
+  }
+
+  function simulateMatchScore(powerA, powerB) {
+    var setsA = 0;
+    var setsB = 0;
+    while (setsA < 2 && setsB < 2) {
+      if (Math.random() < powerWinP(powerA, powerB)) setsA++;
+      else setsB++;
+    }
+    return { setsA: setsA, setsB: setsB, win: setsA > setsB };
+  }
+
+  function teamPower(team) {
+    if (team === 0) {
+      var sum = 0;
+      for (var i = 0; i < STATS.length; i++) {
+        var v = career.benched ? teammateStat(STATS[i]) : teamPhaseStat(0, STATS[i]);
+        sum += v;
+      }
+      return sum / STATS.length;
+    }
+    return 5;
+  }
+
+  function dtBenched() {
+    var chance = 0.4 - career.form * 0.04;
+    if (career.age >= 30) chance += 0.12;
+    if (career.age <= 23) chance -= 0.05;
+    return Math.random() < Math.max(0.05, Math.min(0.6, chance));
+  }
+
+  function buildSchedule() {
+    var n = LEAGUE_SIZE;
+    var arr = [];
+    for (var i = 0; i < n - 1; i++) arr.push(i);
+    var fixed = n - 1;
+    var rounds = [];
+    for (var r = 0; r < n - 1; r++) {
+      var pairs = [[arr[0], fixed]];
+      for (var j = 1; j < arr.length / 2; j++) {
+        pairs.push([arr[j], arr[arr.length - j]]);
+      }
+      rounds.push(pairs);
+      arr = [arr[arr.length - 1]].concat(arr.slice(0, arr.length - 1));
+    }
+    var returnLeg = rounds.map(function (rd) {
+      return rd.map(function (p) { return [p[1], p[0]]; });
+    });
+    return rounds.concat(returnLeg);
+  }
+
+  function initLeague() {
+    if (!career.clubs) initClubs();
+    var myDiv = myDivision();
+    var indices = [];
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division === myDiv) indices.push(i);
+    }
+    career.divisionIndices = indices;
+    career.schedule = buildSchedule();
+    career.standings = indices.map(function (gi) {
+      return { name: career.clubs[gi].name, power: career.clubs[gi].power, played: 0, won: 0, lost: 0, sw: 0, sl: 0, pts: 0 };
+    });
+    career.week = 0;
+    career.seasonStats = { points: 0 };
+  }
+
+  function applyStandings(clubIdx, sw, sl) {
+    var local = career.divisionIndices.indexOf(clubIdx);
+    if (local === -1) return;
+    var s = career.standings[local];
+    s.played++;
+    s.sw += sw;
+    s.sl += sl;
+    var won = sw > sl;
+    if (won) s.won++;
+    else s.lost++;
+    s.pts += won ? 3 : 0;
+  }
+
+  function oppScout(opp) {
+    if (!opp.scout) {
+      opp.scout = {
+        setPref: [2, 3, 4, 6][Math.floor(Math.random() * 4)],
+        hitPref: [1, 5, 6][Math.floor(Math.random() * 3)],
+        aggr: Math.max(0.15, Math.min(0.9, 0.35 + Math.random() * 0.55)),
+        smart: Math.max(0.25, Math.min(0.9, 0.4 + Math.random() * 0.5)),
+      };
+    }
+    return opp.scout;
+  }
+
+  function scoutingText(opp) {
+    var s = oppScout(opp);
+    var setDesc = s.setPref === 4 ? t('scoutSet4') : s.setPref === 2 ? t('scoutSet2') : t('scoutSet6');
+    var hitDesc = s.hitPref === 1 ? t('scoutHit1') : s.hitPref === 5 ? t('scoutHit5') : t('scoutHit6');
+    var aggDesc = s.aggr > 0.65 ? t('scoutAgg') : s.aggr < 0.4 ? t('scoutSafe') : t('scoutBal');
+    return '<p class="subtitle scout-line">' + t('scout') + ' ' + setDesc + ', ' + hitDesc + ' · ' + aggDesc + '.</p>';
+  }
+
+  function currentOpponent() {
+    var me = myLocalIdx();
+    var pairs = career.schedule && career.schedule[career.week];
+    if (!pairs) return career.clubs[career.divisionIndices[(me + 1) % LEAGUE_SIZE]];
+    for (var i = 0; i < pairs.length; i++) {
+      if (pairs[i][0] === me) return career.clubs[career.divisionIndices[pairs[i][1]]];
+      if (pairs[i][1] === me) return career.clubs[career.divisionIndices[pairs[i][0]]];
+    }
+    return career.clubs[career.divisionIndices[(me + 1) % LEAGUE_SIZE]];
+  }
+
+  function resolveOtherMatches() {
+    var me = myLocalIdx();
+    var pairs = career.schedule[career.week];
+    for (var i = 0; i < pairs.length; i++) {
+      var a = pairs[i][0];
+      var b = pairs[i][1];
+      if (a === me || b === me) continue;
+      var ca = career.clubs[career.divisionIndices[a]];
+      var cb = career.clubs[career.divisionIndices[b]];
+      var r = simulateMatchScore(ca.power, cb.power);
+      applyStandings(career.divisionIndices[a], r.setsA, r.setsB);
+      applyStandings(career.divisionIndices[b], r.setsB, r.setsA);
+    }
+  }
+
+  function promoteClub() {
+    var weakest = -1;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division !== 'A') continue;
+      if (weakest === -1 || career.clubs[i].power < career.clubs[weakest].power) weakest = i;
+    }
+    career.clubs[career.clubIdx].division = 'A';
+    career.clubs[weakest].division = 'B';
+  }
+
+  function relegateClub() {
+    var strongest = -1;
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (career.clubs[i].division !== 'B') continue;
+      if (strongest === -1 || career.clubs[i].power > career.clubs[strongest].power) strongest = i;
+    }
+    career.clubs[career.clubIdx].division = 'B';
+    career.clubs[strongest].division = 'A';
+  }
+
+  // ---------- Phase resolution ----------
+
+  function autoPhase(attackerStat, defenderStat) {
+    var diff = attackerStat - defenderStat;
+    var p = Math.max(0.12, Math.min(0.88, 0.42 + diff * 0.055 + (Math.random() - 0.5) * 0.26));
+    return Math.random() < p;
+  }
+
+  function teamPhaseStat(team, stat) {
+    if (team === 0) {
+      var pStat = career.suspended || career.injured ? suspendedStat(stat) : career.stats[stat];
+      var combined = (teammateStat(stat) + pStat) / 2;
+      return Math.max(1, Math.min(10, Math.round(combined)));
+    }
+    return match.rival.stats[stat];
+  }
+
+  // ---------- IA: decisiones situacionales (Nivel 1) ----------
+
+  function scoreGap(team) {
+    if (!match) return 0;
+    var diff = match.scores[team] - match.scores[1 - team];
+    var atSet = (match.scores[0] >= SET_TARGET - 1 || match.scores[1] >= SET_TARGET - 1);
+    return Math.max(-1.5, Math.min(1.5, diff * 0.1 + (atSet ? (diff >= 0 ? -0.3 : 0.3) : 0)));
+  }
+
+  function setZoneChoice(attacking, defender, receiveQuality) {
+    var rq = typeof receiveQuality === 'number' ? receiveQuality : 2;
+    var zones = [];
+    if (playerByRoleRow(attacking, 'outside', 'front')) zones.push(4);
+    if (rq >= 2 && playerByRoleRow(attacking, 'outside', 'back')) zones.push(6);
+    if (rq >= 2 && playerByRoleRow(attacking, 'middle', 'front')) zones.push(3);
+    if (playerByRoleRow(attacking, 'opposite', 'front')) zones.push(2);
+    if (playerByRoleRow(attacking, 'opposite', 'back')) zones.push(1);
+    if (!zones.length) zones = [4, 2];
+    var setter = setterPlayer(attacking);
+    var tend = tendOf(attacking, playerIndex(attacking, setter));
+    var weights = zones.map(function (z) {
+      var w = 1;
+      if (z === 4) w += 1.1;
+      if (z === 6) w -= 0.2;
+      if (z === 3) w += tend.smart * 0.8 + (rq >= 3 ? 0.4 : 0);
+      if (z === 1) w += 0.2;
+      if (rq < 1.5) {
+        if (z === 4) w += 1.6;
+        else w -= 0.8;
+      } else if (rq >= 3) {
+        if (z !== 4) w += 0.7;
+      }
+      var attacker = attackerForZone(attacking, z);
+      var aidx = playerIndex(attacking, attacker);
+      var aStat = playerStat(attacking, attacker, 'A');
+      w += (aStat - 5) * 0.25 + (attackerRow(z) === 'front' ? 0.4 : -0.4);
+      if (z === tend.setPref) w += tend.smart * 1.2;
+      w += (Math.random() - 0.5) * (1.6 - tend.smart);
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function hitZoneChoice(attacking, defender, setZone, aStat) {
+    var zones = [1, 5, 6];
+    var attacker = attackerForZone(attacking, setZone);
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var stat = typeof aStat === 'number' ? aStat : 5;
+    var defCover = (teamPhaseStat(defender, 'D') - 5) * 0.1;
+    var weights = zones.map(function (z) {
+      var w = 1;
+      if (z === 6) {
+        w += 0.5 + (1 - tend.aggr) * 0.7;
+      } else {
+        w += tend.aggr * 0.9 + Math.max(0, stat - 5) * 0.15 + defCover;
+      }
+      if (setZone === 2 && z === 5) w += 0.8 + tend.smart * 0.5;
+      if (setZone === 4 && z === 1) w += 0.8 + tend.smart * 0.5;
+      if (setZone === 6 && z !== 6) w += 0.3;
+      if (z === tend.hitPref) w += tend.smart * 1.0;
+      w += (Math.random() - 0.5) * (1.8 - tend.smart);
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function blockGuess(defending, attacking, setZone) {
+    var zones = [1, 5, 6];
+    var attacker = attackerForZone(attacking, setZone);
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var smart = tend.smart * 0.45 + 0.1;
+    smart = Math.max(0.15, Math.min(0.85, smart + (teamPhaseStat(defending, 'B') - 5) * 0.08));
+    var weights = zones.map(function (z) {
+      var w = 0.5 + Math.random() * 1.4;
+      if (z === tend.hitPref) w += smart * 1.0;
+      if (setZone === 2 && z === 5) w += smart * 0.6;
+      if (setZone === 4 && z === 1) w += smart * 0.6;
+      if (setZone === 6 && z !== 6) w += smart * 0.3;
+      return Math.max(0.1, w);
+    });
+    return weightedPick(zones, weights);
+  }
+
+  function closestReceiver(team, spot) {
+    var best = -1;
+    var bestD = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      var p = teams[team][i];
+      if (p.role === 'setter' || p.role === 'middle' || p.role === 'opposite') continue;
+      var d = Math.hypot(playerPos[team][i].x - spot.x, playerPos[team][i].y - spot.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0) best = playerIndex(team, playerInZone(team, 6));
+    return best;
+  }
+
+  function isPlayerTurn(phase) {
+    if (career.suspended || career.benched) return false;
+    if (career.position === 'punta') return phase === 'receive' || phase === 'attack';
+    if (career.position === 'armador') return phase === 'set';
+    if (career.position === 'opuesto') return phase === 'attack';
+    if (career.position === 'central') return phase === 'defend';
+    return phase === 'receive';
+  }
+
+  function suspendedStat(stat) {
+    return Math.max(1, career.stats[stat] - 2);
+  }
+
+  function isMyTurn(team, phase) {
+    return team === 0 && isPlayerTurn(phase);
+  }
+
+  function pickReason(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function reasonKey(reason) {
+    return 'reason' + reason.charAt(0).toUpperCase() + reason.slice(1);
+  }
+
+  function reasonBannerText(reason) {
+    var txt = t(reasonKey(reason));
+    return '¡' + txt.charAt(0).toUpperCase() + txt.slice(1) + '!';
+  }
+
+  async function doServe(attacking, defender) {
+    match.rallyTouches[attacking]++;
+    var server = serverPlayer(attacking);
+    var sidx = playerIndex(attacking, server);
+    var base = zoneBasePos(attacking, ROTATION_ORDER[server.zoneIndex]);
+    var from = { x: base.x, y: isBottom(attacking) ? COURT.y + COURT.h + 46 : COURT.y - 46 };
+    moveTo(attacking, sidx, from);
+    pointBanner = { text: t('serveBy').replace('{name}', pName(attacking, server)), color: '#ffd166', life: 1 };
+    serveRing = { team: attacking, index: sidx, life: 1 };
+    await sleep(1.5);
+    serveRing = null;
+    var sStat = playerStat(attacking, server, 'S');
+    var ok = Math.random() < Math.max(0.5, Math.min(0.92, 0.75 + (sStat - teamPhaseStat(defender, 'R')) * 0.04));
+    var reason = null;
+    var to;
+    var jumpServe = false;
+    if (ok) {
+      jumpServe = sStat >= 7 && Math.random() < 0.35 + (scoreGap(attacking) < 0 ? 0.2 : 0);
+      if (jumpServe) {
+        to = {
+          x: COURT.x + 55 + Math.random() * (COURT.w - 110),
+          y: isBottom(defender) ? COURT.netY + 150 + Math.random() * 40 : COURT.netY - 150 - Math.random() * 40,
+        };
+      } else if (Math.random() < 0.4) {
+        to = {
+          x: COURT.x + 55 + Math.random() * (COURT.w - 110),
+          y: isBottom(defender) ? COURT.netY + 85 + Math.random() * 30 : COURT.netY - 85 - Math.random() * 30,
+        };
+      } else {
+        to = zoneSpot(defender);
+      }
+      var weak = weakestReceiver(defender);
+      if (weak) {
+        to = {
+          x: weak.x + (Math.random() * 60 - 30),
+          y: weak.y + (Math.random() * 50 - 25),
+        };
+      }
+    } else {
+      reason = pickReason(['net', 'out', 'foot']);
+      if (reason === 'net') {
+        to = { x: from.x + (Math.random() * 60 - 30), y: COURT.netY + 6 };
+      } else if (reason === 'out') {
+        to = { x: COURT.x + 60 + Math.random() * (COURT.w - 120), y: isBottom(attacking) ? COURT.y - 30 : COURT.y + COURT.h + 30 };
+      } else {
+        to = { x: from.x, y: from.y + (isBottom(attacking) ? 20 : -20) };
+      }
+    }
+    var ridxA = (defender === 0 && isPlayerTurn('receive')) ? 0 : closestReceiver(defender, to);
+    if (ridxA < 0) ridxA = playerIndex(defender, playerInZone(defender, 6));
+    var sIdxA = playerIndex(defender, setterPlayer(defender));
+    var svSpeed = ballSpeed(sStat + (jumpServe ? 1 : 0));
+    var svDist = dist2(from, to);
+    var svTime = svDist / svSpeed;
+    var received = false;
+    var margin = ok ? svTime - raceTime(defender, ridxA, to) : 0;
+    if (ridxA >= 0 && ok) moveTo(defender, ridxA, to);
+    if (sIdxA >= 0 && ok) moveTo(defender, sIdxA, setterSpot(defender));
+    var serveSeg = {
+      from: from,
+      to: to,
+      seconds: reason === 'foot' ? 0.3 : Math.max(0.45, segSeconds(svDist, svSpeed)),
+      overNet: !reason || reason === 'out',
+    };
+    if (ok && ridxA >= 0) {
+      received = await playSegment(serveSeg, {
+        team: defender,
+        idx: ridxA,
+        onMiss: function () {},
+      });
+    } else {
+      await playSegment(serveSeg);
+    }
+    if (ok) moveTo(attacking, sidx, formationSpot(attacking, sidx, 'defense'));
+    comment(t('serveBy').replace('{name}', pName(attacking, server)));
+    if (!ok) {
+      if (reason === 'net') addTouch(to.x, to.y);
+      comment(t('serveError').replace('{name}', pName(attacking, server)).replace('{reason}', t(reasonKey(reason))));
+      pointBanner = { text: reasonBannerText(reason), color: '#e0503f', life: 1 };
+      await sleep(0.6);
+    }
+    return { ok: ok, quality: sStat, received: received, margin: margin, to: to };
+  }
+
+  async function doReceive(attacking, defender, serve) {
+    match.rallyTouches[attacking]++;
+    var isMy = isMyTurn(attacking, 'receive');
+    var setter = setterPlayer(attacking);
+    var sidx = playerIndex(attacking, setter);
+    var ridx = isMy ? 0 : closestReceiver(attacking, serve.to);
+    if (ridx < 0) ridx = playerIndex(attacking, playerInZone(attacking, 6));
+    var landing = serve.to;
+    var received = serve.received;
+    var decision = null;
+    var quality = 0;
+    var ok;
+    var direct = false;
+    if (!received) {
+      addImpact(landing.x, landing.y);
+      comment(t('aceBy').replace('{name}', pName(defender, serverPlayer(defender))));
+      pointBanner = { text: t('ace'), color: '#ffd166', life: 1 };
+      await sleep(0.7);
+      return { ok: false, direct: false, quality: 0 };
+    }
+    if (isMy) {
+      if (watchMode) {
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'receive', zone: 6 };
+        quality = qualityFromMargin(serve.margin, playerStat(attacking, thePlayer(), 'R'));
+        ok = true;
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('receive');
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0));
+        ok = quality >= decision.threshold;
+        direct = decision.directOnPerfect && quality === 3;
+      }
+    } else {
+      quality = qualityFromMargin(serve.margin, playerStat(attacking, teams[attacking][ridx], 'R'));
+      ok = true;
+    }
+    setReceiveFormation(attacking);
+    moveTo(attacking, ridx, { x: landing.x, y: landing.y });
+    var sp = playerTarget[attacking][sidx];
+    var spray = 1 - Math.max(0, Math.min(3, quality)) / 3;
+    var to = {
+      x: sp.x + (Math.random() - 0.5) * 2 * spray * 46,
+      y: sp.y + (Math.random() - 0.5) * 2 * spray * 32,
+    };
+    moveTo(attacking, sidx, to);
+    var contact = { x: ballNow.x, y: ballNow.y };
+    if (isMy) setLabel(resultLabel(quality), resultColor(quality));
+    var passDist = dist2(contact, to);
+    var passMiss = false;
+    await playSegment({
+      from: contact,
+      to: to,
+      seconds: segSeconds(passDist, 115 + playerStat(attacking, teams[attacking][ridx], 'R') * 12),
+      arc: 72 - quality * 11,
+    }, {
+      team: attacking,
+      idx: sidx,
+      onMiss: function () {
+        passMiss = true;
+      },
+    });
+    var receiver = teams[attacking][ridx];
+    if (passMiss) {
+      label = null;
+      addImpact(ballNow.x, ballNow.y);
+      comment(t('receiveFail').replace('{name}', pName(attacking, receiver)).replace('{team}', teamName(defender)));
+      pointBanner = { text: t('reasonFloor'), color: '#e0503f', life: 1 };
+      await sleep(0.6);
+      return { ok: false, direct: false, quality: quality };
+    }
+    label = null;
+    addTouch(contact.x, contact.y);
+    if (isMy) {
+      comment(t('receivePlayer').replace('{result}', resultLabel(quality)));
+    } else {
+      comment(t('receiveOk').replace('{name}', pName(attacking, receiver)));
+    }
+    return { ok: ok, direct: direct, quality: quality };
+  }
+
+  async function doSet(attacking, defender, receiveQuality) {
+    match.rallyTouches[attacking]++;
+    var isMy = isMyTurn(attacking, 'set');
+    var setter = setterPlayer(attacking);
+    var sidx = playerIndex(attacking, setter);
+    var decision = null;
+    var quality = 0;
+    var setZone = 4;
+    if (isMy) {
+      if (watchMode) {
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'set', zone: setZoneChoice(attacking, defender, receiveQuality) };
+        setZone = decision.zone;
+        quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('set', receiveQuality);
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'R') + (decision.diff || 0) + (receiveQuality < 1 ? -1 : 0));
+        setZone = decision.zone;
+      }
+      setLabel(resultLabel(quality), resultColor(quality));
+    } else {
+      setZone = setZoneChoice(attacking, defender, receiveQuality);
+      quality = Math.max(0, Math.min(2, Math.round(receiveQuality - 1)));
+    }
+    var attacker = attackerForZone(attacking, setZone);
+    var aidx = playerIndex(attacking, attacker);
+    var target = isFrontRow(attacking, aidx) ? attackSpot(attacking, setZone) : backAttackSpot(attacking, setZone);
+    setOffenseFormation(attacking, setZone);
+    setDefenseReady(defender);
+    moveTo(attacking, isMy ? 0 : sidx, { x: ballNow.x, y: ballNow.y });
+    moveTo(attacking, aidx, target);
+    var setterR = playerStat(attacking, setter, 'R');
+    var setSpeed = 115 + (setterR + quality) * 12;
+    var stDist = dist2(ballNow, target);
+    var stTime = stDist / setSpeed;
+    var setTouch = { x: ballNow.x, y: ballNow.y };
+    var arrived = await playSegment({
+      from: ballNow,
+      to: target,
+      seconds: segSeconds(stDist, setSpeed),
+      arc: 35,
+    }, {
+      team: attacking,
+      idx: aidx,
+      onMiss: function () {},
+    });
+    label = null;
+    addTouch(setTouch.x, setTouch.y);
+    var ok = isMy ? quality >= decision.threshold : arrived;
+    var direct = isMy && decision.directOnPerfect && quality === 3;
+    var setterName = isMy ? pName(attacking, thePlayer()) : pName(attacking, setter);
+    if (!ok) {
+      addImpact(target.x, target.y);
+      comment(t('setFail').replace('{name}', setterName).replace('{reason}', t(reasonKey('floor'))).replace('{team}', teamName(defender)));
+      pointBanner = { text: t('reasonFloor'), color: '#e0503f', life: 1 };
+      await sleep(0.7);
+    } else {
+      comment(t('setTo').replace('{name}', setterName).replace('{zone}', setZone));
+    }
+    return { ok: ok, direct: direct, quality: quality, zone: setZone, attacker: attacker, arrived: arrived };
+  }
+
+  async function doAttack(attacking, defender, setQuality, setZone) {
+    match.rallyTouches[attacking]++;
+    var isMy = isMyAttack(attacking, setZone);
+    var attacker = attackerForZone(attacking, setZone);
+    var aidx = playerIndex(attacking, attacker);
+    var decision = null;
+    var quality = 0;
+    var hitZone = setZone === 2 ? 1 : setZone === 6 ? 6 : 5;
+    if (isMy) {
+      if (watchMode) {
+        hitZone = hitZoneChoice(attacking, defender, setZone, playerStat(attacking, thePlayer(), 'A'));
+        decision = { diff: 0, threshold: 2, directOnPerfect: false, key: 'attack', zone: hitZone };
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        decision = await askDecision('attack');
+        quality = await runMinigame(playerStat(attacking, thePlayer(), 'A') + (decision.diff || 0));
+        hitZone = decision.zone;
+      }
+    } else {
+      hitZone = hitZoneChoice(attacking, defender, setZone, playerStat(attacking, attacker, 'A'));
+    }
+    var blockG = blockGuess(defender, attacking, setZone);
+    var readBlock = blockG === hitZone;
+    if (isMy && !watchMode) {
+      if (readBlock) quality = Math.max(0, quality - 1);
+    } else {
+      var atkStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
+      quality = autoPhase(atkStat + setQuality + (readBlock ? -1.3 : 0.35), teamPhaseStat(defender, 'B')) ? 2 : 0;
+    }
+    if (isMy) setLabel(resultLabel(quality), resultColor(quality));
+    var ok = isMy ? quality >= decision.threshold : quality > 0;
+    var direct = isMy && decision.directOnPerfect && quality === 3;
+    var aReason = null;
+    if (!ok) aReason = pickReason(['out', 'net', 'blocked', 'invade']);
+    var target;
+    if (!ok && aReason === 'out') {
+      target = { x: zoneBasePos(defender, hitZone).x, y: isBottom(defender) ? COURT.y + COURT.h + 30 : COURT.y - 30 };
+    } else if (!ok && aReason === 'invade') {
+      target = { x: zoneBasePos(defender, hitZone).x + (Math.random() * 60 - 30), y: isBottom(defender) ? COURT.y + COURT.h + 30 : COURT.y - 30 };
+    } else if (!ok && aReason === 'net') {
+      target = { x: ballNow.x, y: COURT.netY + 6 };
+    } else if (!ok && aReason === 'blocked') {
+      target = { x: ballNow.x, y: ballNow.y + (isBottom(attacking) ? 50 : -50) };
+    } else {
+      target = {
+        x: zoneBasePos(defender, hitZone).x + (Math.random() * 46 - 23),
+        y: isBottom(defender) ? COURT.netY + 128 + Math.random() * 34 : COURT.netY - 128 - Math.random() * 34,
+      };
+    }
+    setOffenseFormation(attacking, setZone);
+    setDefenseFormation(defender, hitZone, blockG);
+    tendencyCover(defender, attacking, setZone);
+    moveTo(attacking, isMy ? 0 : aidx, { x: ballNow.x, y: ballNow.y });
+    if (isFrontRow(attacking, aidx) || isDeep(attacking, ballNow.y)) {
+      setJump(attacking, isMy ? 0 : aidx);
+    } else {
+      playerJump[attacking][isMy ? 0 : aidx] = 0;
+    }
+    var isMyDefend = (defender === 0 && isPlayerTurn('defend'));
+    var didxA = isMyDefend ? 0 : -1;
+    if (didxA >= 0) moveTo(defender, didxA, { x: zoneBasePos(defender, hitZone).x, y: COURT.netY + (isBottom(defender) ? 16 : -16) });
+    var atkStat2 = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
+    var reached = false;
+    var defenseMargin = 0;
+    var digIdx = -1;
+    var atkTouch = { x: ballNow.x, y: ballNow.y };
+    if (!ok && aReason === 'blocked') {
+      var blockX = zoneBasePos(defender, blockG).x;
+      var netPoint = { x: blockX, y: COURT.netY + (isBottom(defender) ? 6 : -6) };
+      await playSegment({
+        from: ballNow,
+        to: netPoint,
+        seconds: segSeconds(dist2(ballNow, netPoint), ballSpeed(atkStat2 + setQuality) * 0.8),
+        arc: 18,
+      });
+      jumpBlockers(defender);
+      addTouch(netPoint.x, netPoint.y);
+      cameraShake = Math.max(cameraShake, 1);
+      crowdPulse = Math.max(crowdPulse, 0.5);
+      var rebound = { x: ballNow.x + (Math.random() * 70 - 35), y: ballNow.y + (isBottom(attacking) ? 75 : -75) };
+      await playSegment({
+        from: netPoint,
+        to: rebound,
+        seconds: segSeconds(dist2(netPoint, rebound), 130),
+        arc: 22,
+      });
+    } else {
+      var spikeSpeed = ballSpeed(atkStat2 + setQuality);
+      var skDist = dist2(ballNow, target);
+      var skTime = skDist / spikeSpeed;
+      var spikeContact = null;
+      if (ok) {
+        digIdx = closestDefender(defender, target);
+        defenseMargin = skTime - (digIdx >= 0 ? raceTime(defender, digIdx, target) : 0);
+        if (digIdx >= 0 && !isMyDefend) {
+          moveTo(defender, digIdx, target);
+          spikeContact = {
+            team: defender,
+            idx: digIdx,
+            onContact: function () {
+              reached = true;
+            },
+            onMiss: function () {
+              addImpact(ballNow.x, ballNow.y);
+            },
+          };
+        } else if (digIdx >= 0) {
+          reached = raceReaches(defender, digIdx, target, skTime);
+        }
+      }
+      await playSegment({
+        from: ballNow,
+        to: target,
+        seconds: segSeconds(skDist, spikeSpeed),
+        overNet: !aReason || aReason === 'invade',
+        arc: 52,
+      }, spikeContact);
+      if (!ok && aReason === 'net') addTouch(target.x, target.y);
+    }
+    label = null;
+    addTouch(atkTouch.x, atkTouch.y);
+    var attackerName = isMy ? pName(attacking, thePlayer()) : pName(attacking, attacker);
+    var attackerStat = isMy ? playerStat(attacking, thePlayer(), 'A') : playerStat(attacking, attacker, 'A');
+    if (!ok) {
+      comment(t('attackFail').replace('{name}', attackerName).replace('{reason}', t(reasonKey(aReason))).replace('{team}', teamName(defender)));
+      pointBanner = { text: reasonBannerText(aReason), color: '#e0503f', life: 1 };
+      await sleep(0.6);
+    } else if (isMy && decision.key === 'suelta') {
+      comment(t('tipBy').replace('{name}', attackerName));
+    } else {
+      comment(t('attackTo').replace('{name}', attackerName).replace('{zone}', hitZone));
+    }
+    return { ok: ok, direct: direct, quality: quality, zone: hitZone, attackerStat: attackerStat, reached: reached, defenseMargin: defenseMargin, digIdx: digIdx };
+  }
+
+  function closestDefender(team, spot) {
+    var best = -1;
+    var bestD = Infinity;
+    for (var i = 0; i < teams[team].length; i++) {
+      if (isFrontRow(team, i)) continue;
+      var d = Math.hypot(playerPos[team][i].x - spot.x, playerPos[team][i].y - spot.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  function tendencyCover(defender, attacking, setZone) {
+    var attacker = attackerForZone(attacking, setZone);
+    var tend = tendOf(attacking, playerIndex(attacking, attacker));
+    var coverX = zoneBasePos(defender, tend.hitPref).x;
+    for (var i = 0; i < teams[defender].length; i++) {
+      if (isFrontRow(defender, i)) continue;
+      var spot = playerTarget[defender][i];
+      moveTo(defender, i, { x: spot.x + (coverX - spot.x) * 0.25, y: spot.y });
+    }
+  }
+
+  async function doDefend(defending, attacking, hitZone, attackQuality, attackerStat, defenseMargin, digIdx) {
+    match.rallyTouches[defending]++;
+    var setter = setterPlayer(defending);
+    var sidx = playerIndex(defending, setter);
+    var didx = (typeof digIdx === 'number' && digIdx >= 0) ? digIdx : playerIndex(defending, playerInZone(defending, 6));
+    var dig = teams[defending][didx];
+    var from = ballNow;
+    var digQuality = 0;
+    if (isMyTurn(defending, 'defend')) {
+      if (watchMode) {
+        digQuality = qualityFromMargin(defenseMargin, playerStat(defending, thePlayer(), 'B'));
+      } else {
+        await showLabel(t('decisionPhase'), '#ffd166', 0.35);
+        var decision = await askDecision('block');
+        digQuality = await runMinigame(playerStat(defending, thePlayer(), 'B') + (decision.diff || 0));
+      }
+      setLabel(resultLabel(digQuality), resultColor(digQuality));
+    } else {
+      digQuality = qualityFromMargin(defenseMargin, playerStat(defending, dig, 'D'));
+    }
+    comment(t('defendOk').replace('{name}', pName(defending, dig)));
+    if (playerArms[defending]) playerArms[defending][didx] = 1;
+    match.k2 = -1;
+    setDefenseFormation(defending, hitZone);
+    var spray = 1 - Math.max(0, Math.min(3, digQuality)) / 3;
+    var to = {
+      x: playerPos[defending][sidx].x + (Math.random() - 0.5) * 2 * spray * 40,
+      y: playerPos[defending][sidx].y + (Math.random() - 0.5) * 2 * spray * 28,
+    };
+    var digFrom = { x: ballNow.x, y: ballNow.y };
+    await ensureContact(defending, didx, ballNow, 0.16);
+    var digDist = dist2(digFrom, to);
+    await playSegment({
+      from: digFrom,
+      to: to,
+      seconds: segSeconds(digDist, 95 + digQuality * 18),
+      arc: 34 - digQuality * 4,
+    });
+    label = null;
+    addTouch(digFrom.x, digFrom.y);
+    crowdPulse = Math.max(crowdPulse, 0.4);
+    return { ok: true, quality: digQuality };
+  }
+
+  function resultLabel(q) {
+    return t(q === 3 ? 'perfect' : q === 2 ? 'good' : q === 1 ? 'ok' : 'miss');
+  }
+
+  function resultColor(q) {
+    return q === 3 ? '#7ee787' : q === 2 ? '#7ee787' : q === 1 ? '#f0ad4e' : '#e0503f';
+  }
+
+  async function threeTouches(winnerTeam) {
+    pointBanner = { text: reasonBannerText('three'), color: '#e0503f', life: 1 };
+    await sleep(0.6);
+    await scorePoint(winnerTeam);
+  }
+
+  function touchFault(team) {
+    return match.rallyTouches[team] > 3;
+  }
+
+  async function playRally(server) {
+    undoLibero(0);
+    undoLibero(1);
+    resetPlayerPositions();
+    match.rallyTouches = [0, 0];
+    match.k2 = server;
+    var receiveTeam = 1 - server;
+    await sleep(0.5);
+    applyLibero(server, false);
+    applyLibero(receiveTeam, true);
+    setReceiveFormation(receiveTeam);
+    setDefenseReady(server);
+    var serve = await doServe(server, receiveTeam);
+    if (!serve.ok) {
+      await scorePoint(receiveTeam);
+      return;
+    }
+    match.rallyTouches = [0, 0];
+    var attacking = receiveTeam;
+    var defending = server;
+    var incoming = serve.quality;
+    var firstOffense = true;
+    for (var guard = 0; guard < 20; guard++) {
+      if (firstOffense) {
+        var receive = await doReceive(attacking, defending, serve);
+        if (touchFault(attacking)) { await threeTouches(defending); return; }
+        if (!receive.ok) {
+          await scorePoint(defending);
+          return;
+        }
+        if (receive.direct) {
+          await showDirectPoint();
+          await scorePoint(attacking);
+          return;
+        }
+        incoming = receive.quality;
+        firstOffense = false;
+      }
+      var set = await doSet(attacking, defending, incoming);
+      if (touchFault(attacking)) { await threeTouches(defending); return; }
+      if (!set.ok) {
+        await scorePoint(defending);
+        return;
+      }
+      if (set.direct) {
+        await showDirectPoint();
+        await scorePoint(attacking);
+        return;
+      }
+      var attack = await doAttack(attacking, defending, set.quality, set.zone);
+      if (touchFault(attacking)) { await threeTouches(defending); return; }
+      if (!attack.ok) {
+        await scorePoint(defending);
+        return;
+      }
+      if (attack.direct) {
+        await showDirectPoint(t('directPointTip'));
+        await scorePoint(attacking);
+        return;
+      }
+      match.rallyTouches = [0, 0];
+      if (!attack.reached) {
+        comment(t('spikeScore').replace('{name}', pName(attacking, attackerForZone(attacking, set.zone))).replace('{zone}', attack.zone));
+        pointBanner = { text: t('spikeScoreShort'), color: '#e0c34a', life: 1 };
+        await sleep(0.7);
+        await scorePoint(attacking);
+        return;
+      }
+      var def = await doDefend(defending, attacking, attack.zone, attack.quality, attack.attackerStat, attack.defenseMargin, attack.digIdx);
+      if (touchFault(defending)) { await threeTouches(attacking); return; }
+      if (!def.ok) {
+        await scorePoint(attacking);
+        return;
+      }
+      incoming = def.quality;
+      var tmp = attacking;
+      attacking = defending;
+      defending = tmp;
+    }
+    await scorePoint(defending);
+  }
+  async function showDirectPoint(commentText) {
+    pointBanner = { text: t('directPoint'), color: '#ffd166', life: 1 };
+    if (commentText) comment(commentText);
+    await sleep(0.7);
+  }
+
+  async function scorePoint(team) {
+    undoLibero(0);
+    undoLibero(1);
+    if (match.server !== team) {
+      rotateTeam(team);
+    }
+    match.scores[team]++;
+    match.totalPoints[team]++;
+    match.server = team;
+    var who = team === 0 ? t('yourTeam') : match.rival.club;
+    var color = team === 0 ? '#7ee787' : '#4a8fe0';
+    comment(t('cPoint').replace('{team}', who).replace('{score}', match.scores[0] + ' - ' + match.scores[1]));
+    addImpact(ballNow.x, ballNow.y);
+    pointBanner = { text: t('pointFor') + ' ' + who, color: color, life: 1 };
+    screenFlash = { color: color, life: 1 };
+    crowdPulse = 1;
+    for (var i = 0; i < 6; i++) setJump(team, i);
+    for (var j = 0; j < 6; j++) {
+      if (playerSlump[1 - team]) playerSlump[1 - team][j] = 1;
+    }
+    setLabel(t('pointFor') + ' ' + who, color);
+    await sleep(1.4);
+    label = null;
+    updateHud();
+    if (match.scores[team] >= SET_TARGET && match.scores[team] - match.scores[1 - team] >= 2) {
+      match.setsWon[team]++;
+      match.scores = [0, 0];
+      match.setIndex++;
+      updateHud();
+      if (match.setsWon[team] >= SETS_TO_WIN) {
+        match.over = true;
+        match.winner = team;
+      }
+    }
+  }
+
+  function updateHud() {
+    hudSet.textContent = t('set') + ' ' + (match.setIndex + 1) + ' · ' + t('sets') + ' ' + match.setsWon[0] + '-' + match.setsWon[1];
+    hudScore.textContent = '';
+  }
+
+  function setOver() {
+    var a = match.scores[0];
+    var b = match.scores[1];
+    return (a >= SET_TARGET || b >= SET_TARGET) && Math.abs(a - b) >= 2;
+  }
+
+  async function playSet() {
+    while (!match.over && !setOver()) {
+      await playRally(match.server);
+    }
+  }
+
+  async function playMatch() {
+    clearCommentary();
+    hud.classList.remove('hidden');
+    updateHud();
+    while (!match.over) {
+      var prevSets = match.setsWon[0];
+      await playSet();
+      if (match.over) break;
+      if (match.setsWon[0] > prevSets) {
+        await showLabel(t('youWonSet'), '#7ee787', 1);
+      } else {
+        await showLabel(t('youLostSet'), '#e0503f', 1);
+      }
+      match.sidesFlipped = !match.sidesFlipped;
+      resetPlayerPositions();
+      await showLabel(t('changeSides'), '#f2f4f8', 1.2);
+    }
+    if (match.winner === 0) {
+      await showLabel(t('youWonMatch'), '#7ee787', 1.4);
+    } else {
+      await showLabel(t('youLostMatch'), '#e0503f', 1.4);
+    }
+    hud.classList.add('hidden');
+    await postMatch(match.winner === 0, match.setsWon[0], match.setsWon[1], match.totalPoints[0]);
+  }
+
+  // ---------- Modals ----------
+
+  function showModal(titleText, text) {
+    modalTitle.textContent = titleText;
+    modalText.textContent = text || '';
+    btn0.classList.remove('hidden');
+    btn1.classList.remove('hidden');
+    btn2.classList.remove('hidden');
+    modal.classList.remove('hidden');
+  }
+
+  function hideModal() {
+    modal.classList.remove('modal--tap');
+    modal.classList.add('hidden');
+  }
+
+  function modalButtons(config) {
+    var btns = [btn0, btn1, btn2, btn3];
+    for (var i = 0; i < 4; i++) {
+      if (config[i]) {
+        btns[i].classList.remove('hidden');
+        btns[i].textContent = config[i].label;
+        btns[i].className = 'btn' + (config[i].cls ? ' ' + config[i].cls : '');
+        btns[i].onclick = config[i].fn;
+      } else {
+        btns[i].classList.add('hidden');
+        btns[i].onclick = null;
+      }
+    }
+  }
+
+  // ---------- Decision ----------
+
+  function setDecisionOptions(rq) {
+    var opts = [];
+    var t = 0;
+    if (playerByRoleRow(t, 'outside', 'front')) {
+      opts.push({ key: 'armarA4', zone: 4, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    }
+    if (rq >= 2 && playerByRoleRow(t, 'outside', 'back')) {
+      opts.push({ key: 'armarA6', zone: 6, threshold: 2, directOnPerfect: false, diff: 0.1, setBoost: 2 });
+    }
+    if (rq >= 2 && playerByRoleRow(t, 'middle', 'front')) {
+      opts.push({ key: 'armarA3', zone: 3, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 0 });
+    }
+    if (playerByRoleRow(t, 'opposite', 'front')) {
+      opts.push({ key: 'armarA2', zone: 2, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    } else if (playerByRoleRow(t, 'opposite', 'back')) {
+      opts.push({ key: 'armarA1', zone: 1, threshold: 2, directOnPerfect: false, diff: 0.1, setBoost: 1 });
+    }
+    if (!opts.length) opts.push({ key: 'armarA4', zone: 4, threshold: 2, directOnPerfect: false, diff: 0.05, setBoost: 1 });
+    return opts;
+  }
+
+  function decisionConfig(phase, extra) {
+    var list = phase === 'set' ? setDecisionOptions(extra) : DECISIONS[phase];
+    return list.map(function (d) {
+      return {
+        key: d.key,
+        label: t(d.key),
+        desc: t(d.key + 'Desc'),
+        threshold: d.threshold,
+        directOnPerfect: d.directOnPerfect,
+        zone: d.zone,
+        diff: d.diff,
+        setBoost: d.setBoost || 0,
+        defMod: d.defMod || 0,
+      };
+    });
+  }
+
+  var awaitingTap = false;
+  var tapPhase = null;
+  var tapResolve = null;
+  var tapReceiveRq = 0;
+
+  function askDecision(phase, extra) {
+    if (tapMode && phase !== 'block') return askTapDecision(phase, extra);
+    paused = true;
+    return new Promise(function (resolve) {
+      showModal(t('choosePlay'), t('decisionPhase'));
+      var opts = decisionConfig(phase, extra);
+      var config = opts.slice(0, 4).map(function (o) {
+        return { label: o.label + ' — ' + o.desc, fn: function () { resolve(o); } };
+      });
+      modalButtons(config);
+    }).then(function (d) {
+      hideModal();
+      paused = false;
+      return d;
+    });
+  }
+
+  function askTapDecision(phase, extra) {
+    paused = true;
+    awaitingTap = true;
+    tapPhase = phase;
+    tapReceiveRq = typeof extra === 'number' ? extra : 0;
+    return new Promise(function (resolve) {
+      tapResolve = resolve;
+      showModal(t('choosePlay'), t('tapHint'));
+      modal.classList.add('modal--tap');
+      var opts = decisionConfig(phase, extra);
+      var config = opts.slice(0, 4).map(function (o) {
+        return { label: o.label, fn: function () { resolveTap(o); } };
+      });
+      modalButtons(config);
+    });
+  }
+
+  function resolveTap(d) {
+    if (!awaitingTap) return;
+    awaitingTap = false;
+    paused = false;
+    modal.classList.remove('modal--tap');
+    hideModal();
+    var r = tapResolve;
+    tapResolve = null;
+    if (r) r(d);
+  }
+
+  function tapToDecision(phase, wx, wy) {
+    if (phase === 'set') {
+      var opts = decisionConfig('set', tapReceiveRq);
+      var best = null;
+      var bestD = Infinity;
+      opts.forEach(function (o) {
+        var c = attackSpot(0, o.zone);
+        var d = Math.hypot(wx - c.x, wy - c.y);
+        if (d < bestD) {
+          bestD = d;
+          best = o;
+        }
+      });
+      return best;
+    }
+    if (phase === 'attack') {
+      var azones = [1, 5, 6];
+      var abest = 5;
+      var abd = Infinity;
+      azones.forEach(function (z) {
+        var c = zoneBasePos(1, z);
+        var d = Math.hypot(wx - c.x, wy - c.y);
+        if (d < abd) {
+          abd = d;
+          abest = z;
+        }
+      });
+      for (var i = 0; i < DECISIONS.attack.length; i++) {
+        if (DECISIONS.attack[i].zone === abest) return DECISIONS.attack[i];
+      }
+      return DECISIONS.attack[0];
+    }
+    if (phase === 'receive') {
+      var s = setterSpot(0);
+      return Math.hypot(wx - s.x, wy - s.y) < 95 ? DECISIONS.receive[0] : DECISIONS.receive[1];
+    }
+    return DECISIONS.block[1];
+  }
+
+  function tapZoneSet() {
+    if (tapPhase === 'set') {
+      return decisionConfig('set', tapReceiveRq).map(function (o) { return { zone: o.zone, team: 0 }; });
+    }
+    if (tapPhase === 'attack') {
+      return [1, 5, 6].map(function (z) { return { zone: z, team: 1 }; });
+    }
+    return [];
+  }
+
+  function drawTapZones() {
+    if (!awaitingTap) return;
+    var zones = tapZoneSet();
+    ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
+    ctx.strokeStyle = 'rgba(255, 209, 102, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    zones.forEach(function (z) {
+      var c = z.team === 0 ? attackSpot(0, z.zone) : zoneBasePos(1, z.zone);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 30 + Math.sin(simTime * 0.12) * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText(String(z.zone), c.x, c.y);
+      ctx.fillStyle = 'rgba(255, 209, 102, 0.14)';
+    });
+  }
+
+  // ---------- Minigame ----------
+
+  function zoneWidth(stat, diff) {
+    return Math.max(0.08, 0.16 + stat * 0.012 + (diff || 0));
+  }
+
+  function markerSpeed(stat, diff) {
+    return Math.max(0.008, 0.026 - stat * 0.0015 + (diff || 0) * 0.06);
+  }
+
+  function runMinigame(stat, diff) {
+    return new Promise(function (resolve) {
+      var zw = zoneWidth(stat, diff);
+      var zc = 0.25 + Math.random() * 0.5;
+      mg = {
+        pos: 0.1,
+        dir: 1,
+        speed: markerSpeed(stat, diff),
+        zw: zw,
+        zc: zc,
+        resolved: false,
+        resolve: resolve,
+      };
+      mgTitle.textContent = t('minigamePhase');
+      mgTap.textContent = t('tapNow');
+      var okW = zw + 0.18;
+      var perfW = zw / 3;
+      mgZoneOk.style.left = (zc * 100 - okW / 2 * 100) + '%';
+      mgZoneOk.style.width = okW * 100 + '%';
+      mgZoneGood.style.left = (zc * 100 - zw / 2 * 100) + '%';
+      mgZoneGood.style.width = zw * 100 + '%';
+      mgZonePerfect.style.left = (zc * 100 - perfW / 2 * 100) + '%';
+      mgZonePerfect.style.width = perfW * 100 + '%';
+      mgGuide.style.left = zc * 100 + '%';
+      mgLabelPerfect.textContent = t('perfect');
+      mgLabelGood.textContent = t('good');
+      mgLabelOk.textContent = t('ok');
+      mgLabelOk.style.left = (zc * 100 - okW / 2 * 100) + '%';
+      mgLabelGood.style.left = (zc * 100 - zw / 2 * 100) + '%';
+      mgLabelPerfect.style.left = zc * 100 + '%';
+      mgMarker.style.left = '50%';
+      minigame.classList.remove('hidden');
+      paused = true;
+      mgTap.onclick = function () {
+        tapMinigame();
+      };
+      requestAnimationFrame(mgFrame);
+    });
+  }
+
+  function mgFrame() {
+    if (!mg || mg.resolved) return;
+    mg.pos += mg.dir * mg.speed;
+    if (mg.pos < 0.02 || mg.pos > 0.98) mg.dir *= -1;
+    mg.pos = Math.max(0.02, Math.min(0.98, mg.pos));
+    mgMarker.style.left = mg.pos * 100 + '%';
+    requestAnimationFrame(mgFrame);
+  }
+
+  async function tapMinigame() {
+    if (!mg || mg.resolved) return;
+    mg.resolved = true;
+    var delta = Math.abs(mg.pos - mg.zc);
+    var q;
+    if (delta < mg.zw / 6) q = 3;
+    else if (delta < mg.zw / 2) q = 2;
+    else if (delta < mg.zw / 2 + 0.09) q = 1;
+    else q = 0;
+    mgTitle.textContent = resultLabel(q);
+    mgTitle.style.color = resultColor(q);
+    mgMarker.style.background = resultColor(q);
+    mgBar.style.borderColor = resultColor(q);
+    await sleep(0.8);
+    minigame.classList.add('hidden');
+    paused = false;
+    mgTitle.style.color = '';
+    mgMarker.style.background = '#fff';
+    mgBar.style.borderColor = '';
+    mg.resolve(q);
+    mg = null;
+  }
+
+  // ---------- Career ----------
+
+  var career = null;
+  var currentScreen = 'setup';
+  var setupData = { name: '', sex: 'F', number: 7, age: 20, country: 'argentina', clubIdx: -1, position: null, pointsPerSet: 15, control: 'buttons' };
+
+  function defaultStats(position) {
+    return Object.assign({}, POSITIONS[position]);
+  }
+
+  function loadCareer() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveCareer() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(career));
+    } catch (e) {
+      // almacenamiento no disponible
+    }
+  }
+
+  function clearCareer() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      // ignorar
+    }
+  }
+
+  function weekName(week) {
+    return t('week') + ' ' + (week + 1) + '/' + SEASON_MATCHES;
+  }
+
+  // ---------- Screens ----------
+
+  function showSetup() {
+    hud.classList.add('hidden');
+    var playBtn = byId('btn-play');
+    if (playBtn) playBtn.onclick = null;
+    currentScreen = 'setup';
+    var clubsOpts = leagueClubs().map(function (c, i) {
+      var global = LEAGUE_SIZE + i;
+      return '<option value="' + global + '"' + (global === setupData.clubIdx ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+    var ageOpts = [18, 19, 20, 21, 22, 23].map(function (a) {
+      return '<option value="' + a + '"' + (a === setupData.age ? ' selected' : '') + '>' + a + '</option>';
+    }).join('');
+    var countryOpts = ['argentina', 'espana', 'italia'].map(function (c) {
+      return '<option value="' + c + '"' + (c === setupData.country ? ' selected' : '') + '>' + t(c) + '</option>';
+    }).join('');
+    var pointsOpts = POINTS_OPTIONS.map(function (p) {
+      return '<option value="' + p + '"' + (p === setupData.pointsPerSet ? ' selected' : '') + '>' + p + '</option>';
+    }).join('');
+
+    screen.innerHTML =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('title') + '</h1>' +
+      '<p class="subtitle">' + t('subtitle') + '</p>' +
+      '<div class="card">' +
+      '<div class="field"><label>' + t('nameLabel') + '</label><input type="text" id="in-name" value="' + escHtml(setupData.name) + '" placeholder="' + t('namePlaceholder') + '"/></div>' +
+      '<div class="field"><label>' + t('sexLabel') + '</label><div class="choice-row">' +
+      '<button id="sex-f" class="btn ' + (setupData.sex === 'F' ? 'active' : 'ghost') + '" type="button">' + t('female') + '</button>' +
+      '<button id="sex-m" class="btn ' + (setupData.sex === 'M' ? 'active' : 'ghost') + '" type="button">' + t('male') + '</button>' +
+      '</div></div>' +
+      '<div class="field"><label>' + t('numberLabel') + '</label><input type="number" id="in-number" value="' + setupData.number + '" min="1" max="99"/></div>' +
+      '<div class="field"><label>' + t('ageLabel') + '</label><select id="sel-age">' + ageOpts + '</select></div>' +
+      '<div class="field"><label>' + t('countryLabel') + '</label><select id="sel-country">' + countryOpts + '</select></div>' +
+      '<div class="field"><label>' + t('pointsLabel') + '</label><select id="sel-points">' + pointsOpts + '</select>' +
+      '<p class="subtitle">' + t('pointsDesc') + '</p></div>' +
+      '<div class="field"><label>' + t('controlLabel') + '</label><div class="choice-row">' +
+      '<button id="ctl-buttons" class="btn ' + (setupData.control !== 'tap' ? 'active' : 'ghost') + '" type="button">' + t('controlButtons') + '</button>' +
+      '<button id="ctl-tap" class="btn ' + (setupData.control === 'tap' ? 'active' : 'ghost') + '" type="button">' + t('controlTap') + '</button>' +
+      '</div><p class="subtitle">' + t('controlDesc') + '</p></div>' +
+      '<div class="field"><label>' + t('clubLabel') + '</label><select id="sel-club">' + clubsOpts + '</select>' +
+      '<button id="btn-random-club" class="btn ghost" type="button">' + t('clubRandom') + '</button></div>' +
+      '</div>' +
+      '<div class="card"><h2>' + t('positionLabel') + '</h2><p class="subtitle">' + t('choosePosition') + '</p>' +
+      '<div class="field"><button id="pos-punta" class="btn ' + (setupData.position === 'punta' ? 'active' : 'ghost') + '" type="button">' + t('positionPunta') + '</button><p class="subtitle">' + t('positionPuntaDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-armador" class="btn ' + (setupData.position === 'armador' ? 'active' : 'ghost') + '" type="button">' + t('positionArmador') + '</button><p class="subtitle">' + t('positionArmadorDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-opuesto" class="btn ' + (setupData.position === 'opuesto' ? 'active' : 'ghost') + '" type="button">' + t('positionOpuesto') + '</button><p class="subtitle">' + t('positionOpuestoDesc') + '</p></div>' +
+      '<div class="field"><button id="pos-central" class="btn ' + (setupData.position === 'central' ? 'active' : 'ghost') + '" type="button">' + t('positionCentral') + '</button><p class="subtitle">' + t('positionCentralDesc') + '</p></div>' +
+      '</div>' +
+      '<button id="btn-start" class="btn" type="button" disabled>' + t('start') + '</button>' +
+      '</div></div>';
+
+    byId('sex-f').onclick = function () {
+      setupData.sex = 'F';
+      byId('sex-f').className = 'btn active';
+      byId('sex-m').className = 'btn ghost';
+    };
+    byId('sex-m').onclick = function () {
+      setupData.sex = 'M';
+      byId('sex-m').className = 'btn active';
+      byId('sex-f').className = 'btn ghost';
+    };
+    byId('ctl-buttons').onclick = function () {
+      setupData.control = 'buttons';
+      byId('ctl-buttons').className = 'btn active';
+      byId('ctl-tap').className = 'btn ghost';
+    };
+    byId('ctl-tap').onclick = function () {
+      setupData.control = 'tap';
+      byId('ctl-tap').className = 'btn active';
+      byId('ctl-buttons').className = 'btn ghost';
+    };
+    byId('btn-random-club').onclick = function () {
+      var idx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
+      byId('sel-club').value = String(idx);
+      setupData.clubIdx = idx;
+    };
+    byId('pos-punta').onclick = function () {
+      setupData.position = 'punta';
+      setActivePos('punta');
+      checkStart();
+    };
+    byId('pos-armador').onclick = function () {
+      setupData.position = 'armador';
+      setActivePos('armador');
+      checkStart();
+    };
+    byId('pos-opuesto').onclick = function () {
+      setupData.position = 'opuesto';
+      setActivePos('opuesto');
+      checkStart();
+    };
+    byId('pos-central').onclick = function () {
+      setupData.position = 'central';
+      setActivePos('central');
+      checkStart();
+    };
+
+    function setActivePos(pos) {
+      ['punta', 'armador', 'opuesto', 'central'].forEach(function (p) {
+        byId('pos-' + p).className = p === pos ? 'btn active' : 'btn ghost';
+      });
+    }
+    byId('btn-start').onclick = function () {
+      setupData.name = (byId('in-name').value || '').trim();
+      var num = parseInt(byId('in-number').value, 10);
+      if (isNaN(num) || num < 1) num = 7;
+      if (num > 99) num = 99;
+      setupData.number = num;
+      setupData.clubIdx = parseInt(byId('sel-club').value, 10);
+      if (isNaN(setupData.clubIdx)) setupData.clubIdx = LEAGUE_SIZE + Math.floor(Math.random() * LEAGUE_SIZE);
+      setupData.age = parseInt(byId('sel-age').value, 10) || 20;
+      setupData.country = byId('sel-country').value || 'argentina';
+      var pps = parseInt(byId('sel-points').value, 10);
+      if (!isNaN(pps) && POINTS_OPTIONS.indexOf(pps) !== -1) setupData.pointsPerSet = pps;
+      var name = setupData.name || t('namePlaceholder');
+      startCareer(setupData.position, name, setupData.sex, setupData.number, setupData.clubIdx, setupData.age, setupData.country, setupData.pointsPerSet, setupData.control);
+    };
+
+    function checkStart() {
+      byId('btn-start').disabled = !setupData.position;
+    }
+    if (!setupData.position) checkStart();
+  }
+
+  var DT_NAMES = ['Carlos Ferreyra', 'Juan Palacios', 'Marcelo Domínguez', 'Sergio Videla', 'Raúl Benítez', 'Héctor Salas', 'Luis Roldán', 'Pablo Escudero'];
+
+  function randomDT() {
+    return DT_NAMES[Math.floor(Math.random() * DT_NAMES.length)];
+  }
+
+  function startCareer(position, name, sex, number, clubIdx, age, country, pointsPerSet, control) {
+    career = {
+      name: name,
+      sex: sex,
+      number: number,
+      clubIdx: clubIdx,
+      club: window.VAV.clubs[clubIdx],
+      position: position,
+      stats: defaultStats(position),
+      age: age || 20,
+      country: country || 'argentina',
+      settings: { pointsPerSet: pointsPerSet || 15, control: control || 'buttons' },
+      dt: randomDT(),
+      salary: 1000,
+      money: 1000,
+      form: 5,
+      suspended: false,
+      benched: false,
+      benchedWeek: -1,
+      injured: false,
+      careerStats: { matches: 0, setsWon: 0, points: 0, titles: 0 },
+      palmares: [],
+      seasonPos: 0,
+    };
+    initClubs();
+    initLeague();
+    SET_TARGET = career.settings.pointsPerSet || 15;
+    tapMode = career.settings.control === 'tap';
+    saveCareer();
+    showBetween();
+  }
+
+  function statsHtml(stats) {
+    return STATS.map(function (k) {
+      return '<div class="stat-row"><span>' + t(STAT_LABEL[k]) + '</span><b>' + stats[k] + '</b></div>';
+    }).join('');
+  }
+
+  function standingsHtml() {
+    var rows = career.standings.slice().sort(function (a, b) {
+      return b.pts - a.pts || (b.sw - b.sl) - (a.sw - a.sl);
+    });
+    return rows.map(function (s) {
+      var isMe = s.name === career.club;
+      return '<div class="stat-row' + (isMe ? ' is-me' : '') + '"><span>' + s.name + '</span><b>' + s.played + ' · ' + s.won + '-' + s.lost + ' · ' + s.pts + 'p</b></div>';
+    }).join('');
+  }
+
+  function showBetween() {
+    hud.classList.add('hidden');
+    currentScreen = 'between';
+    if (career.week >= SEASON_MATCHES) { seasonEnd(); return; }
+    var opp = currentOpponent();
+    if (career.benchedWeek !== career.week) {
+      career.benched = career.suspended ? false : dtBenched();
+      career.benchedWeek = career.week;
+    }
+    var benchNote = career.benched ? '<p class="subtitle bench-note">' + t('benched') + '</p>' : '';
+    var injNote = career.injured ? '<p class="subtitle bench-note">' + t('injuredNote') + '</p>' : '';
+    var content =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('title') + '</h1>' +
+      '<p class="subtitle">' + t('season') + ' · ' + t(career.country) + ' · ' + t('division' + myDivision()) + ' · ' + weekName(career.week) + '</p>' +
+      '<div class="card opponent-card"><p class="subtitle">' + t('nextMatch') + '</p>' +
+      '<p class="club-name">' + t('vs') + ' ' + opp.name + '</p>' +
+      scoutingText(opp) +
+      '</div>' +
+      '<div class="card"><h2>' + t('standings') + '</h2>' + standingsHtml() + '</div>' +
+      '<div class="card"><h2>' + t('statsTitle') + '</h2>' + statsHtml(career.stats) +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + ' · ' + career.age + ' ' + t('years') + ' · ' + t('salary') + ' ' + career.salary + '</p>' +
+      '<p class="subtitle">' + t('coach') + ': ' + (career.dt || '—') + ' · ' + t('libero') + ': #' + (teamLibero[0] ? teamLibero[0].number : '—') + '</p></div>' +
+      benchNote + injNote +
+      (career.benched ? '' :       '<button id="btn-play" class="btn" type="button">' + t('playMatch') + '</button>') +
+      '<button id="btn-sim" class="btn ' + (career.benched ? '' : 'ghost') + '" type="button">' + t('simulate') + '</button>' +
+      '<button id="btn-train" class="btn ghost" type="button">' + t('train') + ' · ' + t('money') + ' ' + career.money + '</button>' +
+      '<button id="btn-career" class="btn ghost" type="button">' + t('career') + '</button>' +
+      '</div></div>';
+    screen.innerHTML = content;
+    byId('btn-play').onclick = function () {
+      if (!career) return;
+      currentScreen = 'match';
+      screen.innerHTML = '';
+      var opp2 = currentOpponent();
+      match = newMatch({ club: opp2.name, stats: clubStats(opp2.power), scout: oppScout(opp2) });
+      playMatch().catch(function (e) {
+        console.error('VoleyAsLife:', e);
+      });
+    };
+    byId('btn-sim').onclick = function () {
+      if (!career) return;
+      simulateLeagueMatch();
+    };
+    byId('btn-train').onclick = function () {
+      showTraining();
+    };
+    byId('btn-career').onclick = function () {
+      showCareer();
+    };
+  }
+
+  function computeSalary() {
+    var sum = 0;
+    for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
+    var clubPower = career.clubs[career.clubIdx].power;
+    var lvl = countryLevel(career.country);
+    return Math.round((1000 + sum * 200) * (clubPower / 4) * (1 + (lvl - 1) * 0.6));
+  }
+
+  function trainCost(stat) {
+    return 150 * (career.stats[stat] + 1);
+  }
+
+  function showTraining() {
+    hud.classList.add('hidden');
+    currentScreen = 'training';
+    var rows = STATS.map(function (stat) {
+      return '<div class="stat-row"><span>' + t(STAT_LABEL[stat]) + ' (' + career.stats[stat] + ')</span>' +
+        '<button id="train-' + stat + '" class="btn ghost train-btn" type="button">' + t('trainCost') + ' ' + trainCost(stat) + '</button></div>';
+    }).join('');
+    screen.innerHTML =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('train') + '</h1>' +
+      '<p class="subtitle">' + t('trainText') + '</p>' +
+      '<p class="subtitle">' + t('money') + ': ' + career.money + '</p>' +
+      '<div class="card">' + rows + '</div>' +
+      '<button id="btn-train-back" class="btn" type="button">' + t('back') + '</button>' +
+      '</div></div>';
+    STATS.forEach(function (stat) {
+      byId('train-' + stat).onclick = function () {
+        var cost = trainCost(stat);
+        if (career.money >= cost) {
+          career.money -= cost;
+          career.stats[stat] = Math.min(10, career.stats[stat] + 1);
+          saveCareer();
+          showTraining();
+        }
+      };
+    });
+    byId('btn-train-back').onclick = function () {
+      showBetween();
+    };
+  }
+
+  function showCareer() {
+    hud.classList.add('hidden');
+    currentScreen = 'career';
+    var palmares = career.palmares.map(function (p) {
+      var label = p.title === 'champion' ? t('champion') : p.title === 'subchampion' ? t('subchampion') : t('position') + ' ' + p.pos;
+      var extras = (p.awards || []).map(function (a) { return t(a); }).join(' · ');
+      if (extras) label += ' · ' + extras;
+      return '<div class="stat-row"><span>' + t('season') + ' ' + p.season + '</span><b>' + label + '</b></div>';
+    }).join('') || '<p class="subtitle">' + t('noPalmares') + '</p>';
+    screen.innerHTML =
+      '<div class="screen-scroll"><div class="screen">' +
+      '<h1>' + t('career') + '</h1>' +
+      '<div class="card"><h2>' + t('playerInfo') + '</h2>' +
+      '<p class="subtitle">' + career.name + ' · #' + career.number + ' · ' + t(positionNameKey()) + '</p>' +
+      '<p class="subtitle">' + t('ageLabel') + ' ' + career.age + ' · ' + t('salary') + ' ' + career.salary + ' · ' + t('money') + ' ' + career.money + '</p>' +
+      '<p class="subtitle">' + career.club + ' · ' + t(career.country) + ' · ' + t('division' + myDivision()) + ' · ' + t('seasonPos') + ' ' + career.seasonPos + '</p>' +
+      '</div>' +
+      '<div class="card"><h2>' + t('careerStats') + '</h2>' +
+      '<div class="stat-row"><span>' + t('matchesPlayed') + '</span><b>' + career.careerStats.matches + '</b></div>' +
+      '<div class="stat-row"><span>' + t('setsWon') + '</span><b>' + career.careerStats.setsWon + '</b></div>' +
+      '<div class="stat-row"><span>' + t('points') + '</span><b>' + career.careerStats.points + '</b></div>' +
+      '<div class="stat-row"><span>' + t('titles') + '</span><b>' + career.careerStats.titles + '</b></div>' +
+      '</div>' +
+      '<div class="card"><h2>' + t('palmares') + '</h2>' + palmares + '</div>' +
+      '<button id="btn-back" class="btn" type="button">' + t('back') + '</button>' +
+      '</div></div>';
+    byId('btn-back').onclick = function () {
+      showBetween();
+    };
+  }
+
+  // ---------- Between matches: upgrades + adversity ----------
+
+  async function showUpgrades() {
+    var options = pickRandomStats(3);
+    var value = career.age <= 23 ? 2 : 1;
+    return new Promise(function (resolve) {
+      showModal(t('upgradeTitle'), t('upgradeText'));
+      modalButtons(options.map(function (stat, i) {
+        return {
+          label: t(STAT_LABEL[stat]) + ' +' + value,
+          fn: function () {
+            career.stats[stat] = Math.min(10, career.stats[stat] + value);
+            saveCareer();
+            resolve();
+          },
+        };
+      }));
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  function pickRandomStats(n) {
+    var pool = STATS.slice();
+    var out = [];
+    while (out.length < n && pool.length) {
+      var i = Math.floor(Math.random() * pool.length);
+      out.push(pool.splice(i, 1)[0]);
+    }
+    return out;
+  }
+
+  async function maybeAdversity() {
+    if (Math.random() >= ADVERSITY_CHANCE) return;
+    var pick = Math.floor(Math.random() * 4);
+    if (pick === 0) {
+      await adversityMom();
+    } else if (pick === 1) {
+      await adversityBracelet();
+    } else if (pick === 2) {
+      await adversityInjury();
+    } else {
+      await adversityRumor();
+    }
+  }
+
+  async function adversityInjury() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('injuryTitle') + ' ' + t('injuryText'));
+      modalButtons([
+        { label: t('injuryPlay'), fn: function () { career.injured = true; saveCareer(); resolve(); } },
+        { label: t('injuryRest'), fn: function () { career.suspended = true; saveCareer(); resolve(); } },
+        null,
+        null,
+      ]);
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  async function adversityRumor() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('rumorTitle') + ' ' + t('rumorText'));
+      modalButtons([
+        { label: t('rumorDeny'), fn: function () { resolve(); } },
+        { label: t('rumorUse'), fn: function () {
+          var stat = STATS[Math.floor(Math.random() * STATS.length)];
+          career.stats[stat] = Math.min(10, career.stats[stat] + 1);
+          career.form = Math.max(0, career.form - 1);
+          saveCareer();
+          resolve();
+        } },
+        null,
+        null,
+      ]);
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  async function adversityMom() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('momTitle') + ' ' + t('momText'));
+      modalButtons([
+        { label: t('momSupport') + ' — ' + t('momSupportDesc'), fn: function () {
+          var stat = STATS[Math.floor(Math.random() * STATS.length)];
+          career.stats[stat] = Math.max(1, career.stats[stat] - 2);
+          saveCareer();
+          resolve();
+        } },
+        { label: t('momDefend') + ' — ' + t('momDefendDesc'), fn: function () {
+          career.suspended = true;
+          saveCareer();
+          resolve();
+        } },
+        null,
+      ]);
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  async function adversityBracelet() {
+    return new Promise(function (resolve) {
+      showModal(t('adversityTitle'), t('braceletTitle') + ' ' + t('braceletText'));
+      modalButtons(STATS.map(function (stat, i) {
+        return {
+          label: t(STAT_LABEL[stat]) + ' +1',
+          fn: function () {
+            career.stats[stat]++;
+            saveCareer();
+            resolve();
+          },
+        };
+      }));
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  async function showSuspendedNotice() {
+    await showModalPromise(t('suspended'), t('suspendedText'), [t('continueBtn')]);
+  }
+
+  function showModalPromise(titleText, text, buttonLabels) {
+    return new Promise(function (resolve) {
+      showModal(titleText, text);
+      modalButtons(buttonLabels.map(function (label, i) {
+        return { label: label, fn: function () { resolve(); } };
+      }));
+    }).then(function () {
+      hideModal();
+    });
+  }
+
+  // ---------- After match ----------
+
+  async function simulateLeagueMatch() {
+    var opp = currentOpponent();
+    var result = simulateMatchScore(teamPower(0), opp.power);
+    var win = result.setsA > result.setsB;
+    await showModalPromise(
+      t('matchResult') + ' ' + (win ? '✓' : '✗'),
+      career.club + ' ' + result.setsA + '-' + result.setsB + ' ' + opp.name,
+      [t('continueBtn')]
+    );
+    await postMatch(win, result.setsA, result.setsB, 0);
+  }
+
+  async function postMatch(win, setsWon, setsLost, points) {
+    career.careerStats.matches++;
+    career.careerStats.setsWon += setsWon;
+    career.careerStats.points += points || 0;
+    career.seasonStats.points += points || 0;
+    career.form = win ? Math.min(10, career.form + 1) : Math.max(0, career.form - 1);
+    career.benched = false;
+    career.injured = false;
+    applyStandings(career.clubIdx, setsWon, setsLost);
+    saveCareer();
+    if (win) {
+      await showUpgrades();
+    }
+    await maybeAdversity();
+    if (career.suspended) {
+      await showSuspendedNotice();
+      career.suspended = false;
+    }
+    resolveOtherMatches();
+    career.week++;
+    saveCareer();
+    if (career.week >= SEASON_MATCHES) {
+      await seasonEnd();
+    } else {
+      showBetween();
+    }
+  }
+
+  function marketValue() {
+    var sum = 0;
+    for (var i = 0; i < STATS.length; i++) sum += career.stats[STATS[i]];
+    var avg = sum / STATS.length;
+    var ageFactor = career.age <= 25 ? 1.3 : career.age <= 29 ? 1 : 0.7;
+    var perfFactor = 1 + Math.max(0, 3 - career.seasonPos) * 0.15;
+    return avg * ageFactor * perfFactor;
+  }
+
+  function buildOffers(value) {
+    var others = [];
+    var myDiv = myDivision();
+    for (var i = 0; i < career.clubs.length; i++) {
+      if (i === career.clubIdx || career.clubs[i].division !== myDiv) continue;
+      others.push(i);
+    }
+    for (var j = others.length - 1; j > 0; j--) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = others[j];
+      others[j] = others[k];
+      others[k] = tmp;
+    }
+    var count = 2 + (Math.random() < 0.5 ? 1 : 0);
+    var offers = [];
+    for (var m = 0; m < count && m < others.length; m++) {
+      var idx = others[m];
+      var club = career.clubs[idx];
+      var salary = Math.round(value * 600 * (club.power / 4) * (0.9 + Math.random() * 0.3));
+      offers.push({ clubIdx: idx, name: club.name, power: club.power, salary: salary });
+    }
+    offers.sort(function (a, b) { return b.salary - a.salary; });
+    return offers;
+  }
+
+  async function showTransfers(value) {
+    var offers = buildOffers(value);
+    return new Promise(function (resolve) {
+      showModal(t('transfersTitle'), t('transfersText'));
+      var config = offers.map(function (o) {
+        return { label: o.name + ' — ' + t('salary') + ' ' + o.salary, fn: function () { resolve(o); } };
+      });
+      config.push({ label: t('stayAt').replace('{club}', career.club), fn: function () { resolve(null); } });
+      modalButtons(config);
+    }).then(function (choice) {
+      hideModal();
+      if (choice) {
+        career.clubIdx = choice.clubIdx;
+        career.club = choice.name;
+        career.salary = choice.salary;
+      } else {
+        career.salary = computeSalary();
+      }
+    });
+  }
+
+  async function seasonEnd() {
+    var sorted = career.standings.slice().sort(function (a, b) {
+      return b.pts - a.pts || (b.sw - b.sl) - (a.sw - a.sl);
+    });
+    var pos = 1;
+    for (var i = 0; i < sorted.length; i++) {
+      if (sorted[i].name === career.club) { pos = i + 1; break; }
+    }
+    career.seasonPos = pos;
+    var title = pos === 1 ? 'champion' : pos === 2 ? 'subchampion' : null;
+    var awards = [];
+    if (pos === 1 && Math.random() < 0.7) awards.push('mvp');
+    if (career.seasonStats.points >= 12) awards.push('topScorer');
+    career.palmares.push({ season: career.palmares.length + 1, pos: pos, title: title, awards: awards });
+    if (title === 'champion') career.careerStats.titles++;
+    var divisionMove = '';
+    if (myDivision() === 'B' && pos === 1) {
+      promoteClub();
+      divisionMove = ' · ' + t('promoted');
+    } else if (myDivision() === 'A' && pos === LEAGUE_SIZE) {
+      relegateClub();
+      divisionMove = ' · ' + t('relegated');
+    }
+    career.age++;
+    if (career.age >= 30) {
+      var stat = STATS[Math.floor(Math.random() * STATS.length)];
+      career.stats[stat] = Math.max(1, career.stats[stat] - 1);
+    }
+    career.salary = computeSalary();
+    career.money = (career.money || 0) + career.salary;
+    saveCareer();
+    await showTransfers(marketValue());
+    saveCareer();
+    var canMove = pos === 1 && countryLevel(career.country) < 3;
+    await new Promise(function (resolve) {
+      var seasonConfig = [{ label: t('nextSeason'), fn: function () { initLeague(); hideModal(); resolve(); } }];
+      if (canMove) {
+        seasonConfig.push({
+          label: t('moveCountry').replace('{country}', t(nextCountry(career.country))),
+          fn: function () {
+            moveToCountry(nextCountry(career.country));
+            initLeague();
+            hideModal();
+            resolve();
+          },
+        });
+      }
+      seasonConfig.push({ label: t('newCareer'), fn: function () { clearCareer(); career = null; hideModal(); resolve(); } });
+      showModal(t('seasonEnd'), t('seasonPos').replace('{pos}', pos) + divisionMove);
+      modalButtons(seasonConfig);
+    }).then(function () {
+      if (career) showBetween();
+      else showSetup();
+    });
+  }
+
+  // ---------- Boot ----------
+
+  speedBtn.onclick = function () {
+    thisSpeed = thisSpeed === 1 ? 2 : 1;
+    speedBtn.textContent = '×' + thisSpeed;
+  };
+
+  function updateWatchBtn() {
+    watchBtn.textContent = watchMode ? t('watchOn') : t('watchOff');
+    if (watchMode) {
+      watchBtn.classList.add('active');
+    } else {
+      watchBtn.classList.remove('active');
+    }
+  }
+  watchBtn.onclick = function () {
+    watchMode = !watchMode;
+    updateWatchBtn();
+  };
+  updateWatchBtn();
+
+  window.addEventListener('resize', resize);
+  if (court.addEventListener) {
+    court.addEventListener('pointerdown', function (e) {
+      if (!awaitingTap || !tapMode) return;
+      var rect = court.getBoundingClientRect();
+      var wx = (e.clientX - rect.left - offsetX) / scale;
+      var wy = (e.clientY - rect.top - offsetY) / scale;
+      var d = tapToDecision(tapPhase, wx, wy);
+      if (d) resolveTap(d);
+    });
+  }
+  window.addEventListener('storage', function (e) {
+    if (e.key === window.VAV.LANG_KEY) {
+      lang = window.VAV.currentLang();
+      if (currentScreen === 'setup') {
+        showSetup();
+      } else if (currentScreen === 'between') {
+        showBetween();
+      } else if (currentScreen === 'career') {
+        showCareer();
+      } else if (currentScreen === 'training') {
+        showTraining();
+      }
+    }
+  });
+
+  resize();
+  ball.x = W / 2;
+  ball.y = COURT.netY;
+  draw();
+
+  var loaded = loadCareer();
+  if (loaded && loaded.schedule && loaded.divisionIndices && loaded.clubs && loaded.clubs.length === 16) {
+    career = loaded;
+    if (!career.careerStats) career.careerStats = { matches: 0, setsWon: 0, points: 0, titles: 0 };
+    career.palmares = career.palmares || [];
+    if (typeof career.form !== 'number') career.form = 5;
+    if (typeof career.salary !== 'number') career.salary = 1000;
+    if (typeof career.money !== 'number') career.money = 1000;
+    if (!career.dt) career.dt = randomDT();
+    if (!career.country) career.country = 'argentina';
+    if (typeof career.seasonPos !== 'number') career.seasonPos = 0;
+    if (!career.seasonStats) career.seasonStats = { points: 0 };
+    if (!career.benched) career.benched = false;
+    if (typeof career.benchedWeek !== 'number') career.benchedWeek = -1;
+    if (!career.injured) career.injured = false;
+    if (!career.settings) career.settings = { pointsPerSet: 15 };
+    SET_TARGET = career.settings.pointsPerSet || 15;
+    tapMode = career.settings.control === 'tap';
+    showBetween();
+  } else {
+    // carreras en formato viejo (liga única) no son compatibles: se descartan
+    clearCareer();
+    showSetup();
+  }
+})();
