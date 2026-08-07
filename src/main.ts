@@ -76,7 +76,7 @@ function renderGame(id: string): string {
         <h1>${esc(t(game.titleKey))}</h1>
         <p class="game-desc">${esc(t(game.descKey))}</p>
         <div class="game-frame${isPortrait ? ' is-portrait' : ''}" id="game-frame">
-          <iframe src="/games/${esc(game.id)}/index.html" title="${esc(t(game.titleKey))}" allowfullscreen></iframe>
+          <iframe src="games/${esc(game.id)}/index.html" title="${esc(t(game.titleKey))}" allowfullscreen></iframe>
         </div>
       </section>
     </main>`;
