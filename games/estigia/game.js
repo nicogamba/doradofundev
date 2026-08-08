@@ -929,6 +929,7 @@
     if (f > 0) mKey('foundStairs', f + 1);
     if (f === 3) mKey('bossArena');
     saveToLS();
+    if (HAS_DOM) renderAll();
   }
 
   function handleStairs() {
@@ -1072,8 +1073,8 @@
     skillsEl = $('skills');
     invBtn = $('hud-inv');
     on('hud-inv', 'click', function () { toggleInventory(); });
-    on('ov-btn', 'click', ovAction);
-    on('ov-btn2', 'click', ovAction2);
+    on('ov-btn', 'click', function () { if (ovAction) ovAction(); });
+    on('ov-btn2', 'click', function () { if (ovAction2) ovAction2(); });
     bindInput();
     requestAnimationFrame(loop);
   }
@@ -1609,11 +1610,9 @@
 
   function draw() {
     if (!HAS_DOM || !ctx) return;
-    if (!S || S.mode !== 'playing') {
-      ctx.fillStyle = '#16121f';
-      ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
-      return;
-    }
+    ctx.fillStyle = S && S.mode === 'playing' ? '#0d0b12' : '#16121f';
+    ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
+    if (!S || S.mode !== 'playing') return;
     drawTiles();
     for (var i = 0; i < S.floorItems.length; i++) {
       var fi = S.floorItems[i];
