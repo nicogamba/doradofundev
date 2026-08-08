@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="800" viewBox="0 0 480 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1426"/>
+      <stop offset="1" stop-color="#0b0812"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="800" fill="url(#bg)"/>
+  <g fill="#ffffff" opacity="0.35">
+    <rect x="60" y="80" width="2" height="2"/><rect x="380" y="120" width="2" height="2"/>
+    <rect x="140" y="200" width="2" height="2"/><rect x="420" y="300" width="2" height="2"/>
+    <rect x="40" y="380" width="2" height="2"/><rect x="300" y="160" width="2" height="2"/>
+    <rect x="430" y="520" width="2" height="2"/><rect x="90" y="620" width="2" height="2"/>
+    <rect x="340" y="640" width="2" height="2"/><rect x="220" y="90" width="2" height="2"/>
+  </g>
+
+  <!-- mazmorra / grid -->
+  <g stroke="#221a30" stroke-width="3">
+    <rect x="120" y="150" width="240" height="420" fill="#12101a" rx="10"/>
+    <rect x="150" y="200" width="70" height="70" fill="#1c1626" stroke="#2a1f3d"/>
+    <rect x="150" y="330" width="70" height="70" fill="#1c1626" stroke="#2a1f3d"/>
+    <rect x="260" y="330" width="70" height="70" fill="#1c1626" stroke="#2a1f3d"/>
+    <rect x="150" y="460" width="180" height="70" fill="#1c1626" stroke="#2a1f3d"/>
+  </g>
+
+  <!-- héroe (espartano) -->
+  <circle cx="185" cy="235" r="18" fill="#ff6b4a" stroke="#ffffff" stroke-opacity="0.7" stroke-width="3"/>
+  <circle cx="185" cy="235" r="7" fill="#ffffff"/>
+  <rect x="158" y="238" width="54" height="4" fill="#ff4a52"/>
+
+  <!-- enemigo sombra -->
+  <circle cx="295" cy="365" r="15" fill="#e04a6b" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- cerbero: tres cabezas -->
+  <g>
+    <rect x="215" y="490" width="50" height="12" fill="#7a2f12"/>
+    <circle cx="228" cy="482" r="11" fill="#ff9a3a"/>
+    <circle cx="252" cy="482" r="11" fill="#ff9a3a"/>
+    <circle cx="240" cy="468" r="11" fill="#ff9a3a"/>
+    <circle cx="228" cy="478" r="2.5" fill="#3a1208"/>
+    <circle cx="252" cy="478" r="2.5" fill="#3a1208"/>
+    <circle cx="240" cy="464" r="2.5" fill="#3a1208"/>
+  </g>
+
+  <!-- ítem en el piso -->
+  <g transform="translate(175 500)">
+    <text x="0" y="0" font-size="20" fill="#6bb5ff" text-anchor="middle" font-family="sans-serif">◆</text>
+  </g>
+</svg>
