@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="800" viewBox="0 0 480 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141826"/>
+      <stop offset="1" stop-color="#0b0d13"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="800" fill="url(#bg)"/>
+  <g fill="#ffffff" opacity="0.35">
+    <rect x="60" y="80" width="2" height="2"/><rect x="380" y="120" width="2" height="2"/>
+    <rect x="140" y="200" width="2" height="2"/><rect x="420" y="300" width="2" height="2"/>
+    <rect x="40" y="380" width="2" height="2"/><rect x="300" y="160" width="2" height="2"/>
+    <rect x="430" y="520" width="2" height="2"/><rect x="90" y="620" width="2" height="2"/>
+    <rect x="340" y="640" width="2" height="2"/><rect x="220" y="90" width="2" height="2"/>
+  </g>
+
+  <!-- tablero de fondo -->
+  <g stroke="#1c1f28" stroke-width="3">
+    <rect x="140" y="150" width="200" height="380" fill="#0c0e14" rx="10"/>
+  </g>
+
+  <!-- construcción (bloques grises) -->
+  <g fill="#39404f" stroke="#20242e" stroke-width="2">
+    <rect x="150" y="480" width="38" height="38"/>
+    <rect x="188" y="480" width="38" height="38"/>
+    <rect x="226" y="480" width="38" height="38"/>
+    <rect x="264" y="480" width="38" height="38"/>
+    <rect x="302" y="480" width="38" height="38"/>
+    <rect x="150" y="442" width="38" height="38"/>
+    <rect x="226" y="442" width="38" height="38"/>
+    <rect x="302" y="442" width="38" height="38"/>
+    <rect x="226" y="404" width="38" height="38"/>
+    <rect x="302" y="404" width="38" height="38"/>
+    <rect x="264" y="366" width="38" height="38"/>
+    <rect x="302" y="366" width="38" height="38"/>
+    <rect x="302" y="328" width="38" height="38"/>
+  </g>
+
+  <!-- pieza cayendo -->
+  <g fill="#e0503f" stroke="#7a2420" stroke-width="2">
+    <rect x="188" y="250" width="38" height="38"/>
+    <rect x="226" y="250" width="38" height="38"/>
+    <rect x="264" y="250" width="38" height="38"/>
+    <rect x="264" y="212" width="38" height="38"/>
+  </g>
+  <g fill="#5cb85c" stroke="#2c5e2c" stroke-width="2">
+    <rect x="150" y="290" width="38" height="38"/>
+    <rect x="188" y="290" width="38" height="38"/>
+    <rect x="150" y="252" width="38" height="38"/>
+  </g>
+
+  <!-- llave dorada sobre un bloque -->
+  <g transform="translate(245 462)">
+    <circle cx="0" cy="-14" r="9" fill="none" stroke="#ffd166" stroke-width="4"/>
+    <rect x="-6" y="-10" width="12" height="12" fill="#ffd166" rx="2"/>
+    <rect x="-2" y="2" width="4" height="12" fill="#ffd166"/>
+    <rect x="-6" y="14" width="6" height="4" fill="#ffd166" rx="1"/>
+  </g>
+
+  <g fill="#0c0e14">
+    <rect x="55" y="620" width="60" height="40"/>
+    <rect x="145" y="620" width="45" height="40"/>
+    <rect x="220" y="620" width="30" height="40"/>
+    <rect x="280" y="620" width="45" height="40"/>
+    <rect x="355" y="620" width="60" height="40"/>
+  </g>
+  <g fill="#2b3242">
+    <path d="M40 620 A15 15 0 0 1 70 620 Z"/>
+    <path d="M130 620 A15 15 0 0 1 160 620 Z"/>
+    <path d="M205 620 A15 15 0 0 1 235 620 Z"/>
+    <path d="M265 620 A15 15 0 0 1 295 620 Z"/>
+    <path d="M340 620 A15 15 0 0 1 370 620 Z"/>
+    <path d="M415 620 A15 15 0 0 1 445 620 Z"/>
+  </g>
+</svg>

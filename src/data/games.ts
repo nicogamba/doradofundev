@@ -15,6 +15,13 @@ export const games: Game[] = [
     orientation: 'portrait',
   },
   {
+    id: 'cuatrolocks',
+    titleKey: 'games.cuatrolocks.title',
+    descKey: 'games.cuatrolocks.desc',
+    thumb: 'games/cuatrolocks/thumb.svg',
+    orientation: 'portrait',
+  },
+  {
     id: 'looking4stars',
     titleKey: 'games.looking4stars.title',
     descKey: 'games.looking4stars.desc',

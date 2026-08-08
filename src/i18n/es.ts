@@ -20,6 +20,10 @@ export const es = {
       title: 'Looking4Stars',
       desc: 'Lanza las bolas, destruye los asteroides y rescata a todos los aliens antes de quedarte sin bolas.',
     },
+    cuatrolocks: {
+      title: 'cuatrolocks',
+      desc: 'Tetris de construcciones: liberá las llaves escondidas en los bloques y dispará explosiones encadenadas.',
+    },
     ejemploCuadritos: {
       title: 'Cuadritos',
       desc: 'Muévete con las flechas del teclado y recoge los puntos dorados antes de que se acabe el tiempo.',

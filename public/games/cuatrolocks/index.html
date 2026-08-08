@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>cuatrolocks</title>
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud" class="hud hidden">
+      <span id="hud-level"></span>
+      <span id="hud-score"></span>
+      <span id="hud-lines"></span>
+      <span id="hud-keys"></span>
+      <button id="hud-pause" class="btn-mini" type="button"></button>
+    </div>
+
+    <div id="touch" class="touch hidden">
+      <div class="touch-row">
+        <button class="tbtn" id="tb-left" type="button">◀</button>
+        <button class="tbtn" id="tb-rot" type="button">⟳</button>
+        <button class="tbtn" id="tb-right" type="button">▶</button>
+      </div>
+      <div class="touch-row">
+        <button class="tbtn" id="tb-hold" type="button"></button>
+        <button class="tbtn" id="tb-down" type="button">▼</button>
+        <button class="tbtn" id="tb-drop" type="button">⤓</button>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay hidden">
+      <h1 id="ov-title"></h1>
+      <p id="ov-text"></p>
+      <div id="ov-legend" class="legend"></div>
+      <div class="overlay-btns">
+        <button id="ov-btn" class="btn" type="button"></button>
+        <button id="ov-btn2" class="btn btn2 hidden" type="button"></button>
+      </div>
+    </div>
+
+    <script src="./i18n.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>

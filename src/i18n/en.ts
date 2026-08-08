@@ -26,6 +26,10 @@ export const en: DeepPartial<Messages> = {
       title: 'Looking4Stars',
       desc: 'Shoot the balls, destroy the asteroids and rescue all the aliens before you run out of balls.',
     },
+    cuatrolocks: {
+      title: 'cuatrolocks',
+      desc: 'Block puzzles: free the keys hidden in the stacks and trigger chained explosions.',
+    },
     ejemploCuadritos: {
       title: 'Little Squares',
       desc: 'Move with the arrow keys and collect the golden dots before time runs out.',

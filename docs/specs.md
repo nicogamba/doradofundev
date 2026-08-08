@@ -33,13 +33,19 @@ elige uno y lo juega a pantalla completa.
    ajustada al marco (formato horizontal sin barras de desplazamiento),
    objeto de bonificación de tiempo que aparece aleatoriamente y récord
    máximo guardado. Ver `docs/games/cuadritos.md`.
-6. **Juego 3 — VoleyAsLife:** gestión + simulación de vóley con carrera
-   (nombre, sexo, número, club, posición) y eliminatoria de 16 clubs.
-   El partido se simula solo desde arriba; cuando le toca a tu jugador,
-   elegís la jugada y ejecutás un minijuego de timing. Mejoras de stats
-   entre partidos y adversidades. Ver `docs/games/voleyaslife.md`.
-7. *(futuro)* Más poderes y niveles para Looking4Stars (ver su spec),
-   miniaturas automáticas, buscador, ordenación, página "acerca de".
+ 6. **Juego 3 — VoleyAsLife:** gestión + simulación de vóley con carrera
+    (nombre, sexo, número, club, posición) y eliminatoria de 16 clubs.
+    El partido se simula solo desde arriba; cuando le toca a tu jugador,
+    elegís la jugada y ejecutás un minijuego de timing. Mejoras de stats
+    entre partidos y adversidades. Ver `docs/games/voleyaslife.md`.
+ 7. **Juego 4 — cuatrolocks:** tetris moderno con giro propio: niveles con
+    **construcciones pre-hechas** donde hay que **liberar llaves** (cada
+    línea eliminada deja caer la llave hasta el piso). Premios por líneas
+    en un toque: 2 líneas = explosión vertical, 3 = 3×3, 4 = 5×5. Mapa de
+    10 niveles con estrellas, **sin economía**. Ver
+    `docs/games/cuatrolocks.md`.
+ 8. *(futuro)* Más poderes y niveles para Looking4Stars (ver su spec),
+    miniaturas automáticas, buscador, ordenación, página "acerca de".
 
 ## 4. Decisiones técnicas y por qué
 
@@ -105,7 +111,8 @@ Juego principal del catálogo: 2D de puntería con física, vertical y
 mobile-first. El jugador lanza bolas para destruir asteroides y rescatar a los
 aliens escondidos, antes de quedarse sin bolas. Incluye 5 agujeros con
 multiplicadores (el central devuelve la bola), cúpulas semi-elípticas entre
-agujeros y 3 niveles con dificultad creciente.
+agujeros, **mapa de 10 niveles** con estrellas y **poderes** (multibola,
+explosión, tabla) que se compran con **monedas**.
 
 **Detalle completo (mecánica, balance, niveles):**
 → [docs/games/looking4stars.md](games/looking4stars.md)
@@ -125,6 +132,20 @@ transferencias con dinero, forma/DT y divisiones.
 
 **Detalle completo (mecánica, zonas, rotaciones, IA, liga, stats, balance):**
 → [docs/games/voleyaslife.md](games/voleyaslife.md)
+
+### 5.4 Especificación del juego — cuatrolocks
+
+Tetris moderno (7-bag, SRS, hold, preview de la próxima, sin pieza fantasma)
+con niveles de **construcciones pre-hechas** donde hay que **liberar llaves**
+escondidas en los bloques: al eliminar la línea que las contiene caen bloque
+a bloque hasta el piso, donde se liberan. Premios por líneas en un toque:
+2 líneas = bloque explosivo de explosión **vertical**, 3 = **3×3**, 4 = **5×5**
+(las explosiones liberan llaves y encadenan otros explosivos). **Mapa de 10
+niveles** con estrellas (1-3), **sin economía**: las llaves son **visibles**
+salvo en el **nivel jefe** (1 cada 10, ocultas). Controles teclado + táctil.
+
+**Detalle completo (mecánica, llaves, explosiones, balance):**
+→ [docs/games/cuatrolocks.md](games/cuatrolocks.md)
 
 ## 6. Alcance actual vs. futuro
 
