@@ -39,6 +39,11 @@
   var STATUS_TURNS = { poison: 3, burn: 3, stun: 2 };
   var STATUS_DMG = { poison: 2, burn: 1 };
 
+  var ENEMY_COLORS = {
+    shadow: '#241a2e', rat: '#8f7a6b', spectre: '#6fa8e0', harpy: '#5a6a8a',
+    gorgon: '#3e8f5a', fury: '#b8393f', minion: '#4a3a5a', cerberus: '#ff9a3a',
+  };
+
   // ============ utilidades ============
   function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -345,6 +350,8 @@
       if (lineBlocked(p.x, p.y, x, y)) continue;
       vis[y * COLS + x] = 1;
       S.explored[y * COLS + x] = 1;
+      var rv = y * COLS + x;
+      if (S.reveal && S.reveal[rv] === undefined) S.reveal[rv] = 0;
     }
     S.visible = vis;
   }
@@ -543,8 +550,9 @@
     if (e.dead) return;
     e.hp -= res.dmg;
     e.flash = FLASH_DUR;
+    if (HAS_DOM) fxAdd({ type: 'ring', x: e.x, y: e.y, color: res.crit ? '#ffd24d' : '#ffffff', t: 0, dur: 0.22 });
     fxNumber(e.x, e.y, res.dmg, res.crit ? '#ffd24d' : '#ffe9c0', !!res.crit);
-    if (res.crit) mKey('crit');
+    if (res.crit) { mKey('crit'); addShake(2.5); }
     var lif = calcDerived(S.player).lifesteal;
     if (lif > 0) S.player.hp = Math.min(pMaxHp(), S.player.hp + Math.max(1, Math.round(res.dmg * lif)));
     if (e.hp <= 0) killEnemy(e);
@@ -553,9 +561,11 @@
   function killEnemy(e) {
     e.dead = true;
     e.hp = 0;
+    if (HAS_DOM) fxAdd({ type: 'die', x: e.x, y: e.y, color: ENEMY_COLORS[e.kind] || '#fff', boss: !!e.boss, t: 0, dur: e.boss ? 0.5 : 0.3 });
     S.player.kills++;
     if (e.boss) {
       mKey('bossDead');
+      addShake(5);
       handleVictory();
       return;
     }
@@ -593,6 +603,8 @@
     p.stats.vit += 2;
     p.hp = pMaxHp();
     p.mana = pMaxMana();
+    if (HAS_DOM) S.banner = { text: TF('levelUp', p.level), t: 0, dur: 1.3 };
+    addShake(2);
     mKey('levelUp', p.level);
     if (HAS_DOM) renderAll();
   }
@@ -613,6 +625,7 @@
       else if (head === 1) applyStatus(p, 'burn', STATUS_TURNS.burn);
       else applyStatus(p, 'stun', STATUS_TURNS.stun);
       mKey('c_fire');
+      addShake(3.5);
     } else {
       mKey('e_attack', e.name);
     }
@@ -711,6 +724,7 @@
     if (!lvl) { mKey('notLearned', T('sk_' + id)); return; }
     var sk = SKILLS[id];
     if (sk.cost > 0 && p.mana < sk.cost) { mKey('notEnoughMana'); return; }
+    if (S.trans) { advanceTransition(0.3); return; }
     snapshotPositions();
     var ok = false;
     if (sk.type === 'attack') {
@@ -837,6 +851,7 @@
   function tryMove(dx, dy) {
     var p = S.player;
     if (S.dead || S.mode !== 'playing') return;
+    if (S.trans) { advanceTransition(0.3); return; }
     snapshotPositions();
     p.lastDir = { dx: dx, dy: dy };
     var nx = p.x + dx, ny = p.y + dy;
@@ -847,11 +862,15 @@
     computeVisible();
     var it = itemAt(nx, ny);
     if (it) pickup(it);
-    if (tileAt(nx, ny) === STAIRS) { handleStairs(); return; }
+    if (tileAt(nx, ny) === STAIRS) { startFloorTransition(S.floor + 1); return; }
     endAction();
   }
 
-  function doWait() { snapshotPositions(); endAction(); }
+  function doWait() {
+    if (S.trans) { advanceTransition(0.3); return; }
+    snapshotPositions();
+    endAction();
+  }
 
   function endAction() {
     if (S.dead) return;
@@ -933,6 +952,9 @@
     S.playerTween = null;
     S.pv = null;
     S.fx = [];
+    S.reveal = {};
+    S.shake = null;
+    S.banner = null;
     for (var vi = 0; vi < S.enemies.length; vi++) { S.enemies[vi].tween = null; S.enemies[vi].lunge = null; S.enemies[vi].flash = 0; }
     buildDecor();
     computeVisible();
@@ -942,15 +964,18 @@
     if (HAS_DOM) renderAll();
   }
 
-  function handleStairs() {
-    if (S.floor >= FLOORS - 1) return;
-    newFloor(S.floor + 1);
+  function respawnHero() {
+    var p = S.player;
+    p.hp = pMaxHp();
+    p.mana = pMaxMana();
+    startFloorTransition(S.floor);
   }
 
   // ============ muerte y victoria ============
   function handleDeath() {
     var p = S.player;
     S.dead = true;
+    if (HAS_DOM) fxAdd({ type: 'die', x: p.x, y: p.y, color: CLASSES[p.cls].color, t: 0, dur: 0.4 });
     var rec = getRecord();
     rec.bestFloor = Math.max(rec.bestFloor || 0, S.floor);
     rec.kills = (rec.kills || 0) + p.kills;
@@ -968,16 +993,6 @@
       showDeathOverlay(false);
     }
     saveMeta();
-  }
-
-  function respawnHero() {
-    var p = S.player;
-    p.hp = pMaxHp();
-    p.mana = pMaxMana();
-    newFloor(S.floor, false);
-    S.mode = 'playing';
-    hideOverlay();
-    renderAll();
   }
 
   function handleVictory() {
@@ -1033,7 +1048,7 @@
       if (!raw) return false;
       var d = JSON.parse(raw);
       if (!d || !d.player) return false;
-      S = { mode: 'playing', messages: [], visible: {}, aiming: null, fx: [], playerTween: null, pv: null };
+      S = { mode: 'playing', messages: [], visible: {}, aiming: null, fx: [], playerTween: null, pv: null, trans: null, reveal: {}, shake: null, banner: null };
       S.player = d.player;
       if (S.player.poison === undefined) S.player.poison = 0;
       if (S.player.burn === undefined) S.player.burn = 0;
@@ -1095,6 +1110,30 @@
   function fxNumber(tx, ty, n, color, big) { if (!HAS_DOM) return; fxAdd({ type: 'num', x: tx, y: ty, n: n, color: color, big: !!big, t: 0, dur: NUM_DUR }); }
   function fxSpark(tx, ty, color) { if (!HAS_DOM) return; fxAdd({ type: 'spark', x: tx, y: ty, color: color, t: 0, dur: POP_DUR }); }
 
+  function addShake(amp) { if (!HAS_DOM) return; S.shake = { t: 0, dur: 0.28, amp: amp }; }
+
+  function startFloorTransition(targetFloor) {
+    if (!S) return;
+    S.trans = { phase: 'out', t: 0, dur: 0.24, target: targetFloor };
+  }
+
+  function advanceTransition(step) {
+    if (!S || !S.trans) return;
+    S.trans.t += step;
+    var k = Math.min(1, S.trans.t / S.trans.dur);
+    if (S.trans.phase === 'out' && k >= 1) {
+      var target = S.trans.target;
+      newFloor(target, false);
+      S.trans.phase = 'in';
+      S.trans.t = 0;
+      S.mode = 'playing';
+      if (HAS_DOM && overlay && !overlay.classList.contains('hidden')) hideOverlay();
+    } else if (S.trans.phase === 'in' && k >= 1) {
+      S.trans = null;
+      if (HAS_DOM) renderAll();
+    }
+  }
+
   function snapshotPositions() {
     if (!S) return;
     S.pv = { p: { x: S.player.x, y: S.player.y }, e: {} };
@@ -1123,6 +1162,14 @@
 
   function advanceFx(dt) {
     if (!S) return;
+    if (S.reveal) {
+      for (var rk in S.reveal) {
+        if (S.reveal[rk] < 1) S.reveal[rk] = Math.min(1, S.reveal[rk] + dt / 0.3);
+      }
+    }
+    if (S.banner) { S.banner.t += dt; if (S.banner.t >= S.banner.dur) S.banner = null; }
+    if (S.shake) { S.shake.t += dt; if (S.shake.t >= S.shake.dur) S.shake = null; }
+    advanceTransition(dt);
     if (S.playerTween) { S.playerTween.t += dt; if (S.playerTween.t >= S.playerTween.dur) S.playerTween = null; }
     var p = S.player;
     if (p.lunge) { p.lunge.t += dt; if (p.lunge.t >= p.lunge.dur) p.lunge = null; }
@@ -1182,9 +1229,12 @@
         var t = S.map[y][x];
         var fx = x * TILE, fy = y * TILE;
         var dec = S.decor[y * COLS + x] || { v: 0, w: 0 };
+        var rv = S.reveal[y * COLS + x];
+        if (rv !== undefined && rv < 1) ctx.globalAlpha = Math.max(0.05, rv);
         if (t === WALL) drawWall(fx, fy, P, vis, dec);
         else drawFloor(fx, fy, P, vis, dec);
         if (t === STAIRS && vis) drawStairs(fx, fy, P);
+        ctx.globalAlpha = 1;
       }
     }
   }
@@ -1615,6 +1665,23 @@
         ctx.arc(f.x * TILE + TILE / 2, f.y * TILE + TILE / 2, 2 + k * 9, 0, Math.PI * 2);
         ctx.stroke();
         ctx.globalAlpha = 1;
+      } else if (f.type === 'ring') {
+        if (!tileVisible(f.x, f.y)) continue;
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = f.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(f.x * TILE + TILE / 2, f.y * TILE + TILE / 2, 3 + k * 9, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (f.type === 'die') {
+        if (!tileVisible(f.x, f.y)) continue;
+        ctx.globalAlpha = 1 - k;
+        ctx.fillStyle = f.color;
+        ctx.beginPath();
+        ctx.arc(f.x * TILE + TILE / 2, f.y * TILE + TILE / 2, 2 + k * (f.boss ? 11 : 8), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
   }
@@ -1624,6 +1691,13 @@
     ctx.fillStyle = S && S.mode === 'playing' ? '#0d0b12' : '#16121f';
     ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
     if (!S || S.mode !== 'playing') return;
+    var shaken = false;
+    if (S.shake) {
+      var k = 1 - S.shake.t / S.shake.dur;
+      ctx.save();
+      ctx.translate((Math.random() * 2 - 1) * S.shake.amp * k, (Math.random() * 2 - 1) * S.shake.amp * k);
+      shaken = true;
+    }
     drawTiles();
     for (var i = 0; i < S.floorItems.length; i++) {
       var fi = S.floorItems[i];
@@ -1640,12 +1714,39 @@
     var plf = lungeOffset(S.player);
     drawPlayerSprite(ptp.x + plf.x, ptp.y + plf.y);
     drawFx();
+    if (shaken) ctx.restore();
+    if (S.banner) drawBanner();
+    if (S.trans) drawTransFade();
     if (S.aiming) {
       var ax = S.aiming.cx * TILE, ay = S.aiming.cy * TILE;
       ctx.strokeStyle = '#ffe18a';
       ctx.lineWidth = 2;
       ctx.strokeRect(ax + 2, ay + 2, TILE - 4, TILE - 4);
     }
+  }
+
+  function drawBanner() {
+    var b = S.banner;
+    var k = Math.min(1, b.t / b.dur);
+    var alpha = k < 0.15 ? k / 0.15 : k > 0.75 ? (1 - k) / 0.25 : 1;
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 5;
+    ctx.strokeText(b.text, COLS * TILE / 2, ROWS * TILE / 2 - 40);
+    ctx.fillStyle = '#ffe18a';
+    ctx.fillText(b.text, COLS * TILE / 2, ROWS * TILE / 2 - 40);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTransFade() {
+    var tr = S.trans;
+    var k = Math.min(1, tr.t / tr.dur);
+    var a = tr.phase === 'out' ? k : 1 - k;
+    ctx.fillStyle = 'rgba(8,6,12,' + a.toFixed(3) + ')';
+    ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
   }
 
   function renderHud() {
@@ -1824,7 +1925,7 @@
   }
 
   function startGame() {
-    S = { mode: 'playing', messages: [], visible: {}, aiming: null };
+    S = { mode: 'playing', messages: [], visible: {}, aiming: null, trans: null };
     S.player = newPlayer(selCls, selMode);
     newFloor(0, false);
     S.mode = 'playing';
@@ -2178,7 +2279,7 @@
     T: function () { return T; },
     TF: function () { return TF; },
     newChar: function (cls, mode) {
-      S = { mode: 'playing', messages: [], visible: {}, aiming: null };
+      S = { mode: 'playing', messages: [], visible: {}, aiming: null, trans: null };
       S.player = newPlayer(cls, mode);
       newFloor(0, false);
       S.mode = 'playing';
@@ -2215,6 +2316,7 @@
     setMortalDeath: function () { handleDeath(); },
     setHeroDeath: function () { handleDeath(); },
     respawnHero: function () { respawnHero(); },
+    pumpTransition: function () { while (S && S.trans) advanceTransition(0.5); },
     showVictory: function () { handleVictory(); },
     hasSave: function () { return hasSave(); },
     save: function () { saveToLS(); },
