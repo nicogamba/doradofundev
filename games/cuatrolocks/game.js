@@ -14,6 +14,8 @@
   var KEY_POINTS = 500;
   var DAS_DELAY = 180;
   var DAS_REPEAT = 45;
+  var CLEAR_FLASH = 0.32;
+  var PIECE_SMOOTH = 22;
   var CONSTRUCTION_COLOR = '#39404f';
   var KEY_COLOR = '#ffd166';
   var GOLD = '#ffd166';
@@ -100,6 +102,9 @@
     lockTimer: 0,
     msgs: [],
     fx: [],
+    particles: [],
+    pendingClear: null,
+    shake: 0,
     lastPointer: null,
     lastOverlayData: null,
   };
@@ -236,7 +241,7 @@
     var def = SHAPES[type];
     var m = def.m.map(function (row) { return row.slice(); });
     var x = Math.floor((COLS - m[0].length) / 2);
-    state.current = { type: type, m: m, x: x, y: 0, color: def.c };
+    state.current = { type: type, m: m, x: x, y: 0, color: def.c, rx: BX + x * CELL, ry: BY };
     refillQueue();
     state.next = state.queue[0];
   }
@@ -332,6 +337,8 @@
     var p = state.current;
     if (!p) return;
     while (!collides(p.m, p.x, p.y + 1)) p.y++;
+    p.rx = BX + p.x * CELL;
+    p.ry = BY + p.y * CELL;
     lockPiece();
   }
 
@@ -339,14 +346,39 @@
 
   function lockPiece() {
     var p = state.current;
+    if (!p) return;
     var cs = cellsOf(p.m, p.x, p.y);
     var pieceCol = p.x + Math.floor(p.m[0].length / 2);
     for (var i = 0; i < cs.length; i++) {
       var c = cs[i];
       if (c.y >= 0 && c.y < ROWS) board[c.y][c.x] = { t: 'b', c: p.color };
     }
+    state.current = null;
     updateStackTop();
-    clearLines(pieceCol);
+    lockDust(p, cs);
+    var full = findFullRows();
+    if (full.length) {
+      state.pendingClear = { full: full, pieceCol: pieceCol, timer: CLEAR_FLASH };
+      addShake(full.length >= 4 ? 0.55 : 0.28);
+    } else {
+      afterClear();
+    }
+  }
+
+  function findFullRows() {
+    var full = [];
+    for (var y = 0; y < ROWS; y++) {
+      var ok = true;
+      for (var x = 0; x < COLS; x++) {
+        if (!board[y][x]) { ok = false; break; }
+      }
+      if (ok) full.push(y);
+    }
+    return full;
+  }
+
+  function afterClear() {
+    if (state.ended) return;
     spawnCurrent();
     if (collides(state.current.m, state.current.x, state.current.y)) {
       lose();
@@ -356,18 +388,9 @@
     updateHUD();
   }
 
-  function clearLines(pieceCol) {
-    var full = [];
-    for (var y = 0; y < ROWS; y++) {
-      var ok = true;
-      for (var x = 0; x < COLS; x++) {
-        if (!board[y][x]) { ok = false; break; }
-      }
-      if (ok) full.push(y);
-    }
+  function doClear(pieceCol, full) {
     var n = full.length;
     if (!n) return n;
-
     var freeKeys = [];
     var boomQ = [];
     for (var i = 0; i < full.length; i++) {
@@ -385,6 +408,7 @@
         }
       }
     }
+    for (var fi = 0; fi < full.length; fi++) clearFlash(full[fi]);
 
     var newRows = [];
     for (var r = 0; r < ROWS; r++) {
@@ -414,6 +438,13 @@
     releaseFloorKeys();
     updateStackTop();
     checkWin();
+    return n;
+  }
+
+  function clearLines(pieceCol) {
+    var full = findFullRows();
+    var n = doClear(pieceCol, full);
+    afterClear();
     updateHUD();
     return n;
   }
@@ -467,6 +498,12 @@
     }
     var fxR = s === 'v' ? COLS * CELL * 0.7 : (s === '3' ? 1.6 : 2.6) * CELL;
     state.fx.push({ x: BX + cx * CELL + CELL / 2, y: BY + cy * CELL + CELL / 2, r0: CELL, r1: fxR, life: 0.4, t: 0 });
+    addShake(s === '5' ? 0.5 : 0.3);
+    for (var pz = 0; pz < 16; pz++) {
+      var pa = Math.random() * Math.PI * 2;
+      var psp = 120 + Math.random() * 260;
+      state.particles.push({ x: BX + cx * CELL + CELL / 2, y: BY + cy * CELL + CELL / 2, vx: Math.cos(pa) * psp, vy: Math.sin(pa) * psp, life: 0.5, r: 2 + Math.random() * 2, color: Math.random() < 0.5 ? '#ffb74d' : '#e8eaf0', grav: 500 });
+    }
     checkWin();
   }
 
@@ -487,9 +524,11 @@
 
   function releaseFloorKeys() {
     var released = 0;
+    var releasedAt = [];
     for (var x = 0; x < COLS; x++) {
       if (board[ROWS - 1][x] && board[ROWS - 1][x].t === 'key') {
         board[ROWS - 1][x] = null;
+        releasedAt.push(x);
         released++;
       }
     }
@@ -497,6 +536,15 @@
       state.keysFound += released;
       state.score += released * KEY_POINTS;
       state.msgs.push({ text: '+' + released + ' ' + t('keyFound'), life: 1.1 });
+      for (var i = 0; i < releasedAt.length; i++) {
+        var gx = BX + releasedAt[i] * CELL + CELL / 2;
+        var gy = BY + (ROWS - 1) * CELL + CELL / 2;
+        for (var j = 0; j < 10; j++) {
+          var ga = Math.random() * Math.PI * 2;
+          var gsp = 90 + Math.random() * 200;
+          state.particles.push({ x: gx, y: gy, vx: Math.cos(ga) * gsp, vy: Math.sin(ga) * gsp - 80, life: 0.65, r: 2 + Math.random() * 2.5, color: '#ffd166', grav: 350 });
+        }
+      }
       updateHUD();
       checkWin();
     }
@@ -688,6 +736,16 @@
   // ---------- Bucle ----------
 
   function step(dt) {
+    if (state.pendingClear) {
+      state.pendingClear.timer -= dt / 1000;
+      if (state.pendingClear.timer <= 0) {
+        var pc = state.pendingClear;
+        state.pendingClear = null;
+        doClear(pc.pieceCol, pc.full);
+        afterClear();
+      }
+      return;
+    }
     if (heldDir && state.current) {
       repeatAccum += dt;
       if (repeatAccum >= DAS_DELAY) {
@@ -696,6 +754,11 @@
       }
     }
     var p = state.current;
+    if (p) {
+      var k = Math.min(1, (dt / 1000) * PIECE_SMOOTH);
+      p.rx += (BX + p.x * CELL - p.rx) * k;
+      p.ry += (BY + p.y * CELL - p.ry) * k;
+    }
     if (!p) return;
     var interval = state.level.speed;
     if (state.heldDown) interval = Math.max(30, interval / 18);
@@ -729,6 +792,38 @@
     }
   }
 
+  function stepParticles(dt) {
+    for (var i = state.particles.length - 1; i >= 0; i--) {
+      var p = state.particles[i];
+      p.vy += p.grav * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+  }
+
+  function addShake(v) {
+    state.shake = Math.max(state.shake, v);
+  }
+
+  function lockDust(p, cs) {
+    for (var i = 0; i < cs.length; i++) {
+      var c = cs[i];
+      if (c.y < 0 || c.y >= ROWS) continue;
+      for (var j = 0; j < 4; j++) {
+        var a = Math.random() * Math.PI * 2;
+        state.particles.push({ x: BX + c.x * CELL + CELL / 2, y: BY + c.y * CELL + CELL / 2, vx: Math.cos(a) * 50, vy: Math.sin(a) * 40 - 30, life: 0.4, r: 1.5 + Math.random() * 1.5, color: 'rgba(255,255,255,0.6)', grav: 300 });
+      }
+    }
+  }
+
+  function clearFlash(row) {
+    for (var x = 0; x < COLS; x++) {
+      state.particles.push({ x: BX + x * CELL + CELL / 2, y: BY + row * CELL + CELL / 2, vx: (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 60, life: 0.5, r: 2 + Math.random() * 2, color: '#ffffff', grav: 200 });
+    }
+  }
+
   function loop(now) {
     var dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
@@ -736,6 +831,8 @@
       step(dt * 1000);
     }
     stepFx(dt);
+    stepParticles(dt);
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 2);
     draw();
     requestAnimationFrame(loop);
   }
@@ -757,19 +854,58 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, offsetX * dpr, offsetY * dpr);
+
+    var sx = state.shake > 0 ? (Math.random() - 0.5) * state.shake * 9 : 0;
+    var sy = state.shake > 0 ? (Math.random() - 0.5) * state.shake * 9 : 0;
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, (offsetX + sx) * dpr, (offsetY + sy) * dpr);
 
     if (state.mode === 'map') {
+      drawStarsBg();
       drawMap();
       return;
     }
 
     drawBoard();
     if (state.current) drawPiece(state.current, 0.85);
+    drawPendingClear();
     drawPreview(t('nextLabel'), state.next, 402, 60);
     drawPreview(t('hold'), state.hold, 26, 60);
     drawFx();
+    drawParticles();
     drawMsgs();
+  }
+
+  function drawStarsBg() {
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (var i = 0; i < 40; i++) {
+      var sx2 = (i * 97) % W;
+      var sy2 = (i * 53) % (H - 120);
+      ctx.fillRect(sx2, sy2, 1.5, 1.5);
+    }
+  }
+
+  function drawPendingClear() {
+    var pc = state.pendingClear;
+    if (!pc) return;
+    var flash = 0.55 + 0.45 * Math.sin(pc.timer * 26);
+    ctx.globalAlpha = Math.max(0.15, Math.min(0.85, flash));
+    ctx.fillStyle = '#ffffff';
+    for (var i = 0; i < pc.full.length; i++) {
+      ctx.fillRect(BX, BY + pc.full[i] * CELL, COLS * CELL, CELL);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < state.particles.length; i++) {
+      var p = state.particles[i];
+      ctx.globalAlpha = Math.min(1, p.life * 2.2);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   function cellRect(cx, cy) {
@@ -781,6 +917,10 @@
     ctx.globalAlpha = alpha === undefined ? 1 : alpha;
     ctx.fillStyle = color;
     ctx.fillRect(x + s, y + s, CELL - 2 * s, CELL - 2 * s);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x + s, y + s, CELL - 2 * s, CELL * 0.18);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(x + s, y + CELL - s - CELL * 0.12, CELL - 2 * s, CELL * 0.12);
     ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x + s + 0.5, y + s + 0.5, CELL - 2 * s - 1, CELL - 2 * s - 1);
@@ -843,8 +983,9 @@
     for (var i = 0; i < cs.length; i++) {
       var c = cs[i];
       if (c.y < 0 || c.y >= ROWS) continue;
-      var pos = cellRect(c.x, c.y);
-      drawBlock(pos.x, pos.y, p.color, alpha);
+      var px = p.rx + (c.x - p.x) * CELL;
+      var py = p.ry + (c.y - p.y) * CELL;
+      drawBlock(px, py, p.color, alpha);
     }
   }
 
