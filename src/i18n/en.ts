@@ -26,6 +26,10 @@ export const en: DeepPartial<Messages> = {
       title: 'Looking4Stars',
       desc: 'Shoot the balls, destroy the asteroids and rescue all the aliens before you run out of balls.',
     },
+    estigia: {
+      title: 'Estigia',
+      desc: 'Turn-based tactical roguelike: descend into the Greek underworld, gear up Diablo 2 style and defeat Cerberus.',
+    },
     cuatrolocks: {
       title: 'cuatrolocks',
       desc: 'Block puzzles: free the keys hidden in the stacks and trigger chained explosions.',

@@ -20,6 +20,10 @@ export const es = {
       title: 'Looking4Stars',
       desc: 'Lanza las bolas, destruye los asteroides y rescata a todos los aliens antes de quedarte sin bolas.',
     },
+    estigia: {
+      title: 'Estigia',
+      desc: 'Roguelike táctico por turnos: bajá al inframundo griego, conseguí equipo y habilidades estilo Diablo 2 y vencé a Cerbero.',
+    },
     cuatrolocks: {
       title: 'cuatrolocks',
       desc: 'Tetris de construcciones: liberá las llaves escondidas en los bloques y dispará explosiones encadenadas.',

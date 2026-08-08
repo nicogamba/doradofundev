@@ -8,6 +8,13 @@ export interface Game {
 
 export const games: Game[] = [
   {
+    id: 'estigia',
+    titleKey: 'games.estigia.title',
+    descKey: 'games.estigia.desc',
+    thumb: 'games/estigia/thumb.svg',
+    orientation: 'portrait',
+  },
+  {
     id: 'voleyaslife',
     titleKey: 'games.voleyaslife.title',
     descKey: 'games.voleyaslife.desc',

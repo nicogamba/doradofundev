@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Estigia</title>
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <div id="hud" class="hud hidden">
+      <div class="bars">
+        <div class="bar hp"><span id="hp-fill"></span><em id="hp-text"></em></div>
+        <div class="bar mp"><span id="mp-fill"></span><em id="mp-text"></em></div>
+        <div class="bar xp"><span id="xp-fill"></span><em id="xp-text"></em></div>
+      </div>
+      <div class="hud-info">
+        <span id="hud-floor"></span>
+        <span id="hud-class"></span>
+        <span id="hud-gold"></span>
+        <button id="hud-inv" class="btn-mini" type="button"></button>
+      </div>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <div id="log" class="log hidden"></div>
+
+    <div id="skills" class="skills hidden"></div>
+
+    <div id="overlay" class="overlay hidden">
+      <h1 id="ov-title"></h1>
+      <p id="ov-text"></p>
+      <div id="ov-options" class="ov-options"></div>
+      <div class="overlay-btns">
+        <button id="ov-btn" class="btn" type="button"></button>
+        <button id="ov-btn2" class="btn btn2 hidden" type="button"></button>
+      </div>
+    </div>
+
+    <script src="./i18n.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>

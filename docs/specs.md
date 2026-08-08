@@ -44,7 +44,14 @@ elige uno y lo juega a pantalla completa.
     en un toque: 2 líneas = explosión vertical, 3 = 3×3, 4 = 5×5. Mapa de
     10 niveles con estrellas, **sin economía**. Ver
     `docs/games/cuatrolocks.md`.
- 8. *(futuro)* Más poderes y niveles para Looking4Stars (ver su spec),
+ 8. **Juego 5 — Estigia:** roguelike táctico por turnos de descenso al
+    inframundo griego. La mazmorra completa es un grid continuo (cada paso es
+    un turno, los enemigos actúan después de vos). Stats, equipo y builds
+    estilo Diablo 2 + combate por turnos tipo tablero de ajedrez. 4 pisos
+    procedurales, jefe final **Cerbero**, 3 clases (Espartano, Mago de Hecate,
+    Pícaro de Hermes) con árbol de habilidades, 2 modos de muerte (Héroe /
+    Mortal). Ver `docs/games/estigia.md`.
+ 9. *(futuro)* Más poderes y niveles para Looking4Stars (ver su spec),
     miniaturas automáticas, buscador, ordenación, página "acerca de".
 
 ## 4. Decisiones técnicas y por qué
@@ -147,18 +154,37 @@ salvo en el **nivel jefe** (1 cada 10, ocultas). Controles teclado + táctil.
 **Detalle completo (mecánica, llaves, explosiones, balance):**
 → [docs/games/cuatrolocks.md](games/cuatrolocks.md)
 
+### 5.5 Especificación del juego — Estigia
+
+Roguelike táctico por turnos (working title). La mazmorra completa es un
+**grid continuo**: cada paso es un turno y los enemigos actúan después de vos,
+como un tablero de ajedrez que se juega contra la IA. Descendés **4 pisos**
+generados al azar con temática de mitología griega hasta el jefe final
+(**Cerbero** en el piso 4). Botín estilo Diablo 2: **raridades** (común,
+mágico, raro, único), **ranuras** (arma, casco, armadura, botas, anillo,
+amuleto) y **afijos aleatorios**. **3 clases** (Espartano, Mago de Hecate,
+Pícaro de Hermes) con **árbol de habilidades**. **2 modos de muerte** elegidos
+al crear la partida: **Héroe** (reaparecés al morir) y **Mortal** (permadeath
+con progreso meta: récords y colección). Persistencia en `localStorage`.
+
+**Detalle completo (mecánica, turnos, grid, ítems, clases, balance):**
+→ [docs/games/estigia.md](games/estigia.md)
+
 ## 6. Alcance actual vs. futuro
 
 **Actual:** catálogo, página de juego, i18n ES/EN (EN incompleto),
 Looking4Stars v1 (vertical, física, 5 agujeros, cúpulas, aliens, 3 niveles,
 móvil), Cuadritos (recolección con récord y bonos de tiempo), VoleyAsLife v1
 (simulación de vóley, eliminatoria, stats, minijuego timing), tema oscuro
-responsive.
+responsive, cuatrolocks (tetris con llaves, explosiones, mapa de 10 niveles).
+Estigia v1 en prototipo: 4 pisos procedurales, grid por turnos, 3 clases con
+árboles, botín con rarezas y afijos, modos Héroe/Mortal, jefe Cerbero.
 
 **Futuro (non-goals por ahora):** inglés completo, power-ups, moneda de gemas
 y canje por bolas/poderes, mapa de niveles, más niveles, miniatura automática,
 buscador/ordenación, página "acerca de", backend, cuentas de usuario, guardado
-de partidas en la nube.
+de partidas en la nube. En Estigia (fase 2+): tienda/comercio entre pisos,
+gemas y encajes, más pisos y clases, sonido, historia con diálogos.
 
 ## 7. Preguntas abiertas
 
@@ -181,6 +207,14 @@ de partidas en la nube.
   `requestFullscreen` en elementos que no sean video; el botón no funcionará
   ahí. Decidir si ocultarlo en iOS o aceptarlo (el juego llena el iframe
   igualmente).
+- **Estigia — oro y tienda:** ¿hay oro y una tienda entre pisos (estilo
+  Diablo 2) o el botín solo se encuentra en la mazmorra? Sin decidir para el
+  prototipo.
+- **Estigia — estados de estatus:** ¿veneno/quemadura/aturdido desde v1 o en
+  fase 2? Cerbero mezcla elementos; se decide con el balance.
+- **Estigia — base de datos:** hoy `localStorage` alcanza (partidas y récords
+  locales). Si más adelante se quieren récords globales o nube, se suma un
+  backend como servicio sin reescribir la web.
 - **Hosting de despliegue:** elegir entre GitHub Pages / Netlify / Vercel.
   Cualquiera sirve el build estático; el hash routing evita configuración
   extra de redirecciones.
