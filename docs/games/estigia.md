@@ -75,7 +75,10 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
   (naranja, con nombre propio de la mitología, ej. "Espada de Aquiles").
 - **Afijos aleatorios** según rareza (1 a 4): +stat, +% daño, daño elemental,
   +vida/maná, resistencia, velocidad, robo de vida, etc.
-- Se encuentra en cofres, enemigos caídos y el piso; se equipa o se suelta.
+- Se encuentra en cofres, enemigos caídos y el piso. **Auto-equip:** al
+  recoger un ítem de una ranura libre se equipa automáticamente; si la ranura
+  está ocupada, va al inventario. Se puede equipar/soltar/desequipar desde el
+  inventario.
 - **Tienda de Caronte (v1):** al bajar de piso, el barquero de la Estigia te
   vende equipo a cambio de oro (ítems generados, con rarezas y precios según
   el piso). El oro cae de enemigos y cofres y se gasta acá.

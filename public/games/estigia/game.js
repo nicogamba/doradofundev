@@ -882,12 +882,22 @@
 
   function pickup(it) {
     var p = S.player;
-    if (p.inv.length >= 24) { mKey('invFull'); return; }
-    var idx = S.floorItems.indexOf(it);
-    if (idx >= 0) S.floorItems.splice(idx, 1);
-    p.inv.push(it.item);
-    fxSpark(it.x, it.y, rarityColor(it.item.rarity));
-    mKey('picked', itemName(it.item));
+    var item = it.item;
+    if (!p.eq[item.slot]) {
+      var idx = S.floorItems.indexOf(it);
+      if (idx >= 0) S.floorItems.splice(idx, 1);
+      p.eq[item.slot] = item;
+      mKey('equipped', itemName(item));
+    } else if (p.inv.length >= 24) {
+      mKey('invFull');
+      return;
+    } else {
+      var idx2 = S.floorItems.indexOf(it);
+      if (idx2 >= 0) S.floorItems.splice(idx2, 1);
+      p.inv.push(item);
+      mKey('picked', itemName(item));
+    }
+    fxSpark(it.x, it.y, rarityColor(item.rarity));
   }
 
   // ============ pisos ============
@@ -1073,6 +1083,7 @@
     skillsEl = $('skills');
     invBtn = $('hud-inv');
     on('hud-inv', 'click', function () { toggleInventory(); });
+    on('hud-skills', 'click', function () { showSkillsPanel(); });
     on('ov-btn', 'click', function () { if (ovAction) ovAction(); });
     on('ov-btn2', 'click', function () { if (ovAction2) ovAction2(); });
     bindInput();
@@ -1651,6 +1662,9 @@
     $('hud-floor').textContent = T('floor') + ' ' + (S.floor + 1) + '/' + FLOORS;
     $('hud-class').textContent = T(CLASSES[p.cls].nameKey);
     $('hud-gold').textContent = '⛁ ' + p.gold;
+    var skBtn = $('hud-skills');
+    skBtn.textContent = (p.skillPoints > 0 ? '● ' : '') + T('skills') + ' (H)';
+    skBtn.classList.toggle('has-pts', p.skillPoints > 0);
     invBtn.textContent = T('inventory') + ' (I)';
   }
 
@@ -1880,9 +1894,14 @@
   }
 
   function renderInventory() {
+    if (!HAS_DOM) return;
     overlay.dataset.panel = 'inv';
     var div = document.createElement('div');
     div.className = 'inv-scroll';
+    var eqTitle = document.createElement('div');
+    eqTitle.style.fontWeight = 'bold';
+    eqTitle.textContent = T('invEquipped');
+    div.appendChild(eqTitle);
     var grid = document.createElement('div');
     grid.className = 'slot-grid';
     SLOTS.forEach(function (s) {
@@ -1903,6 +1922,10 @@
         d2.className = 'it-af';
         d2.textContent = itemDesc(it);
         cell.appendChild(d2);
+        var un = document.createElement('button');
+        un.textContent = T('unequip');
+        un.addEventListener('click', (function (slot) { return function () { unequipItem(slot); }; })(s));
+        cell.appendChild(un);
       }
       grid.appendChild(cell);
     });
@@ -1931,7 +1954,7 @@
       var act = document.createElement('div');
       act.className = 'it-act';
       var eqBtn = document.createElement('button');
-      eqBtn.textContent = it.slot in S.player.eq ? T('unequip') : T('equip');
+      eqBtn.textContent = T('equip');
       eqBtn.addEventListener('click', function () { toggleEquip(it); });
       var drBtn = document.createElement('button');
       drBtn.textContent = T('drop');
@@ -1944,6 +1967,17 @@
     ovAction = function () { hideInventory(); };
     ovAction2 = function () {};
     showOverlay(T('inventory'), '', div, T('close'));
+  }
+
+  function unequipItem(slot) {
+    var p = S.player;
+    var it = p.eq[slot];
+    if (!it) return;
+    if (p.inv.length >= 24) { mKey('invFull'); return; }
+    p.eq[slot] = null;
+    p.inv.push(it);
+    mKey('unequipped', itemName(it));
+    renderInventory();
   }
 
   function toggleEquip(it) {
@@ -1973,6 +2007,7 @@
 
   // ============ skills panel ============
   function showSkillsPanel() {
+    if (!HAS_DOM) return;
     overlay.dataset.panel = 'skills';
     var div = document.createElement('div');
     div.className = 'inv-scroll';
@@ -2172,6 +2207,8 @@
       return e;
     },
     giveItem: function (slot, rarity) { var it = genItem(S.floor, slot); it.rarity = rarity; S.player.inv.push(it); return it; },
+    pickupOnFloor: function (item) { pickup({ x: 0, y: 0, item: item }); },
+    unequip: function (slot) { unequipItem(slot); },
     equipItem: function (it) { S.player.eq[it.slot] = it; },
     setMode: function (m) { S.mode = m; },
     setRunMode: function (m) { S.player.runMode = m; },

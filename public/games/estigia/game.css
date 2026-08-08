@@ -310,6 +310,23 @@ canvas {
   color: #b3a8c8;
 }
 
+.slot button {
+  margin-top: 4px;
+  border: 1px solid #3a3148;
+  background: #241d30;
+  color: #c9c2d8;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.btn-mini.has-pts {
+  border-color: #ffe18a;
+  color: #ffe18a;
+  font-weight: 600;
+}
+
 .inv-item {
   border: 1px solid #3a3148;
   background: #1c1826;
