@@ -971,6 +971,7 @@
     S.actionsLeft = 1;
     S.dead = false;
     S.aiming = null;
+    S.shopPending = f > 0;
     S.playerTween = null;
     S.pv = null;
     S.fx = [];
@@ -1152,6 +1153,7 @@
       if (HAS_DOM && overlay && !overlay.classList.contains('hidden')) hideOverlay();
     } else if (S.trans.phase === 'in' && k >= 1) {
       S.trans = null;
+      if (S.shopPending) { S.shopPending = false; openShop(); }
       if (HAS_DOM) renderAll();
     }
   }
@@ -2171,6 +2173,95 @@
     renderInventory();
   }
 
+  // ============ tienda de Caronte ============
+  function itemPrice(it, floor) {
+    var base = it.rarity === 'unique' ? 220 : it.rarity === 'rare' ? 90 : it.rarity === 'magic' ? 40 : 14;
+    return base + floor * 15 + (it.affixes.length || 0) * 8;
+  }
+
+  function genShop(floor) {
+    var items = [];
+    var n = 4 + randInt(0, 2);
+    for (var i = 0; i < n; i++) {
+      var it = genItem(floor);
+      it.price = itemPrice(it, floor);
+      items.push(it);
+    }
+    return items;
+  }
+
+  function openShop() {
+    if (!S) return;
+    if (!S.shop || !S.shop.length) S.shop = genShop(S.floor);
+    if (HAS_DOM) showShopOverlay();
+  }
+
+  function buyItem(it) {
+    var p = S.player;
+    if (p.gold < it.price) { mKey('shopNoGold'); return; }
+    p.gold -= it.price;
+    var idx = S.shop.indexOf(it);
+    if (idx >= 0) S.shop.splice(idx, 1);
+    if (!p.eq[it.slot]) {
+      p.eq[it.slot] = it;
+      mKey('bought', itemName(it));
+      mKey('equipped', itemName(it));
+    } else if (p.inv.length >= 24) {
+      p.gold += it.price;
+      mKey('invFull');
+    } else {
+      p.inv.push(it);
+      mKey('bought', itemName(it));
+    }
+    if (HAS_DOM) showShopOverlay();
+  }
+
+  function showShopOverlay() {
+    overlay.dataset.panel = 'shop';
+    var div = document.createElement('div');
+    div.className = 'inv-scroll';
+    var h = document.createElement('div');
+    h.style.fontWeight = 'bold';
+    h.textContent = '⛵ ' + T('shopTitle');
+    div.appendChild(h);
+    var note = document.createElement('div');
+    note.className = 'it-af';
+    note.textContent = T('shopNote');
+    div.appendChild(note);
+    var gold = document.createElement('div');
+    gold.style.margin = '6px 0';
+    gold.textContent = T('gold') + ': ' + S.player.gold;
+    div.appendChild(gold);
+    if (!S.shop.length) {
+      var e = document.createElement('p');
+      e.textContent = T('shopEmpty');
+      div.appendChild(e);
+    }
+    S.shop.forEach(function (it) {
+      var row = document.createElement('div');
+      row.className = 'inv-item';
+      var nm = document.createElement('div');
+      nm.className = 'it-name r-' + it.rarity;
+      nm.textContent = itemName(it);
+      row.appendChild(nm);
+      var dd = document.createElement('div');
+      dd.className = 'it-af';
+      dd.textContent = itemDesc(it);
+      row.appendChild(dd);
+      var act = document.createElement('div');
+      act.className = 'it-act';
+      var buy = document.createElement('button');
+      buy.textContent = T('shopBuy') + ' (' + it.price + ' ⛁)';
+      buy.addEventListener('click', function () { buyItem(it); });
+      act.appendChild(buy);
+      row.appendChild(act);
+      div.appendChild(row);
+    });
+    ovAction = function () { hideOverlay(); renderAll(); };
+    ovAction2 = function () {};
+    showOverlay(T('shopTitle'), '', div, T('shopClose'));
+  }
+
   function toggleEquip(it) {
     var p = S.player;
     var cur = p.eq[it.slot];
@@ -2254,6 +2345,7 @@
       if (!S) { if (k === 'Enter' || k === ' ') ovBtn.click(); return; }
       if (S.mode === 'dead' || S.mode === 'win') { if (k === 'Enter' || k === ' ') ovBtn.click(); return; }
       if (S.mode !== 'playing') return;
+      var ovOpen = HAS_DOM && overlay && !overlay.classList.contains('hidden');
       var dx = 0, dy = 0;
       if (k === 'ArrowUp' || k === 'w') { dx = 0; dy = -1; }
       else if (k === 'ArrowDown' || k === 's') { dx = 0; dy = 1; }
@@ -2261,6 +2353,7 @@
       else if (k === 'ArrowRight' || k === 'd') { dx = 1; dy = 0; }
       if (dx !== 0 || dy !== 0) {
         ev.preventDefault();
+        if (ovOpen) return;
         if (S.aiming) {
           S.aiming.cx = clamp(S.aiming.cx + dx, 0, COLS - 1);
           S.aiming.cy = clamp(S.aiming.cy + dy, 0, ROWS - 1);
@@ -2269,7 +2362,7 @@
         tryMove(dx, dy);
         return;
       }
-      if (k === 'x' || k === 'X' || k === '.') { doWait(); return; }
+      if (k === 'x' || k === 'X' || k === '.') { if (!ovOpen) doWait(); return; }
       if (k === 'i' || k === 'I') { toggleInventory(); return; }
       if (k === 'h' || k === 'H') { showSkillsPanel(); return; }
       if (k === 'Enter' || k === ' ') {
@@ -2279,6 +2372,7 @@
       if (k === 'Escape') { S.aiming = null; togglePause(); return; }
       var n = parseInt(k, 10);
       if (n >= 1 && n <= 9) {
+        if (ovOpen) return;
         var actives = [];
         var c = CLASSES[S.player.cls];
         c.branches.forEach(function (b) {
@@ -2291,6 +2385,7 @@
     if (canvas) {
       canvas.addEventListener('pointerdown', function (ev) {
         if (!S || S.mode !== 'playing') return;
+        if (HAS_DOM && overlay && !overlay.classList.contains('hidden')) return;
         var r = canvas.getBoundingClientRect();
         var tx = Math.floor((ev.clientX - r.left) / r.width * VIEW_W) + camX;
         var ty = Math.floor((ev.clientY - r.top) / r.height * VIEW_H) + camY;
@@ -2322,11 +2417,16 @@
     r.className = 'ov-option';
     r.innerHTML = '<div class="opt-title">' + T('resume') + '</div>';
     r.addEventListener('click', function () { hideOverlay(); renderAll(); });
+    var sh = document.createElement('button');
+    sh.className = 'ov-option';
+    sh.innerHTML = '<div class="opt-title">⛵ ' + T('shop') + '</div>';
+    sh.addEventListener('click', function () { openShop(); });
     var q = document.createElement('button');
     q.className = 'ov-option';
     q.innerHTML = '<div class="opt-title">' + T('quit') + '</div>';
     q.addEventListener('click', function () { saveToLS(); showMenu(); });
     div.appendChild(r);
+    div.appendChild(sh);
     div.appendChild(q);
     ovAction = function () { hideOverlay(); renderAll(); };
     ovAction2 = function () {};
@@ -2401,6 +2501,8 @@
     giveItem: function (slot, rarity) { var it = genItem(S.floor, slot); it.rarity = rarity; S.player.inv.push(it); return it; },
     pickupOnFloor: function (item) { pickup({ x: 0, y: 0, item: item }); },
     unequip: function (slot) { unequipItem(slot); },
+    openShop: function () { openShop(); },
+    buyFromShop: function (i) { if (S && S.shop && S.shop[i]) buyItem(S.shop[i]); },
     equipItem: function (it) { S.player.eq[it.slot] = it; },
     setMode: function (m) { S.mode = m; },
     setRunMode: function (m) { S.player.runMode = m; },
