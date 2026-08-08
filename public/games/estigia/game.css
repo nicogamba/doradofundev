@@ -184,6 +184,15 @@ canvas {
   background: #3a2f16;
 }
 
+.skill-btn.used {
+  animation: skflash 0.45s ease-out;
+}
+
+@keyframes skflash {
+  0% { background: #3a2f16; border-color: #ffe18a; box-shadow: 0 0 8px rgba(255, 225, 138, 0.7); }
+  100% { box-shadow: 0 0 0 rgba(255, 225, 138, 0); }
+}
+
 .skill-btn.learnable {
   border-color: #6bb5ff;
 }

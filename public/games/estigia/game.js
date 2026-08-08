@@ -13,7 +13,8 @@
 
   // ============ constantes ============
   var TILE = 24;
-  var COLS = 19, ROWS = 19;
+  var COLS = 33, ROWS = 33;
+  var VIEW_W = 19, VIEW_H = 19;
   var VIEW = 7;
   var FLOORS = 4;
   var WALL = 0, FLOOR = 1, STAIRS = 2;
@@ -22,7 +23,7 @@
   var META_KEY = 'doradofundev.estigia.meta';
 
   // animación (segundos)
-  var MOVE_DUR = 0.13;
+  var MOVE_DUR = 0.15;
   var LUNGE_DUR = 0.11;
   var NUM_DUR = 0.7;
   var FLASH_DUR = 0.28;
@@ -42,6 +43,12 @@
   var ENEMY_COLORS = {
     shadow: '#241a2e', rat: '#8f7a6b', spectre: '#6fa8e0', harpy: '#5a6a8a',
     gorgon: '#3e8f5a', fury: '#b8393f', minion: '#4a3a5a', cerberus: '#ff9a3a',
+  };
+
+  var BRANCH_COLORS = {
+    power: '#ff6b4a', phalanx: '#9ad8ff', fury: '#ff5a3a',
+    fire: '#ff8c42', bolt: '#ffe18a', control: '#6b9aff',
+    blades: '#e0e0e8', bow: '#8ae86a', speed: '#ffe18a',
   };
 
   // ============ utilidades ============
@@ -147,9 +154,9 @@
   };
 
   var FLOOR_ENEMIES = [
-    { types: ['shadow', 'rat'], count: 3 },
-    { types: ['spectre', 'harpy'], count: 4 },
-    { types: ['gorgon', 'fury'], count: 5 },
+    { types: ['shadow', 'rat'], count: 4 },
+    { types: ['spectre', 'harpy'], count: 5 },
+    { types: ['gorgon', 'fury'], count: 7 },
     { types: ['minion'], count: 2, boss: true },
   ];
 
@@ -288,13 +295,13 @@
     for (var y = 0; y < ROWS; y++) { map[y] = []; for (var x = 0; x < COLS; x++) map[y][x] = WALL; }
     var rooms = [];
     var tries = 0;
-    while (rooms.length < 9 && tries < 400) {
+    while (rooms.length < 12 && tries < 600) {
       tries++;
-      var w = 3 + randInt(0, 5), h = 3 + randInt(0, 4);
+      var w = 4 + randInt(0, 5), h = 4 + randInt(0, 4);
       var x = randInt(1, COLS - w - 2), y = randInt(1, ROWS - h - 2);
       if (roomsOk(rooms, x, y, w, h)) rooms.push({ x: x, y: y, w: w, h: h });
     }
-    if (!rooms.length) rooms.push({ x: 3, y: 3, w: 13, h: 13 });
+    if (!rooms.length) rooms.push({ x: 4, y: 4, w: COLS - 8, h: ROWS - 8 });
     rooms.forEach(function (r) { carve(map, r); });
     for (var i = 1; i < rooms.length; i++) carveCor(map, roomC(rooms[i - 1]), roomC(rooms[i]));
     var start = roomC(rooms[0]);
@@ -785,7 +792,22 @@
     if (ok) {
       if (sk.cost > 0) p.mana -= sk.cost;
       if (sk.type === 'ranged' && sk.shots) { p.mana += 0; }
+      skillUsedFx(id);
       endAction();
+    }
+  }
+
+  function skillUsedFx(id) {
+    if (!HAS_DOM) return;
+    var sk = SKILLS[id];
+    var col = BRANCH_COLORS[sk.branch] || '#ffe18a';
+    var p = S.player;
+    S.skillFx = { id: id, t: 0 };
+    if (sk.type === 'buff') {
+      fxAdd({ type: 'ring', x: p.x, y: p.y, color: col, t: 0, dur: 0.4 });
+      fxNumber(p.x, p.y, T('sk_' + id), col, true);
+    } else if (sk.type !== 'attack') {
+      fxAdd({ type: 'ring', x: p.x, y: p.y, color: col, t: 0, dur: 0.3 });
     }
   }
 
@@ -934,7 +956,7 @@
       p.x = S.gen.start.x;
       p.y = S.gen.start.y;
     }
-    var itemCount = f === 3 ? 0 : 2 + randInt(0, 2);
+    var itemCount = f === 3 ? 0 : 3 + randInt(0, 2);
     for (var i = 0; i < itemCount; i++) {
       var room = pick(S.gen.rooms);
       for (var t = 0; t < 40; t++) {
@@ -1084,8 +1106,8 @@
     canvas = $('game');
     ctx = canvas.getContext('2d');
     var dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = COLS * TILE * dpr;
-    canvas.height = ROWS * TILE * dpr;
+    canvas.width = VIEW_W * TILE * dpr;
+    canvas.height = VIEW_H * TILE * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     hud = $('hud');
     overlay = $('overlay');
@@ -1169,6 +1191,7 @@
     }
     if (S.banner) { S.banner.t += dt; if (S.banner.t >= S.banner.dur) S.banner = null; }
     if (S.shake) { S.shake.t += dt; if (S.shake.t >= S.shake.dur) S.shake = null; }
+    if (S.skillFx) { S.skillFx.t += dt; if (S.skillFx.t >= 0.45) S.skillFx = null; }
     advanceTransition(dt);
     if (S.playerTween) { S.playerTween.t += dt; if (S.playerTween.t >= S.playerTween.dur) S.playerTween = null; }
     var p = S.player;
@@ -1362,6 +1385,14 @@
     var d = p.lastDir;
     var c = CLASSES[p.cls].color;
     var cl = p.cls;
+    var bob = 0;
+    if (S.playerTween) {
+      var k = Math.min(1, S.playerTween.t / S.playerTween.dur);
+      bob = -Math.sin(k * Math.PI) * 2.4;
+    } else {
+      bob = Math.sin(lastFrame / 1000 * 3) * 0.6;
+    }
+    cy += bob;
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath();
     ctx.ellipse(cx, cy + 7.5, 6, 2.4, 0, 0, Math.PI * 2);
@@ -1377,8 +1408,50 @@
       ctx.fill();
       ctx.globalAlpha = 1;
     }
+    drawBuffAura(p, cx, cy);
     drawStatusIcons(p, cx, cy);
     drawHealthBar(p, cx, cy, TILE - 6, p.hp, pMaxHp(), '#ff4a52');
+  }
+
+  function drawBuffAura(p, cx, cy) {
+    var active = [];
+    for (var b in p.buffs) if (p.buffs[b] > 0) active.push(b);
+    if (!active.length) return;
+    var pulse = 0.45 + 0.3 * Math.sin(lastFrame / 1000 * 5);
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#ffe18a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    var ix = cx - ((active.length - 1) * 5);
+    for (var i = 0; i < active.length; i++) {
+      drawBuffIcon(active[i], ix + i * 10, cy - 17);
+    }
+  }
+
+  function drawBuffIcon(b, bx, by) {
+    var col = b === 'berserk' ? '#ff5a3a' : b === 'shield' ? '#9ad8ff' : b === 'haste' ? '#ffe18a' : b === 'shadow' ? '#7a6b9f' : '#8ae86a';
+    ctx.fillStyle = col;
+    if (b === 'shadow') {
+      ctx.beginPath();
+      ctx.arc(bx, by, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (b === 'haste') {
+      ctx.beginPath();
+      ctx.moveTo(bx, by - 2.5);
+      ctx.lineTo(bx + 2.5, by);
+      ctx.lineTo(bx - 2.5, by);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-2, -2, 4, 4);
+      ctx.restore();
+    }
   }
 
   function drawSpartan(cx, cy, d, c) {
@@ -1461,6 +1534,10 @@
 
   function drawEnemySprite(e, x, y) {
     var cx = x * TILE + TILE / 2, cy = y * TILE + TILE / 2;
+    if (e.tween) {
+      var k = Math.min(1, e.tween.t / e.tween.dur);
+      cy -= Math.sin(k * Math.PI) * 1.8;
+    }
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath();
     ctx.ellipse(cx, cy + 7.5, 6, 2.4, 0, 0, Math.PI * 2);
@@ -1686,18 +1763,27 @@
     }
   }
 
+  var camX = 0, camY = 0;
+
+  function updateCam() {
+    camX = clamp(S.player.x - Math.floor(VIEW_W / 2), 0, Math.max(0, COLS - VIEW_W));
+    camY = clamp(S.player.y - Math.floor(VIEW_H / 2), 0, Math.max(0, ROWS - VIEW_H));
+  }
+
   function draw() {
     if (!HAS_DOM || !ctx) return;
     ctx.fillStyle = S && S.mode === 'playing' ? '#0d0b12' : '#16121f';
-    ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
+    ctx.fillRect(0, 0, VIEW_W * TILE, VIEW_H * TILE);
     if (!S || S.mode !== 'playing') return;
-    var shaken = false;
+    updateCam();
+    ctx.save();
+    var ox = 0, oy = 0;
     if (S.shake) {
       var k = 1 - S.shake.t / S.shake.dur;
-      ctx.save();
-      ctx.translate((Math.random() * 2 - 1) * S.shake.amp * k, (Math.random() * 2 - 1) * S.shake.amp * k);
-      shaken = true;
+      ox = (Math.random() * 2 - 1) * S.shake.amp * k;
+      oy = (Math.random() * 2 - 1) * S.shake.amp * k;
     }
+    ctx.translate(ox - camX * TILE, oy - camY * TILE);
     drawTiles();
     for (var i = 0; i < S.floorItems.length; i++) {
       var fi = S.floorItems[i];
@@ -1714,15 +1800,15 @@
     var plf = lungeOffset(S.player);
     drawPlayerSprite(ptp.x + plf.x, ptp.y + plf.y);
     drawFx();
-    if (shaken) ctx.restore();
-    if (S.banner) drawBanner();
-    if (S.trans) drawTransFade();
     if (S.aiming) {
       var ax = S.aiming.cx * TILE, ay = S.aiming.cy * TILE;
       ctx.strokeStyle = '#ffe18a';
       ctx.lineWidth = 2;
       ctx.strokeRect(ax + 2, ay + 2, TILE - 4, TILE - 4);
     }
+    ctx.restore();
+    if (S.banner) drawBanner();
+    if (S.trans) drawTransFade();
   }
 
   function drawBanner() {
@@ -1735,9 +1821,9 @@
     ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'rgba(0,0,0,0.9)';
     ctx.lineWidth = 5;
-    ctx.strokeText(b.text, COLS * TILE / 2, ROWS * TILE / 2 - 40);
+    ctx.strokeText(b.text, VIEW_W * TILE / 2, VIEW_H * TILE / 2 - 40);
     ctx.fillStyle = '#ffe18a';
-    ctx.fillText(b.text, COLS * TILE / 2, ROWS * TILE / 2 - 40);
+    ctx.fillText(b.text, VIEW_W * TILE / 2, VIEW_H * TILE / 2 - 40);
     ctx.globalAlpha = 1;
   }
 
@@ -1746,7 +1832,7 @@
     var k = Math.min(1, tr.t / tr.dur);
     var a = tr.phase === 'out' ? k : 1 - k;
     ctx.fillStyle = 'rgba(8,6,12,' + a.toFixed(3) + ')';
-    ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
+    ctx.fillRect(0, 0, VIEW_W * TILE, VIEW_H * TILE);
   }
 
   function renderHud() {
@@ -1796,13 +1882,17 @@
       BRANCHES[b].order.forEach(function (id) {
         var sk = SKILLS[id];
         if (sk.type === 'passive') return;
-        var lvl = S.player.skills[id] || 0;
-        var btn = document.createElement('button');
-        btn.className = 'skill-btn';
-        btn.innerHTML = '<b>' + T('sk_' + id) + '</b><span class="lvl">' + (lvl ? 'lvl ' + lvl : '—') + ' · ' + sk.cost + ' ' + T('s_mana') + '</span>';
-        if (!lvl) btn.classList.add('off');
-        if (S.player.skillPoints > 0 && canLearn(id)) btn.classList.add('learnable');
-        btn.dataset.skill = id;
+      var lvl = S.player.skills[id] || 0;
+      var btn = document.createElement('button');
+      btn.className = 'skill-btn';
+      var extra = '';
+      if (sk.type === 'buff' && S.player.buffs[sk.buff] > 0) extra = ' · ' + S.player.buffs[sk.buff];
+      btn.innerHTML = '<b>' + T('sk_' + id) + '</b><span class="lvl">' + (lvl ? 'lvl ' + lvl : '—') + ' · ' + sk.cost + ' ' + T('s_mana') + extra + '</span>';
+      if (!lvl) btn.classList.add('off');
+      if (S.player.skillPoints > 0 && canLearn(id)) btn.classList.add('learnable');
+      if (S.aiming && S.aiming.skill === id) btn.classList.add('active');
+      if (S.skillFx && S.skillFx.id === id) btn.classList.add('used');
+      btn.dataset.skill = id;
         if (lvl) {
           btn.addEventListener('click', function () {
             S.aiming = null;
@@ -2202,8 +2292,8 @@
       canvas.addEventListener('pointerdown', function (ev) {
         if (!S || S.mode !== 'playing') return;
         var r = canvas.getBoundingClientRect();
-        var tx = Math.floor((ev.clientX - r.left) / r.width * COLS);
-        var ty = Math.floor((ev.clientY - r.top) / r.height * ROWS);
+        var tx = Math.floor((ev.clientX - r.left) / r.width * VIEW_W) + camX;
+        var ty = Math.floor((ev.clientY - r.top) / r.height * VIEW_H) + camY;
         if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return;
         ev.preventDefault();
         if (S.aiming) {
@@ -2293,6 +2383,7 @@
     canLearn: function (id) { return canLearn(id); },
     tileAt: function (x, y) { return tileAt(x, y); },
     visibleAt: function (x, y) { return tileVisible(x, y); },
+    dims: function () { return { cols: COLS, rows: ROWS, viewW: VIEW_W, viewH: VIEW_H }; },
     calcDerived: function () { return calcDerived(S.player); },
     enemyAt: function (x, y) { return enemyAt(x, y); },
     enemyPhase: function () { enemyPhase(); },

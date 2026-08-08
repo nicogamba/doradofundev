@@ -29,7 +29,9 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 
 ### 3.1 Grid y turnos
 
-- Grid cuadrado de ~19×19 casillas por piso (constante ajustable).
+- Grid de **33×33 casillas** por piso con **cámara que sigue al jugador**
+  (ventana visible de 19×19). El mapa es más grande que la pantalla: hay que
+  explorar. (Constantes ajustables.)
 - Movimiento en 8 direcciones (incluye diagonal). Una acción por turno:
   moverse, atacar, usar habilidad o esperar.
 - Orden del turno: primero el jugador, después los enemigos visibles.
@@ -128,9 +130,10 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 
 ## 7. Balance (constantes ajustables, no fijas)
 
-Grid 19×19, visión 7, 4 pisos, daño = ataque − defensa, rarezas con 1-4
-afijos, 1 punto de habilidad por nivel, XP por enemigo/piso. Todos los números
-se afinan jugando; esta spec no fija valores definitivos.
+Grid 33×33 con cámara (vista 19×19), visión 7, 4 pisos, daño = ataque −
+defensa, rarezas con 1-4 afijos, 1 punto de habilidad por nivel, XP por
+enemigo/piso. Todos los números se afinan jugando; esta spec no fija valores
+definitivos.
 
 ## 8. Pisos (temática griega)
 
