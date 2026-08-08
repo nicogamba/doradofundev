@@ -52,8 +52,14 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 - Daño simple: `daño = ataque del personaje − defensa del enemigo` (mínimo 1).
   Fórmula ajustable, no fija.
 - Críticos y esquivas según stats y habilidades.
-- **Estados de estatus** (veneno/quemadura/aturdido): fase 2 por ahora; las
-  cabezas de Cerbero los sugieren, se decide con el balance.
+- **Estados de estatus (v1):**
+  - **Veneno:** daño por turno durante X turnos.
+  - **Quemadura:** daño extra inmediato (+ daño menor por turno).
+  - **Aturdido/Congelado:** el afectado saltea turnos.
+  - Las **tres cabezas de Cerbero** aplican sus estados (fuego = quemadura,
+    hielo = congelado, veneno = veneno). Los estados también pueden salir de
+    habilidades (p. ej. Hielo de Perséfone ya congela) y de ítems con daño
+    elemental.
 
 ### 3.4 Stats y nivel
 
@@ -70,7 +76,9 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 - **Afijos aleatorios** según rareza (1 a 4): +stat, +% daño, daño elemental,
   +vida/maná, resistencia, velocidad, robo de vida, etc.
 - Se encuentra en cofres, enemigos caídos y el piso; se equipa o se suelta.
-- Sin tienda en el prototipo (futuro: oro y tienda entre pisos).
+- **Tienda de Caronte (v1):** al bajar de piso, el barquero de la Estigia te
+  vende equipo a cambio de oro (ítems generados, con rarezas y precios según
+  el piso). El oro cae de enemigos y cofres y se gasta acá.
 
 ### 3.6 Clases y árboles de habilidades
 
@@ -80,7 +88,8 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 | **Mago de Hecate** | Energía | Magia a distancia | Fuego, Rayo, Control (hielo/atrapar) |
 | **Pícaro de Hermes** | Destreza | Velocidad y crítico | Cuchillas, Arco, Esquiva/Velocidad |
 
-- Cada rama tiene ~4 habilidades; ~10 por clase en el prototipo (ajustable).
+- **9 habilidades por clase** (decidido): 3 ramas × 3 habilidades. Cada rama
+  tiene 1 habilidad de nivel 1 y 2 que se desbloquean con nivel y puntos.
 - Se gasta 1 punto de habilidad por nivel para desbloquear/subir habilidades.
 
 ### 3.7 Modos de juego (se eligen al crear la partida)
@@ -94,6 +103,9 @@ entrada (modo Héroe) o la partida termina (modo Mortal).
 
 - **Récords por clase:** piso alcanzado, enemigos derrotados, jefes vencidos.
 - **Colección/bestiario:** ítems únicos y enemigos descubiertos.
+- **Récords globales (decisión tomada):** cuando exista backend, se suman
+  récords online (top de jugadores). El guardado local se diseña para que
+  luego se pueda enviar sin reescribirlo.
 - Futuro: dificultad extra, gemas/encajes, nuevas clases.
 
 ## 5. Controles
@@ -122,16 +134,40 @@ se afinan jugando; esta spec no fija valores definitivos.
 1. **Puerta del inframundo** — sombras y ratas gigantes. Tutorial implícito.
 2. **Llanura de Asfódelos** — espectros y arpías. Más botín mágico.
 3. **Camino al Tártaro** — gorgonas y furias. Más ítems raros.
-4. **Puertas del Tártaro** — arena del jefe: **Cerbero** (cabeza de veneno,
-   fuego e hielo) + sirvientes.
+4. **Puertas del Tártaro** — arena del jefe: **Cerbero** (cabeza de veneno =
+   veneno, fuego = quemadura, hielo = congelado) + sirvientes.
 
 ## 9. Fuera de alcance (fase 2+)
 
-Tienda/comercio entre pisos, gemas y encajes, estados de estatus, más pisos y
-clases, historia con diálogos, sonido, backend/saves en la nube.
+Gemas y encajes, más pisos y clases, historia con diálogos, sonido, récords
+globales/backend (decidido como futuro).
 
-## 10. Preguntas abiertas
+## 10. Preguntas abiertas y trabajo pendiente
 
-- ¿Oro y tienda entre pisos en v1 o después?
-- ¿Estados de estatus desde v1 (importante para el diseño de Cerbero)?
-- ¿Cantidad de habilidades por clase (10 vs. 15)?
+### Arte y presentación (dirección decidida)
+
+- **Tileset dibujado:** piso, muros, escalera y puertas con textura propia
+  (no rectángulos lisos). Se dibujan por código en canvas, sin archivos
+  externos; más adelante se pueden reemplazar por PNG si hace falta.
+- **Sprites de personajes:** jugador (uno distinto por clase) y enemigos con
+  cuerpo, ojos, armas y detalle, dibujados proceduralmente en canvas
+  (reemplazables por PNG en el futuro).
+- **Fluidez (crítico):** el movimiento actual salta de casilla en casilla y
+  no se entiende. Se implementa **interpolación suave** (lerp) entre casillas
+  para cada acción de movimiento/ataque.
+- **Animaciones mínimas:** parpadeo rojo y números de daño flotantes al
+  golpear, animación de ataque (embestida del que ataca), iconos de estado
+  (veneno, fuego, hielo) sobre el afectado, animación al recoger ítems y al
+  bajar la escalera.
+- **Paleta definida por piso:**
+  1. Piso 1 — **gris pétreo** (muros de piedra del inframundo).
+  2. Piso 2 — **azul espectral** (bruma de la llanura de Asfódelos).
+  3. Piso 3 — **rojo tártaro** (camino al Tártaro).
+  4. Piso 4 — **fuego** (puertas del Tártaro, arena de Cerbero).
+- El tema general se mantiene: inframundo oscuro con acentos por piso.
+
+### Preguntas abiertas restantes
+- **Dificultad y balance:** aún sin ajustar; se afina jugando después de la
+  mejora visual (enemigos, XP, botín).
+- **Tienda de Caronte:** precios y qué ítems vende según piso; oro inicial.
+- **Gemas/encajes:** si entran en una fase 2, cómo interactúan con rarezas.

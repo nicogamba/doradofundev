@@ -160,12 +160,15 @@ Roguelike táctico por turnos (working title). La mazmorra completa es un
 **grid continuo**: cada paso es un turno y los enemigos actúan después de vos,
 como un tablero de ajedrez que se juega contra la IA. Descendés **4 pisos**
 generados al azar con temática de mitología griega hasta el jefe final
-(**Cerbero** en el piso 4). Botín estilo Diablo 2: **raridades** (común,
-mágico, raro, único), **ranuras** (arma, casco, armadura, botas, anillo,
-amuleto) y **afijos aleatorios**. **3 clases** (Espartano, Mago de Hecate,
-Pícaro de Hermes) con **árbol de habilidades**. **2 modos de muerte** elegidos
-al crear la partida: **Héroe** (reaparecés al morir) y **Mortal** (permadeath
-con progreso meta: récords y colección). Persistencia en `localStorage`.
+(**Cerbero** en el piso 4, cuyas tres cabezas aplican veneno/quemadura/
+congelado). Botín estilo Diablo 2: **raridades** (común, mágico, raro, único),
+**ranuras** (arma, casco, armadura, botas, anillo, amuleto), **afijos
+aleatorios** y **tienda de Caronte** entre pisos para gastar el oro.
+**3 clases** (Espartano, Mago de Hecate, Pícaro de Hermes) con árbol de
+**9 habilidades** cada una. **2 modos de muerte** elegidos al crear la partida:
+**Héroe** (reaparecés al morir) y **Mortal** (permadeath con progreso meta:
+récords y colección). Persistencia en `localStorage`. Pendiente: mejora
+visual del juego y ajuste de balance.
 
 **Detalle completo (mecánica, turnos, grid, ítems, clases, balance):**
 → [docs/games/estigia.md](games/estigia.md)
@@ -178,7 +181,10 @@ móvil), Cuadritos (recolección con récord y bonos de tiempo), VoleyAsLife v1
 (simulación de vóley, eliminatoria, stats, minijuego timing), tema oscuro
 responsive, cuatrolocks (tetris con llaves, explosiones, mapa de 10 niveles).
 Estigia v1 en prototipo: 4 pisos procedurales, grid por turnos, 3 clases con
-árboles, botín con rarezas y afijos, modos Héroe/Mortal, jefe Cerbero.
+árboles de 9 habilidades, botín con rarezas y afijos, tienda de Caronte,
+estados de estatus, modos Héroe/Mortal, jefe Cerbero. Pendiente: implementar
+la mejora visual (tileset, sprites, animaciones y fluidez de movimiento,
+paleta por piso) y ajustar el balance.
 
 **Futuro (non-goals por ahora):** inglés completo, power-ups, moneda de gemas
 y canje por bolas/poderes, mapa de niveles, más niveles, miniatura automática,
@@ -207,11 +213,10 @@ gemas y encajes, más pisos y clases, sonido, historia con diálogos.
   `requestFullscreen` en elementos que no sean video; el botón no funcionará
   ahí. Decidir si ocultarlo en iOS o aceptarlo (el juego llena el iframe
   igualmente).
-- **Estigia — oro y tienda:** ¿hay oro y una tienda entre pisos (estilo
-  Diablo 2) o el botín solo se encuentra en la mazmorra? Sin decidir para el
-  prototipo.
-- **Estigia — estados de estatus:** ¿veneno/quemadura/aturdido desde v1 o en
-  fase 2? Cerbero mezcla elementos; se decide con el balance.
+- **Estigia — récords globales:** decidido — cuando exista backend, se suman
+  récords online (top de jugadores); el guardado local se diseña compatible.
+- **Estigia — dificultad y balance:** sin ajustar; se afina jugando después de
+  la mejora visual (enemigos, XP, botín, precios de Caronte).
 - **Estigia — base de datos:** hoy `localStorage` alcanza (partidas y récords
   locales). Si más adelante se quieren récords globales o nube, se suma un
   backend como servicio sin reescribir la web.
