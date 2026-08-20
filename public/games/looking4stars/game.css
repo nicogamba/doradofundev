@@ -112,14 +112,65 @@ canvas {
 }
 
 .legend {
-  max-width: 54ch;
+  max-width: 300px;
+  width: 100%;
   font-size: 0.85rem;
-  color: #9aa2b1;
-  line-height: 1.55;
+  color: #b6bcc8;
+  line-height: 1.4;
   background: rgba(255, 209, 102, 0.06);
   border: 1px solid rgba(255, 209, 102, 0.25);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 0.7rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.legend-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #39404f;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.legend-icon.center {
+  color: #ffd166;
+}
+
+.legend-icon.sides,
+.legend-icon.aliens {
+  color: #7ee787;
+}
+
+.legend-icon.domes {
+  color: #9aa2b1;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 0 1px;
+}
+
+.legend-text {
+  flex: 1;
+  color: #b6bcc8;
 }
 
 .btn {

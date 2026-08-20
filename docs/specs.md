@@ -176,8 +176,9 @@ visual del juego y ajuste de balance.
 ## 6. Alcance actual vs. futuro
 
 **Actual:** catálogo, página de juego, i18n ES/EN (EN incompleto),
-Looking4Stars v1 (vertical, física, 5 agujeros, cúpulas, aliens, 3 niveles,
-móvil), Cuadritos (recolección con récord y bonos de tiempo), VoleyAsLife v1
+Looking4Stars (vertical, física, 5 agujeros, cúpulas, aliens, **mapa de 40
+niveles en 4 mundos**, poderes con existencias, móvil), Cuadritos
+(recolección con récord y bonos de tiempo), VoleyAsLife v1
 (simulación de vóley, eliminatoria, stats, minijuego timing), tema oscuro
 responsive, cuatrolocks (tetris con llaves, explosiones, mapa de 10 niveles).
 Estigia v1 en prototipo: 4 pisos procedurales, grid por turnos, 3 clases con

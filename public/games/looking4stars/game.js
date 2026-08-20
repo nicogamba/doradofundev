@@ -31,6 +31,9 @@
   var COINS_WIN = 10;
   var COINS_STAR = 5;
 
+  // Mapa: mundos de niveles
+  var WORLD_SIZE = 10;
+
   var HOLE_SPECS = [
     { mult: 1, refund: false },
     { mult: 2, refund: false },
@@ -51,6 +54,36 @@
     { id: 8, diff: 'expert', balls: 2, aliens: 5, count: 30, durabilities: [2, 3, 3], strategy: 'strongest', domes: 1.6, holes: 0.8 },
     { id: 9, diff: 'boss', balls: 3, aliens: 5, count: 32, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.4, holes: 0.85, timeLimit: 45 },
     { id: 10, diff: 'master', balls: 2, aliens: 5, count: 34, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.6, holes: 0.75 },
+    { id: 11, diff: 'hard', balls: 3, aliens: 5, count: 34, durabilities: [2, 3, 3], strategy: 'strongest', domes: 1.4, holes: 0.75 },
+    { id: 12, diff: 'hard', balls: 3, aliens: 5, count: 35, durabilities: [2, 3, 3], strategy: 'strongest', domes: 1.5, holes: 0.7 },
+    { id: 13, diff: 'expert', balls: 3, aliens: 5, count: 36, durabilities: [2, 3, 3], strategy: 'strongest', domes: 1.5, holes: 0.68 },
+    { id: 14, diff: 'expert', balls: 2, aliens: 5, count: 36, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.5, holes: 0.68 },
+    { id: 15, diff: 'expert', balls: 2, aliens: 5, count: 37, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.6, holes: 0.65 },
+    { id: 16, diff: 'expert', balls: 2, aliens: 5, count: 38, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.6, holes: 0.62 },
+    { id: 17, diff: 'boss', balls: 2, aliens: 6, count: 38, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.6, holes: 0.62 },
+    { id: 18, diff: 'boss', balls: 2, aliens: 6, count: 39, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.7, holes: 0.6 },
+    { id: 19, diff: 'boss', balls: 2, aliens: 6, count: 39, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.7, holes: 0.58 },
+    { id: 20, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.7, holes: 0.55, timeLimit: 40 },
+    { id: 21, diff: 'expert', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.7, holes: 0.6 },
+    { id: 22, diff: 'expert', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.75, holes: 0.58 },
+    { id: 23, diff: 'expert', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.75, holes: 0.56 },
+    { id: 24, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.8, holes: 0.55 },
+    { id: 25, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.8, holes: 0.53 },
+    { id: 26, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.8, holes: 0.5, timeLimit: 45 },
+    { id: 27, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.85, holes: 0.52 },
+    { id: 28, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.85, holes: 0.5 },
+    { id: 29, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.9, holes: 0.5 },
+    { id: 30, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.9, holes: 0.48, timeLimit: 45 },
+    { id: 31, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.9, holes: 0.5 },
+    { id: 32, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.9, holes: 0.5, timeLimit: 45 },
+    { id: 33, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.95, holes: 0.48 },
+    { id: 34, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 1.95, holes: 0.48, timeLimit: 45 },
+    { id: 35, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.45 },
+    { id: 36, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.45, timeLimit: 40 },
+    { id: 37, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.45 },
+    { id: 38, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.42 },
+    { id: 39, diff: 'master', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.42, timeLimit: 40 },
+    { id: 40, diff: 'boss', balls: 2, aliens: 6, count: 40, durabilities: [3, 3, 3], strategy: 'strongest', domes: 2, holes: 0.4, timeLimit: 45 },
   ];
 
   var COLORS = { 1: '#5cb85c', 2: '#f0ad4e', 3: '#e0503f' };
@@ -87,6 +120,7 @@
   var offsetY = 0;
   var currentOverlayKind = null;
   var steerDir = 0;
+  var worldVisible = 0;
   var lastTime = 0;
 
   var state = {
@@ -334,22 +368,40 @@
     };
   }
 
-  function launchMultiball() {
+  function multiplyMultiball() {
     if (state.mode !== 'playing') return false;
-    if (state.active.length) return false;
-    if (state.balls <= 0) return false;
     if (state.paddle && state.paddle.life > 0) return false;
-    var target = state.lastPointer || { x: LAUNCHER.x, y: H };
-    var dx = target.x - LAUNCHER.x;
-    var dy = target.y - LAUNCHER.y;
-    state.balls--;
-    var base = Math.atan2(dy, dx);
-    for (var i = 0; i < MULTIBALL_COUNT; i++) {
-      var a = base + (i - (MULTIBALL_COUNT - 1) / 2) * MULTIBALL_SPREAD;
-      state.active.push(makeBall(Math.cos(a), Math.sin(a)));
+    if (!state.active.length) return false;
+    var copies = [];
+    for (var i = 0; i < state.active.length; i++) {
+      var b = state.active[i];
+      copies.push(cloneBall(b));
+    }
+    for (var j = 0; j < copies.length; j++) {
+      state.active.push(copies[j]);
     }
     updateHUD();
     return true;
+  }
+
+  function cloneBall(b) {
+    var len = Math.hypot(b.vx, b.vy) || 1;
+    var spread = MULTIBALL_SPREAD * (0.5 + Math.random() * 0.5);
+    var dir = Math.random() < 0.5 ? -1 : 1;
+    var a = Math.atan2(b.vy, b.vx) + dir * spread;
+    return {
+      x: b.x,
+      y: b.y,
+      vx: Math.cos(a) * len,
+      vy: Math.sin(a) * len,
+      r: b.r,
+      flightPoints: b.flightPoints,
+      trail: [],
+      slowTime: 0,
+      time: 0,
+      explosive: b.explosive,
+      exploded: false,
+    };
   }
 
   function consumePower(key) {
@@ -699,7 +751,7 @@
     if (state.mode !== 'playing') return;
     if (state.paddle && state.paddle.life > 0) return;
     if (key === 'multiball') {
-      if (state.powers.multiball > 0 && launchMultiball()) consumePower('multiball');
+      if (state.powers.multiball > 0 && multiplyMultiball()) consumePower('multiball');
     } else if (key === 'explosion') {
       if (state.powers.explosion > 0) {
         state.armed = state.armed === 'explosion' ? null : 'explosion';
@@ -717,6 +769,46 @@
 
   function starsString(n) {
     return '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n);
+  }
+
+  function buildLegend() {
+    ovLegend.innerHTML = '';
+    var dur = document.createElement('div');
+    dur.className = 'legend-item';
+    var di = document.createElement('span');
+    di.className = 'legend-icon durability';
+    ['#5cb85c', '#f0ad4e', '#e0503f'].forEach(function (c) {
+      var dot = document.createElement('span');
+      dot.className = 'legend-dot';
+      dot.style.background = c;
+      di.appendChild(dot);
+    });
+    var dt = document.createElement('span');
+    dt.className = 'legend-text';
+    dt.textContent = t('legendDurability');
+    dur.appendChild(di);
+    dur.appendChild(dt);
+    ovLegend.appendChild(dur);
+
+    var items = [
+      { icon: '↺', cls: 'center', text: t('legendCenter') },
+      { icon: '×2', cls: 'sides', text: t('legendSides') },
+      { icon: '⌒', cls: 'domes', text: t('legendDomes') },
+      { icon: '◉', cls: 'aliens', text: t('legendAliens') },
+    ];
+    items.forEach(function (it) {
+      var li = document.createElement('div');
+      li.className = 'legend-item';
+      var ic = document.createElement('span');
+      ic.className = 'legend-icon ' + it.cls;
+      ic.textContent = it.icon;
+      var tx = document.createElement('span');
+      tx.className = 'legend-text';
+      tx.textContent = it.text;
+      li.appendChild(ic);
+      li.appendChild(tx);
+      ovLegend.appendChild(li);
+    });
   }
 
   function showOverlay(kind, data) {
@@ -741,7 +833,8 @@
     } else if (kind === 'intro') {
       ovTitle.textContent = t('level') + ' ' + (state.levelIndex + 1);
       ovText.textContent = t('hint');
-      ovLegend.textContent = t('legend');
+      ovLegend.textContent = '';
+      buildLegend();
       ovLegend.classList.remove('hidden');
       ovBtn.textContent = t('start');
       ovBtn.onclick = function () {
@@ -860,24 +953,40 @@
     state.armed = null;
     state.active.length = 0;
     state.paddle = null;
+    var target = Math.max(0, Math.min(LEVELS.length - 1, state.unlocked - 1));
+    worldVisible = Math.floor(target / WORLD_SIZE);
     hud.classList.add('hidden');
     hideOverlay();
   }
 
   function mapPath() {
-    var n = LEVELS.length;
+    var start = worldVisible * WORLD_SIZE;
+    var n = Math.min(WORLD_SIZE, LEVELS.length - start);
     var pts = [];
     for (var i = 0; i < n; i++) {
-      var tt = i / (n - 1);
+      var tt = n === 1 ? 0 : i / (n - 1);
       pts.push({
         x: W / 2 + Math.sin(tt * Math.PI * 2.6) * (W * 0.27),
         y: 168 + tt * (H - 300),
+        levelIndex: start + i,
       });
     }
     return pts;
   }
 
   function selectMapNode(x, y) {
+    var worldCount = Math.ceil(LEVELS.length / WORLD_SIZE);
+    var barY = H - 64;
+    if (y > barY - 20 && y < barY + 20) {
+      if (x < W * 0.28) {
+        if (worldVisible > 0) worldVisible--;
+        return;
+      }
+      if (x > W * 0.72) {
+        if (worldVisible < worldCount - 1) worldVisible++;
+        return;
+      }
+    }
     var pts = mapPath();
     var best = -1;
     var bestD = 46;
@@ -886,12 +995,13 @@
       if (d < bestD) { bestD = d; best = i; }
     }
     if (best < 0) return;
-    if (best >= state.unlocked) {
+    var gi = pts[best].levelIndex;
+    if (gi >= state.unlocked) {
       addFloater(pts[best].x, pts[best].y - 30, t('locked'), '#9aa2b1');
       return;
     }
-    state.levelIndex = best;
-    setupLevel(best);
+    state.levelIndex = gi;
+    setupLevel(gi);
     state.mode = 'levelStart';
     hud.classList.remove('hidden');
     showOverlay('levelStart');
@@ -986,9 +1096,10 @@
     // nodos
     for (var j = 0; j < pts.length; j++) {
       var p = pts[j];
-      var locked = j >= state.unlocked;
-      var done = (state.stars[j] || 0) > 0;
-      var isNext = j === state.unlocked - 1;
+      var gi = p.levelIndex;
+      var locked = gi >= state.unlocked;
+      var done = (state.stars[gi] || 0) > 0;
+      var isNext = gi === state.unlocked - 1;
 
       if (isNext && !locked) {
         ctx.strokeStyle = 'rgba(255,209,102,' + (0.5 + 0.4 * Math.sin(now * 4)) + ')';
@@ -1009,7 +1120,7 @@
       ctx.fillStyle = locked ? '#9aa2b1' : '#e8eaf0';
       ctx.font = '700 16px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(String(j + 1), p.x, p.y + 6);
+      ctx.fillText(String(gi + 1), p.x, p.y + 6);
 
       if (locked) {
         ctx.strokeStyle = '#9aa2b1';
@@ -1020,8 +1131,37 @@
       } else if (done) {
         ctx.fillStyle = KEY_GOLD;
         ctx.font = '12px system-ui, sans-serif';
-        ctx.fillText('★'.repeat(state.stars[j]), p.x, p.y + 42);
+        ctx.fillText('★'.repeat(state.stars[gi]), p.x, p.y + 42);
       }
+    }
+
+    // navegación de mundos
+    var worldCount = Math.ceil(LEVELS.length / WORLD_SIZE);
+    var wStart = worldVisible * WORLD_SIZE + 1;
+    var wEnd = Math.min(LEVELS.length, wStart + WORLD_SIZE - 1);
+    var barY = H - 64;
+    ctx.font = '700 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = KEY_GOLD;
+    ctx.fillText('◀', 60, barY + 7);
+    ctx.fillText('▶', W - 60, barY + 7);
+    ctx.fillStyle = '#e8eaf0';
+    ctx.font = '700 16px system-ui, sans-serif';
+    ctx.fillText(t('world') + ' ' + (worldVisible + 1) + '/' + worldCount + ' · ' + wStart + '–' + wEnd, W / 2, barY + 7);
+    if (worldVisible === 0) ctx.fillStyle = '#4a5363';
+    if (worldVisible > 0) {
+      ctx.strokeStyle = 'rgba(255,209,102,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(60, barY + 7, 20, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (worldVisible < worldCount - 1) {
+      ctx.strokeStyle = 'rgba(255,209,102,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(W - 60, barY + 7, 20, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     // hint
@@ -1270,6 +1410,17 @@
     };
   }
 
+  function updateSteerFromPointer(p) {
+    var pd = state.paddle;
+    if (!pd || pd.life <= 0) return;
+    var margin = pd.w / 2 + 8;
+    if (p.x < pd.x - margin) {
+      steerDir = -1;
+    } else if (p.x > pd.x + margin) {
+      steerDir = 1;
+    }
+  }
+
   function onPointerDown(e) {
     if (state.mode === 'map') {
       var mp = toLogical(e);
@@ -1281,7 +1432,7 @@
     var p = toLogical(e);
     state.lastPointer = p;
     if (state.paddle && state.paddle.life > 0) {
-      steerDir = p.x < W * 0.35 ? -1 : p.x > W * 0.65 ? 1 : 0;
+      updateSteerFromPointer(p);
       return;
     }
     launch(p.x, p.y);
@@ -1292,7 +1443,7 @@
     var p = toLogical(e);
     state.lastPointer = p;
     if (state.paddle && state.paddle.life > 0) {
-      steerDir = p.x < W * 0.35 ? -1 : p.x > W * 0.65 ? 1 : 0;
+      updateSteerFromPointer(p);
     }
   }
 

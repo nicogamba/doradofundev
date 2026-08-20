@@ -75,6 +75,11 @@ compran con monedas.
 - **Mapa tipo camino (Angry Birds):** los niveles son nodos en una ruta; se
   **desbloquea el siguiente al ganar el anterior**. Es la pantalla inicial
   del juego (reemplaza al arranque directo en nivel 1).
+- **40 niveles en 4 mundos × 10:** el mapa agrupa los niveles en **4 mundos**
+  de 10. Se navega entre mundos con las **flechas ◀ ▶** (o tocando los
+  costados de la barra inferior). Cada mundo usa el mismo layout de camino.
+  El desbloqueo secuencial cruza los mundos (ganar el nivel 10 desbloquea el
+  11, etc.).
 - **Estrellas por nivel (1-3):**
   - ★ 1: completar el nivel (rescatar todos los aliens).
   - ★★ 2: ganar con al menos 1 bola sin gastar.
@@ -85,21 +90,22 @@ compran con monedas.
   ese poder: comprar 3 multibola da **3 usos**. Las existencias se conservan
   entre niveles y cada uso descuenta 1.
 - **Resultado al perder:** pantalla con "reintentar" y "volver al mapa".
-- **Niveles (10):** progresión de dificultad con asteroides (cantidad y
-  durabilidad), aliens a rescatar, bolas, estrategia de escondite, altura de
-  cúpulas y anchos de agujeros (tabla en §10). El **nivel 9** tiene
-  **regla especial de tiempo limitado** (pierde si se acaba el tiempo aunque
-  le queden bolas).
+- **Progresión:** dificultad creciente con asteroides (cantidad y
+  durabilidad), aliens a rescatar (hasta 6), bolas, estrategia de escondite,
+  altura de cúpulas y anchos de agujeros (tabla en §10). Varios niveles
+  (jefe) tienen **regla especial de tiempo limitado** (pierde si se acaba el
+  tiempo aunque le queden bolas).
 
 ## 8. Poderes
 
-Se activan **antes del lanzamiento** (botón en pantalla); el lanzamiento
-siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
+Se activan desde el **HUD durante la partida** (un botón por poder). Cada
+pulsación consume **una unidad** del poder (las existencias se compran en el
+mapa, ver §7). Solo se pueden activar cuando no hay una tabla activa.
 
-- **Multibola (20 monedas):** el lanzamiento suelta 3 bolas a la vez en
-  abanico. Cada bola tiene su propia física y rebotes; todas suman hacia el
-  objetivo. **Se activa al presionar su botón** (dispara en la dirección
-  apuntada).
+- **Multibola (20 monedas):** **multiplica las bolas en vuelo**. Cada
+  pulsación **duplica las bolas activas** en su posición actual (1 → 2, 3 →
+  6) y gasta 1 unidad. No actúa si no hay ninguna bola en vuelo (no lanza
+  desde el lanzador).
 - **Explosión (30 monedas):** la bola que impacta un asteroide **explota y
   daña todos los asteroides en un radio** (incluido el impactado, -1
   durabilidad a cada uno). El radio se configura en §10. **Se arma al
@@ -107,12 +113,11 @@ siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
 - **Tabla (25 monedas):** aparece una **tabla tipo Arkanoid** flotando sobre
   los agujeros durante unos segundos (~6 s, ancho configurable). Mientras
   dura, la bola que cae **rebota en la tabla y vuelve a subir** (no entra en
-  ningún agujero, no se pierde la bola). Se mueve con las **flechas ← →** o
-  **manteniendo presionado** el costado izquierdo/derecho de la pantalla.
-  **Se activa al presionar su botón.**
+  ningún agujero, no se pierde la bola). **Se activa al presionar su botón.**
+  Se mueve con las **flechas ← →** o **tocando/manteniendo** el costado
+  izquierdo/derecho **relativo a la tabla** (la tabla va hacia el lado del
+  toque).
 - **A futuro:** la tabla se podrá **upgradeear en anchura y tiempo de vida**.
-- Solo se pueden activar cuando hay bolas disponibles y no hay una bola en
-  vuelo.
 
 ## 9. Persistencia e idioma (autonomía del juego)
 
@@ -132,9 +137,11 @@ siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
 - Puntos por golpe de durabilidad.
 - **Monedas:** ganar nivel +10, cada estrella extra +5. Precios: multibola
   20, explosión 30, tabla 25.
-- **Poderes:** multibola 3 bolas en abanico; explosión radio ~60 px;
-  tabla duración ~6 s y ancho ~160 px.
-- **Niveles (10):**
+- **Poderes:** multibola multiplica las bolas en vuelo (duplica cada pulsación);
+  explosión radio ~60 px; tabla duración ~6 s y ancho ~160 px.
+- **Niveles (40, en 4 mundos de 10):** los valores de cúpulas/agujeros son
+  relativos a la base (0% = base, −30% = agujeros más angostos, +100% =
+  cúpulas más altas). Los niveles con "tiempo" tienen límite de tiempo.
 
 | # | Dif | Bolas | Aliens | Asteroides | Durabilidad | Estrategia | Cúpulas | Agujeros | Nota |
 |---|-----|-------|--------|-----------|-------------|-----------|---------|----------|------|
@@ -146,8 +153,38 @@ siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
 | 6 | Difícil | 3 | 4 | 28 | [2,3,3] | fuerte | +40% | −10% | |
 | 7 | Experto | 3 | 4 | 30 | [2,3,3] | fuerte | base | −15% | |
 | 8 | Experto | 2 | 5 | 30 | [2,3,3] | fuerte | +60% | −20% | |
-| 9 | Jefe | 3 | 5 | 32 | [3,3,3] | fuerte | +40% | −15% | **tiempo 45 s** |
+| 9 | Jefe | 3 | 5 | 32 | [3,3,3] | fuerte | +40% | −15% | tiempo 45 s |
 | 10 | Maestro | 2 | 5 | 34 | [3,3,3] | fuerte | +60% | −25% | |
+| 11 | Difícil | 3 | 5 | 34 | [2,3,3] | fuerte | +40% | −25% | |
+| 12 | Difícil | 3 | 5 | 35 | [2,3,3] | fuerte | +50% | −30% | |
+| 13 | Experto | 3 | 5 | 36 | [2,3,3] | fuerte | +50% | −32% | |
+| 14 | Experto | 2 | 5 | 36 | [3,3,3] | fuerte | +50% | −32% | |
+| 15 | Experto | 2 | 5 | 37 | [3,3,3] | fuerte | +60% | −35% | |
+| 16 | Experto | 2 | 5 | 38 | [3,3,3] | fuerte | +60% | −38% | |
+| 17 | Jefe | 2 | 6 | 38 | [3,3,3] | fuerte | +60% | −38% | |
+| 18 | Jefe | 2 | 6 | 39 | [3,3,3] | fuerte | +70% | −40% | |
+| 19 | Jefe | 2 | 6 | 39 | [3,3,3] | fuerte | +70% | −42% | |
+| 20 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +70% | −45% | **tiempo 40 s** |
+| 21 | Experto | 2 | 6 | 40 | [3,3,3] | fuerte | +70% | −40% | |
+| 22 | Experto | 2 | 6 | 40 | [3,3,3] | fuerte | +75% | −42% | |
+| 23 | Experto | 2 | 6 | 40 | [3,3,3] | fuerte | +75% | −44% | |
+| 24 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +80% | −45% | |
+| 25 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +80% | −47% | |
+| 26 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +80% | −50% | tiempo 45 s |
+| 27 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +85% | −48% | |
+| 28 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +85% | −50% | |
+| 29 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +90% | −50% | |
+| 30 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +90% | −52% | **tiempo 45 s** |
+| 31 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +90% | −50% | |
+| 32 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +90% | −50% | tiempo 45 s |
+| 33 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +95% | −52% | |
+| 34 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +95% | −52% | tiempo 45 s |
+| 35 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −55% | |
+| 36 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −55% | tiempo 40 s |
+| 37 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −55% | |
+| 38 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −58% | |
+| 39 | Maestro | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −58% | tiempo 40 s |
+| 40 | Jefe | 2 | 6 | 40 | [3,3,3] | fuerte | +100% | −60% | **tiempo 45 s** |
 
 ## 11. Alcance futuro (non-goals)
 
