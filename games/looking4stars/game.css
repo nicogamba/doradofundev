@@ -48,6 +48,16 @@ canvas {
   color: #f0ad4e !important;
 }
 
+.hud-powers {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.power-hud {
+  pointer-events: auto;
+}
+
 .btn-mini {
   background: #2a303d;
   color: #e8eaf0;
