@@ -70,7 +70,7 @@
   var hudAliens = document.getElementById('hud-aliens');
   var hudCoins = document.getElementById('hud-coins');
   var hudTime = document.getElementById('hud-time');
-  var hudPower = document.getElementById('hud-power');
+  var hudPowers = document.getElementById('hud-powers');
   var hudMap = document.getElementById('hud-map');
   var overlay = document.getElementById('overlay');
   var ovTitle = document.getElementById('ov-title');
@@ -96,7 +96,7 @@
     unlocked: 1,
     coins: 0,
     stars: [],
-    carried: null,
+    powers: { multiball: 0, explosion: 0, paddle: 0 },
     armed: null,
     balls: 0,
     aliensFound: 0,
@@ -174,6 +174,20 @@
       state.unlocked = Math.min(LEVELS.length, Math.max(1, data.unlocked || 1));
       if (Array.isArray(data.stars)) state.stars = data.stars.slice(0, LEVELS.length);
       else state.stars = [];
+      var counts = { multiball: 0, explosion: 0, paddle: 0 };
+      var p = data.powers;
+      if (p && typeof p === 'object') {
+        POWER_KEYS.forEach(function (k) {
+          var n = parseInt(p[k], 10);
+          if (n > 0) counts[k] = n;
+        });
+      }
+      if (Array.isArray(data.owned)) {
+        data.owned.forEach(function (k) {
+          if (POWER_KEYS.indexOf(k) >= 0) counts[k]++;
+        });
+      }
+      state.powers = counts;
     } catch (e) {
       // corrupción: empezar de cero
     }
@@ -189,6 +203,7 @@
           unlocked: state.unlocked,
           coins: state.coins,
           stars: state.stars,
+          powers: state.powers,
         }),
       );
     } catch (e) {
@@ -319,6 +334,29 @@
     };
   }
 
+  function launchMultiball() {
+    if (state.mode !== 'playing') return false;
+    if (state.active.length) return false;
+    if (state.balls <= 0) return false;
+    if (state.paddle && state.paddle.life > 0) return false;
+    var target = state.lastPointer || { x: LAUNCHER.x, y: H };
+    var dx = target.x - LAUNCHER.x;
+    var dy = target.y - LAUNCHER.y;
+    state.balls--;
+    var base = Math.atan2(dy, dx);
+    for (var i = 0; i < MULTIBALL_COUNT; i++) {
+      var a = base + (i - (MULTIBALL_COUNT - 1) / 2) * MULTIBALL_SPREAD;
+      state.active.push(makeBall(Math.cos(a), Math.sin(a)));
+    }
+    updateHUD();
+    return true;
+  }
+
+  function consumePower(key) {
+    if (state.powers[key] > 0) state.powers[key]--;
+    save();
+  }
+
   function launch(px, py) {
     if (state.mode !== 'playing') return;
     if (state.active.length) return;
@@ -329,20 +367,12 @@
     var dy = py - LAUNCHER.y;
     state.balls--;
 
-    if (state.armed === 'multiball') {
+    if (state.armed === 'explosion') {
       state.armed = null;
-      state.carried = null;
-      var base = Math.atan2(dy, dx);
-      for (var i = 0; i < MULTIBALL_COUNT; i++) {
-        var a = base + (i - (MULTIBALL_COUNT - 1) / 2) * MULTIBALL_SPREAD;
-        state.active.push(makeBall(Math.cos(a), Math.sin(a)));
-      }
-    } else if (state.armed === 'explosion') {
-      state.armed = null;
-      state.carried = null;
       var eb = makeBall(dx, dy);
       eb.explosive = true;
       state.active.push(eb);
+      consumePower('explosion');
     } else {
       state.active.push(makeBall(dx, dy));
     }
@@ -518,7 +548,6 @@
     if (state.levelIndex + 1 >= state.unlocked) {
       state.unlocked = Math.min(LEVELS.length, state.levelIndex + 2);
     }
-    state.carried = null;
     state.armed = null;
     state.active.length = 0;
     save();
@@ -538,7 +567,6 @@
 
   function activatePaddle() {
     state.paddle = { x: W / 2, w: PADDLE_W, life: PADDLE_TIME };
-    state.carried = null;
     state.armed = null;
     updateHUD();
   }
@@ -637,13 +665,52 @@
     } else {
       hudTime.classList.add('hidden');
     }
-    if (state.carried) {
-      hudPower.classList.remove('hidden');
-      hudPower.textContent = state.armed ? '✓ ' + t(state.carried) : t(state.carried);
-      hudPower.classList.toggle('armed', !!state.armed);
-    } else {
-      hudPower.classList.add('hidden');
+    buildHudPowers();
+  }
+
+  function buildHudPowers() {
+    hudPowers.innerHTML = '';
+    var ownedAny = POWER_KEYS.some(function (k) { return state.powers[k] > 0; });
+    if (!ownedAny) {
+      hudPowers.classList.add('hidden');
+      return;
     }
+    hudPowers.classList.remove('hidden');
+    POWER_KEYS.forEach(function (key) {
+      var count = state.powers[key];
+      if (count <= 0) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-mini power-hud';
+      var label = t(key) + ' ×' + count;
+      if (key === 'explosion' && state.armed === 'explosion') {
+        btn.classList.add('armed');
+        label = '✓ ' + label;
+      }
+      btn.textContent = label;
+      btn.addEventListener('click', function () {
+        onPowerPress(key);
+      });
+      hudPowers.appendChild(btn);
+    });
+  }
+
+  function onPowerPress(key) {
+    if (state.mode !== 'playing') return;
+    if (state.paddle && state.paddle.life > 0) return;
+    if (key === 'multiball') {
+      if (state.powers.multiball > 0 && launchMultiball()) consumePower('multiball');
+    } else if (key === 'explosion') {
+      if (state.powers.explosion > 0) {
+        state.armed = state.armed === 'explosion' ? null : 'explosion';
+      }
+    } else if (key === 'paddle') {
+      if (state.powers.paddle > 0) {
+        activatePaddle();
+        consumePower('paddle');
+      }
+    }
+    updateHUD();
   }
 
   // ---------- Overlay ----------
@@ -743,22 +810,22 @@
       desc.textContent = t(key + 'Desc');
       var priceEl = document.createElement('span');
       priceEl.className = 'power-price';
+      var count = state.powers[key];
       var canAfford = state.coins >= price;
-      if (state.carried === key) {
+      if (count > 0) {
         btn.classList.add('equipped');
-        priceEl.textContent = '✓ ' + t('equipped');
+        priceEl.textContent = count + ' · ' + price + ' ●';
       } else {
         priceEl.textContent = canAfford ? price + ' ●' : t('notEnough');
       }
       btn.appendChild(name);
       btn.appendChild(desc);
       btn.appendChild(priceEl);
-      if (state.carried && state.carried !== key) btn.disabled = true;
-      if (state.carried !== key && !canAfford) btn.disabled = true;
+      if (!canAfford) btn.disabled = true;
       if (!btn.disabled) {
         btn.addEventListener('click', function () {
           state.coins -= price;
-          state.carried = key;
+          state.powers[key]++;
           save();
           buildPowerShop();
         });
@@ -790,7 +857,6 @@
 
   function showMap() {
     state.mode = 'map';
-    state.carried = null;
     state.armed = null;
     state.active.length = 0;
     state.paddle = null;
@@ -1249,20 +1315,6 @@
         e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
       if (steerDir === (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' ? -1 : 1)) steerDir = 0;
     }
-  });
-
-  hudPower.addEventListener('click', function () {
-    if (state.mode !== 'playing') return;
-    if (!state.carried) return;
-    if (state.paddle && state.paddle.life > 0) return;
-    if (state.armed) {
-      state.armed = null;
-    } else if (state.carried === 'paddle') {
-      activatePaddle();
-    } else {
-      state.armed = state.carried;
-    }
-    updateHUD();
   });
 
   hudMap.addEventListener('click', function () {

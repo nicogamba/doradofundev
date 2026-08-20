@@ -81,8 +81,9 @@ compran con monedas.
   - ★★★ 3: ganar con al menos 2 bolas sin gastar.
   - El total de estrellas acumuladas se muestra en el mapa.
 - **Tienda de poderes en el mapa:** antes de empezar un nivel podés comprar
-  poderes con monedas (precios en §10). El poder comprado se consume al
-  activarse durante ese nivel; no se acumulan entre niveles.
+  poderes con monedas (precios en §10). Cada compra agrega **una unidad** de
+  ese poder: comprar 3 multibola da **3 usos**. Las existencias se conservan
+  entre niveles y cada uso descuenta 1.
 - **Resultado al perder:** pantalla con "reintentar" y "volver al mapa".
 - **Niveles (10):** progresión de dificultad con asteroides (cantidad y
   durabilidad), aliens a rescatar, bolas, estrategia de escondite, altura de
@@ -97,16 +98,19 @@ siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
 
 - **Multibola (20 monedas):** el lanzamiento suelta 3 bolas a la vez en
   abanico. Cada bola tiene su propia física y rebotes; todas suman hacia el
-  objetivo.
+  objetivo. **Se activa al presionar su botón** (dispara en la dirección
+  apuntada).
 - **Explosión (30 monedas):** la bola que impacta un asteroide **explota y
   daña todos los asteroides en un radio** (incluido el impactado, -1
-  durabilidad a cada uno). El radio se configura en §10.
+  durabilidad a cada uno). El radio se configura en §10. **Se arma al
+  presionar su botón** y se consume al lanzar.
 - **Tabla (25 monedas):** aparece una **tabla tipo Arkanoid** flotando sobre
   los agujeros durante unos segundos (~6 s, ancho configurable). Mientras
   dura, la bola que cae **rebota en la tabla y vuelve a subir** (no entra en
   ningún agujero, no se pierde la bola). Se mueve con las **flechas ← →** o
   **manteniendo presionado** el costado izquierdo/derecho de la pantalla.
-- **A futuro:** la tabla se podrá **upgradear en anchura y tiempo de vida**.
+  **Se activa al presionar su botón.**
+- **A futuro:** la tabla se podrá **upgradeear en anchura y tiempo de vida**.
 - Solo se pueden activar cuando hay bolas disponibles y no hay una bola en
   vuelo.
 
@@ -115,7 +119,8 @@ siguiente usa el poder. Se compran con monedas y se consumen al usarlos.
 - Cada juego es autónomo: este juego guarda su progreso bajo el prefijo
   `doradofundev.looking4stars.` en `localStorage`:
   - `level` (nivel desbloqueado), `stars` (estrellas por nivel), `coins`
-    (monedas), `score` (puntuación general/récord).
+    (monedas), `score` (puntuación general/récord), `powers` (existencias de
+    cada poder comprado, se conservan entre niveles).
   - La web solo guarda el idioma (`doradofundev.lang`).
 - El juego traduce sus propios textos con un diccionario propio
   (`i18n.js`, ES completo y EN completo) y reacciona a cambios de idioma en
