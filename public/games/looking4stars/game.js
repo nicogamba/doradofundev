@@ -17,7 +17,7 @@
 
   // Poderes
   var POWER_KEYS = ['multiball', 'explosion', 'paddle'];
-  var POWER_PRICES = { multiball: 20, explosion: 30, paddle: 25 };
+  var POWER_PRICES = { multiball: 300, explosion: 450, paddle: 375 };
   var MULTIBALL_COUNT = 3;
   var MULTIBALL_SPREAD = 0.16;
   var EXPLOSION_R = 64;
@@ -26,10 +26,6 @@
   var PADDLE_Y = H - 64;
   var PADDLE_TIME = 6;
   var PADDLE_SPEED = 380;
-
-  // Monedas
-  var COINS_WIN = 10;
-  var COINS_STAR = 5;
 
   // Mapa: mundos de niveles
   var WORLD_SIZE = 10;
@@ -101,7 +97,6 @@
   var hudScore = document.getElementById('hud-score');
   var hudBalls = document.getElementById('hud-balls');
   var hudAliens = document.getElementById('hud-aliens');
-  var hudCoins = document.getElementById('hud-coins');
   var hudTime = document.getElementById('hud-time');
   var hudPowers = document.getElementById('hud-powers');
   var hudMap = document.getElementById('hud-map');
@@ -127,8 +122,8 @@
     mode: 'map',
     levelIndex: 0,
     score: 0,
+    scoreAtStart: 0,
     unlocked: 1,
-    coins: 0,
     stars: [],
     powers: { multiball: 0, explosion: 0, paddle: 0 },
     armed: null,
@@ -204,7 +199,6 @@
       if (!raw) return;
       var data = JSON.parse(raw);
       state.score = typeof data.score === 'number' ? data.score : 0;
-      state.coins = typeof data.coins === 'number' ? data.coins : 0;
       state.unlocked = Math.min(LEVELS.length, Math.max(1, data.unlocked || 1));
       if (Array.isArray(data.stars)) state.stars = data.stars.slice(0, LEVELS.length);
       else state.stars = [];
@@ -235,7 +229,6 @@
           score: state.score,
           level: state.levelIndex + 1,
           unlocked: state.unlocked,
-          coins: state.coins,
           stars: state.stars,
           powers: state.powers,
         }),
@@ -254,6 +247,7 @@
   function setupLevel(levelIndex) {
     var cfg = LEVELS[levelIndex];
     state.levelIndex = levelIndex;
+    state.scoreAtStart = state.score;
     state.holes = buildHoles(cfg.holes);
     state.domes = buildDomes(state.holes, cfg.domes);
     state.balls = cfg.balls;
@@ -595,8 +589,7 @@
     var stars = ballsLeft >= 2 ? 3 : ballsLeft >= 1 ? 2 : 1;
     var prev = state.stars[state.levelIndex] || 0;
     if (stars > prev) state.stars[state.levelIndex] = stars;
-    var earned = COINS_WIN + (stars - 1) * COINS_STAR;
-    state.coins += earned;
+    var levelScore = state.score - state.scoreAtStart;
     if (state.levelIndex + 1 >= state.unlocked) {
       state.unlocked = Math.min(LEVELS.length, state.levelIndex + 2);
     }
@@ -604,7 +597,7 @@
     state.active.length = 0;
     save();
     var last = state.levelIndex === LEVELS.length - 1;
-    showOverlay(last ? 'winAll' : 'won', { stars: stars, earned: earned });
+    showOverlay(last ? 'winAll' : 'won', { stars: stars, levelScore: levelScore });
   }
 
   function loseLevel(reason) {
@@ -709,7 +702,6 @@
     hudScore.textContent = t('points') + ' ' + state.score;
     hudBalls.textContent = t('balls') + ' ' + state.balls;
     hudAliens.textContent = t('aliens') + ' ' + state.aliensFound + '/' + state.aliensTotal;
-    hudCoins.textContent = '● ' + state.coins;
     if (state.timeLimit > 0) {
       hudTime.classList.remove('hidden');
       hudTime.textContent = t('time') + ' ' + Math.ceil(Math.max(0, state.timeLeft));
@@ -847,7 +839,7 @@
       ovText.textContent =
         t('found') + ' ' + state.aliensFound + '/' + state.aliensTotal + ' · ' +
         t('starsEarned') + ' ' + starsString(data.stars) + ' · ' +
-        t('coinsEarned') + ' +' + data.earned;
+        t('levelScore') + ' +' + data.levelScore;
       if (kind === 'winAll') {
         ovBtn.textContent = t('backMap');
         ovBtn.onclick = showMap;
@@ -890,6 +882,10 @@
     hint.className = 'power-desc';
     hint.textContent = t('choosePower');
     ovPowers.appendChild(hint);
+    var balance = document.createElement('div');
+    balance.className = 'power-balance';
+    balance.textContent = t('points') + ': ' + state.score;
+    ovPowers.appendChild(balance);
     POWER_KEYS.forEach(function (key) {
       var price = POWER_PRICES[key];
       var btn = document.createElement('button');
@@ -904,12 +900,12 @@
       var priceEl = document.createElement('span');
       priceEl.className = 'power-price';
       var count = state.powers[key];
-      var canAfford = state.coins >= price;
+      var canAfford = state.score >= price;
       if (count > 0) {
         btn.classList.add('equipped');
-        priceEl.textContent = count + ' · ' + price + ' ●';
+        priceEl.textContent = count + ' · ' + price + ' pts';
       } else {
-        priceEl.textContent = canAfford ? price + ' ●' : t('notEnough');
+        priceEl.textContent = canAfford ? price + ' pts' : t('notEnough');
       }
       btn.appendChild(name);
       btn.appendChild(desc);
@@ -917,7 +913,7 @@
       if (!canAfford) btn.disabled = true;
       if (!btn.disabled) {
         btn.addEventListener('click', function () {
-          state.coins -= price;
+          state.score -= price;
           state.powers[key]++;
           save();
           buildPowerShop();
@@ -939,7 +935,7 @@
       var d = state.lastOverlayData || {};
       if (currentOverlayKind === 'levelStart') showOverlay('levelStart');
       else if (currentOverlayKind === 'intro') showOverlay('intro');
-      else if (currentOverlayKind === 'won' || currentOverlayKind === 'winAll') showOverlay(currentOverlayKind, { stars: d.stars || 1, earned: d.earned || 0 });
+      else if (currentOverlayKind === 'won' || currentOverlayKind === 'winAll') showOverlay(currentOverlayKind, { stars: d.stars || 1, levelScore: d.levelScore || 0 });
       else if (currentOverlayKind === 'lost') showOverlay('lost', { reason: d.reason || 'balls' });
       return;
     }
@@ -1073,7 +1069,7 @@
     ctx.fillStyle = '#e8eaf0';
     ctx.fillText('Looking4Stars', W / 2, 84);
 
-    // monedas (arriba derecha)
+    // puntos (arriba derecha)
     ctx.font = '700 16px system-ui, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillStyle = KEY_GOLD;
@@ -1085,7 +1081,7 @@
     ctx.arc(W - 74, 48, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = KEY_GOLD;
-    ctx.fillText(String(state.coins), W - 54, 54);
+    ctx.fillText(String(state.score) + ' pts', W - 54, 54);
 
     // estrellas totales (arriba izquierda)
     ctx.textAlign = 'left';

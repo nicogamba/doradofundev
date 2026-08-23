@@ -12,7 +12,7 @@ bolas desde un lanzador fijo arriba para destruir asteroides y rescatar a los
 aliens que están atrapados dentro de ellos, antes de quedarse sin bolas.
 Mecánica original: no usa assets ni nombres de terceros.
 Los niveles se eligen desde un **mapa** con estrellas, y los **poderes** se
-compran con monedas.
+compran con el puntaje acumulado.
 
 ## 2. Mecánica base
 
@@ -47,16 +47,16 @@ compran con monedas.
   gravedad, rebotes y un resguardo anti-atasco que la envía al agujero más
   cercano).
 
-## 5. Puntuación y monedas
+## 5. Puntuación (moneda del juego)
 
 - Los puntos que acumuló la bola en vuelo (asteroides destruidos) se
   multiplican por el factor del agujero (×1 o ×2) y se suman a la
   **puntuación general**, que se acumula entre niveles.
-- **Monedas** (economía del juego, ver §7):
-  - **Ganar un nivel:** +10 monedas.
-  - **Cada estrella extra:** +5 monedas (3 estrellas = +15).
-  - Se muestran en el mapa y en el HUD del nivel.
-- La puntuación general se guarda y se muestra como récord en el mapa.
+- **La puntuación general es la moneda del juego** (ver §7): se gasta en la
+  tienda de poderes (cada compra descuenta del total). Es el único recurso.
+- Se muestra en el mapa (arriba derecha) y en el HUD del nivel.
+- Al ganar, el overlay muestra el **puntaje del nivel** (lo ganado en esa
+  partida). No hay bonos fijos por ganar ni por estrellas.
 
 ## 6. Aliens y objetivo
 
@@ -70,7 +70,7 @@ compran con monedas.
   bolas sin haber rescatado a todos los aliens (o se agota el tiempo).
 - Al reintentar, los aliens se re-posicionan en otros asteroides (aleatorio).
 
-## 7. Mapa de niveles, estrellas y monedas
+## 7. Mapa de niveles, estrellas y puntaje
 
 - **Mapa tipo camino (Angry Birds):** los niveles son nodos en una ruta; se
   **desbloquea el siguiente al ganar el anterior**. Es la pantalla inicial
@@ -86,9 +86,10 @@ compran con monedas.
   - ★★★ 3: ganar con al menos 2 bolas sin gastar.
   - El total de estrellas acumuladas se muestra en el mapa.
 - **Tienda de poderes en el mapa:** antes de empezar un nivel podés comprar
-  poderes con monedas (precios en §10). Cada compra agrega **una unidad** de
-  ese poder: comprar 3 multibola da **3 usos**. Las existencias se conservan
-  entre niveles y cada uso descuenta 1.
+  poderes con el **puntaje acumulado** (precios en §10; el saldo se muestra
+  arriba de la tienda). Cada compra agrega **una unidad** de ese poder:
+  comprar 3 multibola da **3 usos**. Las existencias se conservan entre
+  niveles y cada uso descuenta 1.
 - **Resultado al perder:** pantalla con "reintentar" y "volver al mapa".
 - **Progresión:** dificultad creciente con asteroides (cantidad y
   durabilidad), aliens a rescatar (hasta 6), bolas, estrategia de escondite,
@@ -102,15 +103,15 @@ Se activan desde el **HUD durante la partida** (un botón por poder). Cada
 pulsación consume **una unidad** del poder (las existencias se compran en el
 mapa, ver §7). Solo se pueden activar cuando no hay una tabla activa.
 
-- **Multibola (20 monedas):** **multiplica las bolas en vuelo**. Cada
+- **Multibola (300 pts):** **multiplica las bolas en vuelo**. Cada
   pulsación **duplica las bolas activas** en su posición actual (1 → 2, 3 →
   6) y gasta 1 unidad. No actúa si no hay ninguna bola en vuelo (no lanza
   desde el lanzador).
-- **Explosión (30 monedas):** la bola que impacta un asteroide **explota y
+- **Explosión (450 pts):** la bola que impacta un asteroide **explota y
   daña todos los asteroides en un radio** (incluido el impactado, -1
   durabilidad a cada uno). El radio se configura en §10. **Se arma al
   presionar su botón** y se consume al lanzar.
-- **Tabla (25 monedas):** aparece una **tabla tipo Arkanoid** flotando sobre
+- **Tabla (375 pts):** aparece una **tabla tipo Arkanoid** flotando sobre
   los agujeros durante unos segundos (~6 s, ancho configurable). Mientras
   dura, la bola que cae **rebota en la tabla y vuelve a subir** (no entra en
   ningún agujero, no se pierde la bola). **Se activa al presionar su botón.**
@@ -123,9 +124,9 @@ mapa, ver §7). Solo se pueden activar cuando no hay una tabla activa.
 
 - Cada juego es autónomo: este juego guarda su progreso bajo el prefijo
   `doradofundev.looking4stars.` en `localStorage`:
-  - `level` (nivel desbloqueado), `stars` (estrellas por nivel), `coins`
-    (monedas), `score` (puntuación general/récord), `powers` (existencias de
-    cada poder comprado, se conservan entre niveles).
+  - `level` (nivel desbloqueado), `stars` (estrellas por nivel),
+    `score` (puntuación general, que es la moneda del juego), `powers`
+    (existencias de cada poder comprado, se conservan entre niveles).
   - La web solo guarda el idioma (`doradofundev.lang`).
 - El juego traduce sus propios textos con un diccionario propio
   (`i18n.js`, ES completo y EN completo) y reacciona a cambios de idioma en
@@ -135,8 +136,7 @@ mapa, ver §7). Solo se pueden activar cuando no hay una tabla activa.
 
 - Velocidad de lanzamiento, gravedad, amortiguación de rebotes.
 - Puntos por golpe de durabilidad.
-- **Monedas:** ganar nivel +10, cada estrella extra +5. Precios: multibola
-  20, explosión 30, tabla 25.
+- **Precios (en puntaje):** multibola 300, explosión 450, tabla 375.
 - **Poderes:** multibola multiplica las bolas en vuelo (duplica cada pulsación);
   explosión radio ~60 px; tabla duración ~6 s y ancho ~160 px.
 - **Niveles (40, en 4 mundos de 10):** los valores de cúpulas/agujeros son

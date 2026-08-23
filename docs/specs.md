@@ -25,9 +25,9 @@ elige uno y lo juega a pantalla completa.
 3. **Selector de idioma:** ES (completo) y EN (por ahora incompleto, se
    traduce después). El idioma elegido se guarda en `localStorage`.
 4. **Juego principal — Looking4Stars:** juego de habilidad 2D, original
-   (ver sección 5.2). **Mapa de 10 niveles** con estrellas y desbloqueo
-   progresivo, **poderes** (multibola, explosión, tabla) que se compran con
-   **monedas**. Ver `docs/games/looking4stars.md`.
+   (ver sección 5.2). **Mapa de 40 niveles en 4 mundos** con estrellas y
+   desbloqueo progresivo, **poderes** (multibola, explosión, tabla) que se
+   compran con el **puntaje acumulado**. Ver `docs/games/looking4stars.md`.
 5. **Juego 2 — Cuadritos:** juego de recolección simple (se mueve con
    flechas). Se mantiene como juego propio del catálogo con: pantalla
    ajustada al marco (formato horizontal sin barras de desplazamiento),
@@ -118,8 +118,8 @@ Juego principal del catálogo: 2D de puntería con física, vertical y
 mobile-first. El jugador lanza bolas para destruir asteroides y rescatar a los
 aliens escondidos, antes de quedarse sin bolas. Incluye 5 agujeros con
 multiplicadores (el central devuelve la bola), cúpulas semi-elípticas entre
-agujeros, **mapa de 10 niveles** con estrellas y **poderes** (multibola,
-explosión, tabla) que se compran con **monedas**.
+agujeros, **mapa de 40 niveles en 4 mundos** con estrellas y **poderes**
+(multibola, explosión, tabla) que se compran con el **puntaje acumulado**.
 
 **Detalle completo (mecánica, balance, niveles):**
 → [docs/games/looking4stars.md](games/looking4stars.md)
