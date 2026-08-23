@@ -40,10 +40,6 @@ canvas {
   color: #ffd166;
 }
 
-.hud-coin {
-  color: #ffd166 !important;
-}
-
 .hud-time {
   color: #f0ad4e !important;
 }
@@ -219,6 +215,13 @@ canvas {
   flex-direction: column;
   gap: 0.6rem;
   width: min(92vw, 340px);
+}
+
+.power-balance {
+  font-weight: 700;
+  color: #ffd166;
+  text-align: center;
+  padding: 0.1rem 0;
 }
 
 .power-btn {
